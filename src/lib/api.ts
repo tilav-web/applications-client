@@ -36,7 +36,83 @@ export const applicationsApi = {
     );
     return res.data;
   },
+  getStatistics: async (params?: { period?: string; startDate?: string; endDate?: string }) => {
+    const res = await apiClient.get<DashboardStatistics>('/applications/statistics', { params });
+    return res.data;
+  },
 };
+
+export interface DashboardStatistics {
+  period: string;
+  startDate: string;
+  endDate: string;
+  summary: {
+    totalApplications: number;
+    newApplications: number;
+    inProgressApplications: number;
+    resolvedApplications: number;
+    rejectedApplications: number;
+    totalLoss: number;
+    resolvedLoss: number;
+    avgLoss: number;
+    maxLoss: number;
+    resolutionRate: number;
+    comparison: {
+      totalPercentChange: number;
+      lossPercentChange: number;
+    };
+  };
+  timeline: Array<{
+    date: string;
+    label: string;
+    total: number;
+    resolved: number;
+    in_progress: number;
+    new: number;
+    loss: number;
+  }>;
+  byStatus: Array<{
+    status: string;
+    label: string;
+    count: number;
+    percent: number;
+    color: string;
+  }>;
+  byDistrict: Array<{
+    id: string;
+    name: string;
+    code: string | null;
+    count: number;
+    percent: number;
+    totalLoss: number;
+  }>;
+  byCrime: Array<{
+    id: string;
+    article: string;
+    title: string | null;
+    gravity: string | null;
+    count: number;
+    percent: number;
+  }>;
+  byPaymentProvider: Array<{
+    name: string;
+    count: number;
+    totalAmount: number;
+    percent: number;
+  }>;
+  recentApplications: Array<{
+    id: string;
+    application_number: string | null;
+    title: string | null;
+    status: string | null;
+    date: string | null;
+    created_at: string;
+    citizen_name: string | null;
+    district_name: string | null;
+    crime_article: string | null;
+    amount: number | null;
+  }>;
+}
 
 // 2. Citizens API
 export const citizensApi = {
