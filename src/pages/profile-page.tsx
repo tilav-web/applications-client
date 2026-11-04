@@ -4,14 +4,12 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  HardDrive,
   KeyRound,
   Loader2,
   Lock,
   Phone,
   RefreshCw,
   Save,
-  ShieldCheck,
   User,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
@@ -58,7 +56,7 @@ function PersonalInfoForm({ user, onSuccess }: ProfileEditProps) {
       // Backend /auth/me ga PATCH yuboramiz
       const { data } = await apiClient.patch<AuthUser>('/auth/me', payload);
       onSuccess(data);
-      setSuccessMsg("Shaxsiy ma'lumotlar muvaffaqiyatli yangilandi va Redis keshiga yozildi!");
+      setSuccessMsg("Shaxsiy ma'lumotlar muvaffaqiyatli saqlandi!");
     } catch (err: unknown) {
       if (
         typeof err === 'object' &&
@@ -478,10 +476,9 @@ export function ProfilePage() {
 
       {/* Tabs for Profile Editing */}
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full sm:max-w-xl mb-4">
-          <TabsTrigger value="personal">Shaxsiy Ma&apos;lumotlar</TabsTrigger>
+        <TabsList className="grid grid-cols-2 w-full sm:max-w-md mb-4">
+          <TabsTrigger value="personal">Shaxsiy ma&apos;lumotlar</TabsTrigger>
           <TabsTrigger value="password">Xavfsizlik & Parol</TabsTrigger>
-          <TabsTrigger value="system">Kesh & Baza</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Personal Info Form */}
@@ -507,59 +504,7 @@ export function ProfilePage() {
             <div className="p-8 text-center text-muted-foreground text-xs">Yuklanmoqda...</div>
           )}
         </TabsContent>
-
-        {/* Tab 3: System & Raw Sync Info */}
-        <TabsContent value="system" className="mt-0 space-y-4">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <HardDrive className="h-4 w-4 text-primary" />
-                Backend & Redis Kesh Holati
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Ushbu ma&apos;lumotlar NestJS backendidan `GET /auth/me` orqali
-                to&apos;g&apos;ridan-to&apos;g&apos;ri olindi
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block text-[11px]">Baza ID:</span>
-                  <code className="text-[11px] font-mono text-primary break-all">{user?.id}</code>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block text-[11px]">Kesh Kaliti:</span>
-                  <code className="text-[11px] font-mono text-emerald-400 break-all">
-                    user:profile:{user?.id}
-                  </code>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block text-[11px]">TTL Muddati:</span>
-                  <span className="font-mono text-foreground font-bold">3600 soniya (1 soat)</span>
-                </div>
-              </div>
-
-              <div className="relative rounded-xl bg-muted/60 border border-border/80 p-4 font-mono text-xs overflow-x-auto">
-                <pre className="text-foreground/90 whitespace-pre-wrap">
-                  {JSON.stringify(user, null, 2)}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
-
-      {/* Security alert footnote */}
-      <Card className="border-border/60 bg-muted/20">
-        <CardContent className="p-4 flex items-center gap-3 text-xs text-muted-foreground">
-          <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
-          <span>
-            Har bir yangilanish NestJS xavfsizlik filtri (`ValidationPipe`) va `JwtAuthGuard` orqali
-            tekshiriladi, parollar `bcrypt` bilan xeshlanadi va Redis keshi bir zumda qayta
-            yangilanadi.
-          </span>
-        </CardContent>
-      </Card>
     </div>
   );
 }
