@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  CreditCard,
   Edit2,
   Eye,
   FileText,
@@ -52,9 +51,6 @@ export function ApplicationsPage() {
   const [page, setPage] = useState(1);
   const limit = 10;
 
-  // Selected application for details view
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // 1. Fetch Applications Query
@@ -154,11 +150,6 @@ export function ApplicationsPage() {
       default:
         return <Badge variant="outline">—</Badge>;
     }
-  };
-
-  const openDetails = (app: Application) => {
-    setSelectedApp(app);
-    setIsDetailOpen(true);
   };
 
   return (
@@ -280,7 +271,7 @@ export function ApplicationsPage() {
                 <TableRow
                   key={app.id}
                   className="cursor-pointer hover:bg-muted/40 transition-colors"
-                  onClick={() => openDetails(app)}
+                  onClick={() => navigate(`/applications/${app.id}`)}
                 >
                   <TableCell className="font-mono font-bold text-primary">
                     {app.application_number || '—'}
@@ -345,9 +336,9 @@ export function ApplicationsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => openDetails(app)}
+                      onClick={() => navigate(`/applications/${app.id}`)}
                       className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                      title="Ko‘rish"
+                      title="Ko‘rish (Hujjat ko‘rinishi)"
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </Button>
@@ -395,191 +386,6 @@ export function ApplicationsPage() {
           />
         )}
       </Card>
-
-      {/* VIEW APPLICATION DETAILS MODAL */}
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10">
-                {selectedApp?.application_number}
-              </span>
-              {getStatusBadge(selectedApp?.status ?? null)}
-            </div>
-            <DialogTitle className="text-lg font-bold pt-1">
-              {selectedApp?.title || 'Sarlavhasiz Ariza'}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Ariza bo‘yicha to‘liq hisobot va unga biriktirilgan sub-modellar
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2 text-xs">
-            {/* Description */}
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
-              <span className="font-semibold text-muted-foreground block mb-1">
-                Ariza Mazmuni & Tafsilotlari:
-              </span>
-              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-                {selectedApp?.description || 'Tafsilot yozilmagan'}
-              </p>
-            </div>
-
-            {/* Asosiy Birlamchi Modellar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Asosiy Fuqaro */}
-              <div className="p-3 rounded-lg border border-border/60 bg-card/60 space-y-1">
-                <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-primary" />
-                  Asosiy Arizachi Fuqaro:
-                </span>
-                {selectedApp?.citizen ? (
-                  <div>
-                    <div className="font-bold text-foreground">
-                      {selectedApp.citizen.last_name} {selectedApp.citizen.first_name}{' '}
-                      {selectedApp.citizen.middle_name}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                      Pasport: {selectedApp.citizen.passport || '—'} | Tel:{' '}
-                      {selectedApp.citizen.phone_number || '—'}
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </div>
-
-              {/* Tuman va Modda */}
-              <div className="p-3 rounded-lg border border-border/60 bg-card/60 space-y-1">
-                <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-primary" />
-                  Tuman va Jinoyat Moddasi:
-                </span>
-                <div className="text-foreground">
-                  <div>Tuman: {selectedApp?.district?.name || '—'}</div>
-                  <div className="font-mono text-primary mt-0.5">
-                    Modda:{' '}
-                    {selectedApp?.crime?.article
-                      ? `${selectedApp.crime.article} - ${selectedApp.crime.title}`
-                      : '—'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Asosiy Karta */}
-              {selectedApp?.card && (
-                <div className="p-3 rounded-lg border border-border/60 bg-card/60 space-y-1 sm:col-span-2">
-                  <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <CreditCard className="h-3.5 w-3.5 text-primary" />
-                    Asosiy Plastik Karta:
-                  </span>
-                  <div className="flex items-center justify-between font-mono">
-                    <span className="font-bold text-foreground">
-                      {selectedApp.card.masked_number || selectedApp.card.card_number}
-                    </span>
-                    <span className="text-muted-foreground">
-                      Bank: {selectedApp.card.bank?.name || '—'}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Custom Fields (Rasmlar, Fayllar, Qo'shimcha parametrlar) */}
-            {selectedApp?.custom_fields && selectedApp.custom_fields.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-border/60">
-                <span className="font-semibold text-foreground block">
-                  Qo‘shimcha Maydonlar (Universal Custom Fields):
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {selectedApp.custom_fields.map((field, idx) => {
-                    const isImages = field.type === 'IMAGES';
-                    return (
-                      <div
-                        key={idx}
-                        className="p-3 rounded-lg border border-border/60 bg-card/60 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-foreground">{field.label}</span>
-                          <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                            {field.type}
-                          </Badge>
-                        </div>
-
-                        {field.citizen && (
-                          <div className="text-xs">
-                            <span className="font-semibold text-primary">Fuqaro: </span>
-                            {field.citizen.first_name} {field.citizen.last_name} (
-                            {field.citizen.passport})
-                          </div>
-                        )}
-
-                        {field.card && (
-                          <div className="text-xs font-mono">
-                            <span className="font-semibold text-primary">Karta: </span>
-                            {field.card.masked_number || field.card.card_number} (
-                            {field.card.bank?.name})
-                          </div>
-                        )}
-
-                        {isImages && Array.isArray(field.value) ? (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {field.value.map((url: string, imgIdx: number) => (
-                              <a
-                                key={imgIdx}
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="block rounded-lg overflow-hidden border border-border/80 hover:opacity-80 transition-opacity"
-                              >
-                                <img
-                                  src={url}
-                                  alt={`Dalil ${imgIdx + 1}`}
-                                  className="h-16 w-16 object-cover"
-                                />
-                              </a>
-                            ))}
-                          </div>
-                        ) : field.value ? (
-                          <p className="text-muted-foreground text-xs whitespace-pre-wrap">
-                            {typeof field.value === 'object'
-                              ? JSON.stringify(field.value, null, 2)
-                              : String(field.value)}
-                          </p>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDetailOpen(false)}
-              className="text-xs"
-            >
-              Yopish
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setIsDetailOpen(false);
-                if (selectedApp) {
-                  navigate(`/applications/create/${selectedApp.id}`);
-                }
-              }}
-              className="text-xs gap-1.5 font-semibold"
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-              Arizani tahrirlash
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* DELETE CONFIRMATION DIALOG */}
       <Dialog open={deleteTargetId !== null} onOpenChange={() => setDeleteTargetId(null)}>

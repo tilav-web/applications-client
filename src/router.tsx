@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { PublicRoute } from '@/components/auth/public-route';
 import { AppLayout } from '@/components/layout/app-layout';
 import { ApplicationCreatePage } from '@/pages/application-create-page';
+import { ApplicationDetailPage } from '@/pages/application-detail-page';
 import { ApplicationsPage } from '@/pages/applications-page';
 import { CardsPage } from '@/pages/cards-page';
 import { CitizensPage } from '@/pages/citizens-page';
@@ -46,6 +47,10 @@ export const router = createBrowserRouter([
           {
             path: 'applications/create/:id',
             element: <ApplicationCreatePage />,
+          },
+          {
+            path: 'applications/:id',
+            element: <ApplicationDetailPage />,
           },
           {
             path: 'citizens',

@@ -772,7 +772,7 @@ export function DashboardPage() {
                     return (
                       <tr
                         key={app.id}
-                        onClick={() => navigate(`/applications/create/${app.id}`)}
+                        onClick={() => navigate(`/applications/${app.id}`)}
                         className="hover:bg-muted/40 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3 font-mono font-bold text-primary">

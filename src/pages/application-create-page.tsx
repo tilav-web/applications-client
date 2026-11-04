@@ -847,7 +847,7 @@ export function ApplicationCreatePage() {
       if (!id) return;
 
       const payload: Record<string, unknown> = {
-        application_number: applicationNumber || undefined,
+        application_number: applicationNumber.trim() ? applicationNumber.trim() : null,
         title: title || undefined,
         description: description || undefined,
         status,
@@ -1079,8 +1079,8 @@ export function ApplicationCreatePage() {
               <Input
                 value={applicationNumber}
                 onChange={(e) => setApplicationNumber(e.target.value.toUpperCase())}
-                placeholder="2026-00001"
-                className="h-7 w-28 border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase"
+                placeholder="Ixtiyoriy raqam..."
+                className="h-7 w-36 border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase"
               />
             </div>
 
@@ -2703,7 +2703,7 @@ export function ApplicationCreatePage() {
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm font-black text-foreground tracking-tight">
-                  Ariza № {applicationNumber || '2026-XXXXX'}
+                  Ariza {applicationNumber ? `№ ${applicationNumber}` : '(Raqamsiz)'}
                 </span>
                 <Badge
                   variant="outline"
