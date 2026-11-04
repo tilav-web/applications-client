@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CreditCard,
+  Edit2,
   Eye,
   FileText,
   Filter,
@@ -317,14 +318,25 @@ export function ApplicationsPage() {
                       size="sm"
                       onClick={() => openDetails(app)}
                       className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      title="Ko‘rish"
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => navigate(`/applications/create/${app.id}`)}
+                      className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                      title="Tahrirlash"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setDeleteTargetId(app.id)}
                       className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      title="O‘chirish"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -514,7 +526,7 @@ export function ApplicationsPage() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               size="sm"
@@ -522,6 +534,19 @@ export function ApplicationsPage() {
               className="text-xs"
             >
               Yopish
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setIsDetailOpen(false);
+                if (selectedApp) {
+                  navigate(`/applications/create/${selectedApp.id}`);
+                }
+              }}
+              className="text-xs gap-1.5 font-semibold"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Arizani tahrirlash
             </Button>
           </DialogFooter>
         </DialogContent>

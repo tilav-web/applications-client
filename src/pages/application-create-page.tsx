@@ -1066,9 +1066,9 @@ export function ApplicationCreatePage() {
               <span className="text-[11px] font-semibold text-muted-foreground">№</span>
               <Input
                 value={applicationNumber}
-                onChange={(e) => setApplicationNumber(e.target.value)}
+                onChange={(e) => setApplicationNumber(e.target.value.toUpperCase())}
                 placeholder="2026-00001"
-                className="h-7 w-28 border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent"
+                className="h-7 w-28 border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase"
               />
             </div>
 
@@ -1132,30 +1132,30 @@ export function ApplicationCreatePage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground">Ism *</label>
                 <Input
-                  placeholder="Ism"
+                  placeholder="ISM"
                   value={citizenForm.first_name}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, first_name: e.target.value });
+                    setCitizenForm({ ...citizenForm, first_name: e.target.value.toUpperCase() });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
-                  className="h-10 text-xs"
+                  className="h-10 text-xs uppercase font-medium"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground">Familiya *</label>
                 <Input
-                  placeholder="Familiya"
+                  placeholder="FAMILIYA"
                   value={citizenForm.last_name}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, last_name: e.target.value });
+                    setCitizenForm({ ...citizenForm, last_name: e.target.value.toUpperCase() });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
-                  className="h-10 text-xs"
+                  className="h-10 text-xs uppercase font-medium"
                 />
               </div>
 
@@ -1164,15 +1164,15 @@ export function ApplicationCreatePage() {
                   Sharif (Otasining ismi)
                 </label>
                 <Input
-                  placeholder="Sharif"
+                  placeholder="SHARIF"
                   value={citizenForm.middle_name}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, middle_name: e.target.value });
+                    setCitizenForm({ ...citizenForm, middle_name: e.target.value.toUpperCase() });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
-                  className="h-10 text-xs"
+                  className="h-10 text-xs uppercase font-medium"
                 />
               </div>
             </div>
@@ -1186,11 +1186,11 @@ export function ApplicationCreatePage() {
                   value={citizenForm.phone_number}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, phone_number: e.target.value });
+                    setCitizenForm({ ...citizenForm, phone_number: e.target.value.toUpperCase() });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
-                  className="h-10 text-xs font-mono"
+                  className="h-10 text-xs font-mono uppercase"
                 />
               </div>
 
@@ -1225,11 +1225,11 @@ export function ApplicationCreatePage() {
                   value={citizenForm.pinfl}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, pinfl: e.target.value });
+                    setCitizenForm({ ...citizenForm, pinfl: e.target.value.toUpperCase() });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
-                  className="h-10 text-xs font-mono"
+                  className="h-10 text-xs font-mono uppercase"
                 />
               </div>
             </div>
@@ -1240,10 +1240,12 @@ export function ApplicationCreatePage() {
                 Doimiy Yashash Manzili
               </label>
               <Input
-                placeholder="Toshkent sh., Chilonzor tumani, 9-mavze, 12-uy..."
+                placeholder="TOSHKENT SH., CHILONZOR TUMANI, 9-MAVZE, 12-UY..."
                 value={citizenForm.address}
-                onChange={(e) => setCitizenForm({ ...citizenForm, address: e.target.value })}
-                className="h-10 text-xs"
+                onChange={(e) =>
+                  setCitizenForm({ ...citizenForm, address: e.target.value.toUpperCase() })
+                }
+                className="h-10 text-xs uppercase"
               />
             </div>
 
@@ -1333,23 +1335,25 @@ export function ApplicationCreatePage() {
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-2">
                   <Input
-                    placeholder="Chilonzor, Yunusobod..."
+                    placeholder="CHILONZOR, YUNUSOBOD..."
                     value={districtForm.name}
                     onFocus={() => setShowDistrictPopover(true)}
                     onChange={(e) => {
-                      setDistrictForm({ ...districtForm, name: e.target.value });
+                      setDistrictForm({ ...districtForm, name: e.target.value.toUpperCase() });
                       setSelectedDistrictId(null);
                       setShowDistrictPopover(true);
                     }}
-                    className="h-10 text-xs"
+                    className="h-10 text-xs uppercase"
                   />
                 </div>
                 <div>
                   <Input
-                    placeholder="Kodi (CHL-01)"
+                    placeholder="KODI (CHL-01)"
                     value={districtForm.code}
-                    onChange={(e) => setDistrictForm({ ...districtForm, code: e.target.value })}
-                    className="h-10 text-xs font-mono"
+                    onChange={(e) =>
+                      setDistrictForm({ ...districtForm, code: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs font-mono uppercase"
                   />
                 </div>
               </div>
@@ -1403,23 +1407,25 @@ export function ApplicationCreatePage() {
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-5">
                   <Input
-                    placeholder="168-modda"
+                    placeholder="168-MODDA"
                     value={crimeForm.article}
                     onFocus={() => setShowCrimePopover(true)}
                     onChange={(e) => {
-                      setCrimeForm({ ...crimeForm, article: e.target.value });
+                      setCrimeForm({ ...crimeForm, article: e.target.value.toUpperCase() });
                       setSelectedCrimeId(null);
                       setShowCrimePopover(true);
                     }}
-                    className="h-10 text-xs font-bold"
+                    className="h-10 text-xs font-bold uppercase"
                   />
                 </div>
                 <div className="col-span-3">
                   <Input
-                    placeholder="3-qism"
+                    placeholder="3-QISM"
                     value={crimeForm.part}
-                    onChange={(e) => setCrimeForm({ ...crimeForm, part: e.target.value })}
-                    className="h-10 text-xs"
+                    onChange={(e) =>
+                      setCrimeForm({ ...crimeForm, part: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs uppercase"
                   />
                 </div>
                 <div className="col-span-4">
@@ -1469,9 +1475,9 @@ export function ApplicationCreatePage() {
             </label>
             <Input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Bank plastik kartasidan mablag‘lar noqonuniy yechib olinganligi to‘g‘risida"
-              className="h-10 text-xs font-medium"
+              onChange={(e) => setTitle(e.target.value.toUpperCase())}
+              placeholder="BANK PLASTIK KARTASIDAN MABLAG‘LAR NOQONUNIY YECHIB OLINGANLIGI TO‘G‘RISIDA"
+              className="h-10 text-xs font-medium uppercase"
             />
           </div>
 
@@ -1482,9 +1488,9 @@ export function ApplicationCreatePage() {
             <textarea
               rows={4}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Hodisa qanday sodir bo‘lgani, jabrlanuvchining murojaati va holat tafsilotlari..."
-              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
+              onChange={(e) => setDescription(e.target.value.toUpperCase())}
+              placeholder="HODISA QANDAY SODIR BO‘LGANI, JABRLANUVCHINING MUROJAATI VA HOLAT TAFSILOTLARI..."
+              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed uppercase"
             />
           </div>
         </div>
@@ -1592,11 +1598,11 @@ export function ApplicationCreatePage() {
                           value={cardForm.card_number}
                           onFocus={() => setShowCardPopover(true)}
                           onChange={(e) => {
-                            setCardForm({ ...cardForm, card_number: e.target.value });
+                            setCardForm({ ...cardForm, card_number: e.target.value.toUpperCase() });
                             setSelectedCardId(null);
                             setShowCardPopover(true);
                           }}
-                          className="h-9 text-xs font-mono font-bold"
+                          className="h-9 text-xs font-mono font-bold uppercase"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1607,9 +1613,9 @@ export function ApplicationCreatePage() {
                           placeholder="MM/YY"
                           value={cardForm.expire_date}
                           onChange={(e) =>
-                            setCardForm({ ...cardForm, expire_date: e.target.value })
+                            setCardForm({ ...cardForm, expire_date: e.target.value.toUpperCase() })
                           }
-                          className="h-9 text-xs font-mono text-center"
+                          className="h-9 text-xs font-mono text-center uppercase"
                         />
                       </div>
                     </div>
@@ -1642,14 +1648,14 @@ export function ApplicationCreatePage() {
                           Xizmat ko‘rsatuvchi bank
                         </label>
                         <Input
-                          placeholder="Kapitalbank, Xalq Banki..."
+                          placeholder="KAPITALBANK, XALQ BANKI..."
                           value={cardForm.bank_name}
                           onFocus={() => setShowBankPopover(true)}
                           onChange={(e) => {
-                            setCardForm({ ...cardForm, bank_name: e.target.value });
+                            setCardForm({ ...cardForm, bank_name: e.target.value.toUpperCase() });
                             setShowBankPopover(true);
                           }}
-                          className="h-9 text-xs"
+                          className="h-9 text-xs uppercase"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1659,8 +1665,10 @@ export function ApplicationCreatePage() {
                         <Input
                           placeholder="00014"
                           value={cardForm.bank_mfo}
-                          onChange={(e) => setCardForm({ ...cardForm, bank_mfo: e.target.value })}
-                          className="h-9 text-xs font-mono"
+                          onChange={(e) =>
+                            setCardForm({ ...cardForm, bank_mfo: e.target.value.toUpperCase() })
+                          }
+                          className="h-9 text-xs font-mono uppercase"
                         />
                       </div>
                     </div>
@@ -1734,15 +1742,15 @@ export function ApplicationCreatePage() {
                       To‘lov Provayderi / Ilova Nomi
                     </label>
                     <Input
-                      placeholder="Payme, Click, Uzum, Anorbank..."
+                      placeholder="PAYME, CLICK, UZUM, ANORBANK..."
                       value={providerName}
                       onFocus={() => setShowProviderPopover(true)}
                       onChange={(e) => {
-                        setProviderName(e.target.value);
+                        setProviderName(e.target.value.toUpperCase());
                         setSelectedProviderId(null);
                         setShowProviderPopover(true);
                       }}
-                      className="h-9 text-xs bg-background"
+                      className="h-9 text-xs bg-background uppercase"
                     />
 
                     {showProviderPopover && filteredProviders.length > 0 && (
@@ -1770,9 +1778,12 @@ export function ApplicationCreatePage() {
                         placeholder="TRX-98210"
                         value={transferForm.transaction_id}
                         onChange={(e) =>
-                          setTransferForm({ ...transferForm, transaction_id: e.target.value })
+                          setTransferForm({
+                            ...transferForm,
+                            transaction_id: e.target.value.toUpperCase(),
+                          })
                         }
-                        className="h-9 text-xs font-mono bg-background"
+                        className="h-9 text-xs font-mono bg-background uppercase"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1837,12 +1848,12 @@ export function ApplicationCreatePage() {
                           onChange={(e) => {
                             setReceiverCardForm({
                               ...receiverCardForm,
-                              card_number: e.target.value,
+                              card_number: e.target.value.toUpperCase(),
                             });
                             setSelectedReceiverCardId(null);
                             setShowReceiverCardPopover(true);
                           }}
-                          className="h-9 text-xs font-mono font-bold"
+                          className="h-9 text-xs font-mono font-bold uppercase"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1855,10 +1866,10 @@ export function ApplicationCreatePage() {
                           onChange={(e) =>
                             setReceiverCardForm({
                               ...receiverCardForm,
-                              expire_date: e.target.value,
+                              expire_date: e.target.value.toUpperCase(),
                             })
                           }
-                          className="h-9 text-xs font-mono text-center"
+                          className="h-9 text-xs font-mono text-center uppercase"
                         />
                       </div>
                     </div>
@@ -1891,17 +1902,17 @@ export function ApplicationCreatePage() {
                           Firibgar kartasi banki
                         </label>
                         <Input
-                          placeholder="Kapitalbank, Ipak Yo‘li..."
+                          placeholder="KAPITALBANK, IPAK YO‘LI..."
                           value={receiverCardForm.bank_name}
                           onFocus={() => setShowReceiverBankPopover(true)}
                           onChange={(e) => {
                             setReceiverCardForm({
                               ...receiverCardForm,
-                              bank_name: e.target.value,
+                              bank_name: e.target.value.toUpperCase(),
                             });
                             setShowReceiverBankPopover(true);
                           }}
-                          className="h-9 text-xs"
+                          className="h-9 text-xs uppercase"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1914,10 +1925,10 @@ export function ApplicationCreatePage() {
                           onChange={(e) =>
                             setReceiverCardForm({
                               ...receiverCardForm,
-                              bank_mfo: e.target.value,
+                              bank_mfo: e.target.value.toUpperCase(),
                             })
                           }
-                          className="h-9 text-xs font-mono"
+                          className="h-9 text-xs font-mono uppercase"
                         />
                       </div>
                     </div>
@@ -2011,24 +2022,30 @@ export function ApplicationCreatePage() {
                       <Input
                         placeholder="Roli (Tranzit 1, Vositachi...)"
                         value={transferCardRole}
-                        onChange={(e) => setTransferCardRole(e.target.value)}
-                        className="h-8 text-xs"
+                        onChange={(e) => setTransferCardRole(e.target.value.toUpperCase())}
+                        className="h-8 text-xs uppercase"
                       />
                       <Input
                         placeholder="Karta raqami"
                         value={transferCardForm.card_number}
                         onChange={(e) =>
-                          setTransferCardForm({ ...transferCardForm, card_number: e.target.value })
+                          setTransferCardForm({
+                            ...transferCardForm,
+                            card_number: e.target.value.toUpperCase(),
+                          })
                         }
-                        className="h-8 text-xs font-mono"
+                        className="h-8 text-xs font-mono uppercase"
                       />
                       <Input
                         placeholder="Bank nomi"
                         value={transferCardForm.bank_name}
                         onChange={(e) =>
-                          setTransferCardForm({ ...transferCardForm, bank_name: e.target.value })
+                          setTransferCardForm({
+                            ...transferCardForm,
+                            bank_name: e.target.value.toUpperCase(),
+                          })
                         }
-                        className="h-8 text-xs"
+                        className="h-8 text-xs uppercase"
                       />
                     </div>
                     <div className="flex justify-end gap-2 pt-1">
@@ -2065,14 +2082,14 @@ export function ApplicationCreatePage() {
                       <Input
                         placeholder="Bank roli (Kliring banki, Vositachi...)"
                         value={transferBankRole}
-                        onChange={(e) => setTransferBankRole(e.target.value)}
-                        className="h-8 text-xs"
+                        onChange={(e) => setTransferBankRole(e.target.value.toUpperCase())}
+                        className="h-8 text-xs uppercase"
                       />
                       <Input
                         placeholder="Bank nomi (Kapitalbank, TBC...)"
                         value={transferBankName}
-                        onChange={(e) => setTransferBankName(e.target.value)}
-                        className="h-8 text-xs"
+                        onChange={(e) => setTransferBankName(e.target.value.toUpperCase())}
+                        className="h-8 text-xs uppercase"
                       />
                     </div>
                     <div className="flex justify-end gap-2 pt-1">
@@ -2109,15 +2126,15 @@ export function ApplicationCreatePage() {
                       <Input
                         placeholder="Mavzu / Rol"
                         value={transferTextLabel}
-                        onChange={(e) => setTransferTextLabel(e.target.value)}
-                        className="h-8 text-xs"
+                        onChange={(e) => setTransferTextLabel(e.target.value.toUpperCase())}
+                        className="h-8 text-xs uppercase"
                       />
                       <div className="sm:col-span-2">
                         <Input
                           placeholder="Izoh matni..."
                           value={transferTextValue}
-                          onChange={(e) => setTransferTextValue(e.target.value)}
-                          className="h-8 text-xs"
+                          onChange={(e) => setTransferTextValue(e.target.value.toUpperCase())}
+                          className="h-8 text-xs uppercase"
                         />
                       </div>
                     </div>
@@ -2399,10 +2416,10 @@ export function ApplicationCreatePage() {
                           onChange={(e) =>
                             handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                               ...f,
-                              label: e.target.value,
+                              label: e.target.value.toUpperCase(),
                             }))
                           }
-                          className="h-8 text-xs font-semibold max-w-sm"
+                          className="h-8 text-xs font-semibold max-w-sm uppercase"
                         />
                       </div>
 
@@ -2425,7 +2442,7 @@ export function ApplicationCreatePage() {
                             placeholder="Ism *"
                             value={cf.inline_citizen?.first_name || ''}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              const val = e.target.value.toUpperCase();
                               handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                 ...f,
                                 inline_citizen: {
@@ -2440,13 +2457,13 @@ export function ApplicationCreatePage() {
                                 },
                               }));
                             }}
-                            className="h-8 text-xs"
+                            className="h-8 text-xs uppercase"
                           />
                           <Input
                             placeholder="Familiya"
                             value={cf.inline_citizen?.last_name || ''}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              const val = e.target.value.toUpperCase();
                               handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                 ...f,
                                 inline_citizen: {
@@ -2461,13 +2478,13 @@ export function ApplicationCreatePage() {
                                 },
                               }));
                             }}
-                            className="h-8 text-xs"
+                            className="h-8 text-xs uppercase"
                           />
                           <Input
                             placeholder="Sharif"
                             value={cf.inline_citizen?.middle_name || ''}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              const val = e.target.value.toUpperCase();
                               handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                 ...f,
                                 inline_citizen: {
@@ -2482,7 +2499,7 @@ export function ApplicationCreatePage() {
                                 },
                               }));
                             }}
-                            className="h-8 text-xs"
+                            className="h-8 text-xs uppercase"
                           />
                         </div>
 
@@ -2491,7 +2508,7 @@ export function ApplicationCreatePage() {
                             placeholder="Telefon raqami"
                             value={cf.inline_citizen?.phone_number || ''}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              const val = e.target.value.toUpperCase();
                               handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                 ...f,
                                 inline_citizen: {
@@ -2506,7 +2523,7 @@ export function ApplicationCreatePage() {
                                 },
                               }));
                             }}
-                            className="h-8 text-xs font-mono"
+                            className="h-8 text-xs font-mono uppercase"
                           />
                           <Input
                             placeholder="Pasport (ixtiyoriy)"
@@ -2533,7 +2550,7 @@ export function ApplicationCreatePage() {
                             placeholder="JSHSHIR (ixtiyoriy)"
                             value={cf.inline_citizen?.pinfl || ''}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              const val = e.target.value.toUpperCase();
                               handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                 ...f,
                                 inline_citizen: {
@@ -2548,7 +2565,7 @@ export function ApplicationCreatePage() {
                                 },
                               }));
                             }}
-                            className="h-8 text-xs font-mono"
+                            className="h-8 text-xs font-mono uppercase"
                           />
                         </div>
 
@@ -2556,7 +2573,7 @@ export function ApplicationCreatePage() {
                           placeholder="Yashash manzili"
                           value={cf.inline_citizen?.address || ''}
                           onChange={(e) => {
-                            const val = e.target.value;
+                            const val = e.target.value.toUpperCase();
                             handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                               ...f,
                               inline_citizen: {
@@ -2571,7 +2588,7 @@ export function ApplicationCreatePage() {
                               },
                             }));
                           }}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs uppercase"
                         />
                       </div>
                     )}
@@ -2583,7 +2600,7 @@ export function ApplicationCreatePage() {
                           placeholder="Karta raqami (16 talik)"
                           value={cf.inline_card?.card_number || ''}
                           onChange={(e) => {
-                            const val = e.target.value;
+                            const val = e.target.value.toUpperCase();
                             handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                               ...f,
                               inline_card: {
@@ -2596,13 +2613,13 @@ export function ApplicationCreatePage() {
                               },
                             }));
                           }}
-                          className="h-8 text-xs font-mono font-bold"
+                          className="h-8 text-xs font-mono font-bold uppercase"
                         />
                         <Input
                           placeholder="Muddati (MM/YY)"
                           value={cf.inline_card?.expire_date || ''}
                           onChange={(e) => {
-                            const val = e.target.value;
+                            const val = e.target.value.toUpperCase();
                             handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                               ...f,
                               inline_card: {
@@ -2615,13 +2632,13 @@ export function ApplicationCreatePage() {
                               },
                             }));
                           }}
-                          className="h-8 text-xs font-mono"
+                          className="h-8 text-xs font-mono uppercase"
                         />
                         <Input
                           placeholder="Bank nomi"
                           value={cf.inline_card?.bank_name || ''}
                           onChange={(e) => {
-                            const val = e.target.value;
+                            const val = e.target.value.toUpperCase();
                             handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                               ...f,
                               inline_card: {
@@ -2634,7 +2651,7 @@ export function ApplicationCreatePage() {
                               },
                             }));
                           }}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs uppercase"
                         />
                       </div>
                     )}
@@ -2648,10 +2665,10 @@ export function ApplicationCreatePage() {
                         onChange={(e) =>
                           handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                             ...f,
-                            value: e.target.value,
+                            value: e.target.value.toUpperCase(),
                           }))
                         }
-                        className="w-full rounded-lg border border-input bg-background p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-inner"
+                        className="w-full rounded-lg border border-input bg-background p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-inner uppercase"
                       />
                     )}
                   </div>
