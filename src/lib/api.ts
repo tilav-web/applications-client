@@ -259,3 +259,55 @@ export const filesApi = {
     return res.data;
   },
 };
+
+// 10. Users API
+export interface UserItem {
+  id: string;
+  username: string;
+  role: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const usersApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<UserItem>>('/users', { params });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<UserItem>(`/users/${id}`);
+    return res.data;
+  },
+  create: async (data: {
+    username: string;
+    password?: string;
+    role?: string;
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+  }) => {
+    const res = await apiClient.post<UserItem>('/users', data);
+    return res.data;
+  },
+  update: async (
+    id: string,
+    data: {
+      username?: string;
+      password?: string;
+      role?: string;
+      first_name?: string;
+      last_name?: string;
+      phone_number?: string;
+    },
+  ) => {
+    const res = await apiClient.patch<UserItem>(`/users/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/users/${id}`);
+    return res.data;
+  },
+};

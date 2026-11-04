@@ -100,7 +100,6 @@ export function AppSidebar() {
           <div className="flex flex-col">
             <span className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
               Arizalar bazasi
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
             </span>
             <span className="text-[10px] text-muted-foreground font-mono">
               Yagona Axborot Tizimi
