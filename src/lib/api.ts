@@ -1,0 +1,261 @@
+import type {
+  Application,
+  Bank,
+  Card,
+  Citizen,
+  Crime,
+  District,
+  PaginatedResponse,
+  PaymentProvider,
+  Transfer,
+} from '@/types/models';
+
+import { apiClient } from './axios';
+
+// 1. Applications API
+export const applicationsApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<Application>(`/applications/${id}`);
+    return res.data;
+  },
+  create: async (data: Record<string, unknown>) => {
+    const res = await apiClient.post<Application>('/applications', data);
+    return res.data;
+  },
+  update: async (id: string, data: Record<string, unknown>) => {
+    const res = await apiClient.patch<Application>(`/applications/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/applications/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 2. Citizens API
+export const citizensApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    first_name?: string;
+    last_name?: string;
+    middle_name?: string;
+    passport?: string;
+    phone_number?: string;
+    pinfl?: string;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<Citizen>>('/citizens', {
+      params,
+    });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<Citizen>(`/citizens/${id}`);
+    return res.data;
+  },
+  create: async (data: Partial<Citizen>) => {
+    const res = await apiClient.post<Citizen>('/citizens', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<Citizen>) => {
+    const res = await apiClient.patch<Citizen>(`/citizens/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/citizens/${id}`);
+    return res.data;
+  },
+};
+
+// 3. Cards API
+export const cardsApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    citizen_id?: string;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<Card>>('/cards', {
+      params,
+    });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<Card>(`/cards/${id}`);
+    return res.data;
+  },
+  create: async (data: Partial<Card>) => {
+    const res = await apiClient.post<Card>('/cards', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<Card>) => {
+    const res = await apiClient.patch<Card>(`/cards/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/cards/${id}`);
+    return res.data;
+  },
+};
+
+// 4. Transfers API
+export const transfersApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    application_id?: string;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<Transfer>>('/transfers', {
+      params,
+    });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<Transfer>(`/transfers/${id}`);
+    return res.data;
+  },
+  create: async (data: Record<string, unknown>) => {
+    const res = await apiClient.post<Transfer>('/transfers', data);
+    return res.data;
+  },
+  update: async (id: string, data: Record<string, unknown>) => {
+    const res = await apiClient.patch<Transfer>(`/transfers/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/transfers/${id}`);
+    return res.data;
+  },
+};
+
+// 5. Districts API
+export const districtsApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<District>>('/districts', {
+      params,
+    });
+    return res.data;
+  },
+  create: async (data: Partial<District>) => {
+    const res = await apiClient.post<District>('/districts', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<District>) => {
+    const res = await apiClient.patch<District>(`/districts/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/districts/${id}`);
+    return res.data;
+  },
+};
+
+// 6. Crimes API
+export const crimesApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<Crime>>('/crimes', {
+      params,
+    });
+    return res.data;
+  },
+  create: async (data: Partial<Crime>) => {
+    const res = await apiClient.post<Crime>('/crimes', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<Crime>) => {
+    const res = await apiClient.patch<Crime>(`/crimes/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/crimes/${id}`);
+    return res.data;
+  },
+};
+
+// 7. Banks API
+export const banksApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<Bank>>('/banks', {
+      params,
+    });
+    return res.data;
+  },
+  create: async (data: Partial<Bank>) => {
+    const res = await apiClient.post<Bank>('/banks', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<Bank>) => {
+    const res = await apiClient.patch<Bank>(`/banks/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/banks/${id}`);
+    return res.data;
+  },
+};
+
+// 8. Payment Providers API
+export const paymentProvidersApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<PaymentProvider>>('/payment-providers', {
+      params,
+    });
+    return res.data;
+  },
+  create: async (data: Partial<PaymentProvider>) => {
+    const res = await apiClient.post<PaymentProvider>('/payment-providers', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<PaymentProvider>) => {
+    const res = await apiClient.patch<PaymentProvider>(`/payment-providers/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/payment-providers/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 9. MinIO Files API
+export interface UploadedFile {
+  url: string;
+  proxy_url: string;
+  key: string;
+  filename: string;
+  original_name: string;
+  size: number;
+  mimetype: string;
+}
+
+export const filesApi = {
+  uploadSingle: async (file: File, folder = 'attachments') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<UploadedFile>(`/files/upload?folder=${folder}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+  uploadMultiple: async (files: File[], folder = 'attachments') => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    const res = await apiClient.post<UploadedFile[]>(
+      `/files/upload-multiple?folder=${folder}`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
+    return res.data;
+  },
+};
