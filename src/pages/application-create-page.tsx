@@ -985,12 +985,16 @@ export function ApplicationCreatePage() {
 
       return applicationsApi.update(id, payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setCanLeave(true);
-      void queryClient.invalidateQueries({ queryKey: ['applications'] });
-      void queryClient.invalidateQueries({ queryKey: ['citizens'] });
-      void queryClient.invalidateQueries({ queryKey: ['cards'] });
-      void queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['citizens'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['cards'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['transfers'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['application-draft', id], refetchType: 'all' }),
+      ]);
       toast.success('Ariza muvaffaqiyatli saqlandi va ro‘yxatga olindi!');
       navigate('/applications');
     },
@@ -1008,8 +1012,16 @@ export function ApplicationCreatePage() {
       if (!id) return;
       return applicationsApi.delete(id);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setCanLeave(true);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['citizens'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['cards'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['transfers'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['application-draft', id], refetchType: 'all' }),
+      ]);
       toast.success('Ariza loyihasi butunlay o‘chirildi');
       navigate('/applications');
     },

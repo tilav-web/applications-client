@@ -8,6 +8,7 @@ import {
   Loader2,
   MapPin,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
   User,
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/table';
 import { applicationsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { cn } from '@/lib/utils';
 import type { Application, ApplicationStatus } from '@/types/models';
 
 export function ApplicationsPage() {
@@ -56,7 +58,7 @@ export function ApplicationsPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // 1. Fetch Applications Query
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['applications', { page, limit, search, status: statusFilter }],
     queryFn: () =>
       applicationsApi.getAll({
@@ -66,6 +68,8 @@ export function ApplicationsPage() {
         status: statusFilter || undefined,
       }),
     placeholderData: (prev) => prev,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // 2. React Query Prefetching: Keyingi sahifani oldindan yuklash (Prefetch)
@@ -94,8 +98,11 @@ export function ApplicationsPage() {
         status: 'YANGI',
       });
     },
-    onSuccess: (newApp) => {
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
+    onSuccess: async (newApp) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
+      ]);
       toast.success('Yangi ariza loyihasi yaratildi', {
         description: 'Tahrirlash formasiga yo‘naltirilmoqda...',
       });
@@ -113,8 +120,11 @@ export function ApplicationsPage() {
     mutationFn: async (id: string) => {
       return applicationsApi.delete(id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
+      ]);
       setDeleteTargetId(null);
       toast.success('Ariza muvaffaqiyatli o‘chirildi');
     },
@@ -159,6 +169,12 @@ export function ApplicationsPage() {
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1">
             <FileText className="h-3.5 w-3.5" />
             <span>Murojaatlar Boshqaruvi</span>
+            {isFetching && !isLoading && (
+              <span className="flex items-center gap-1 text-[10px] text-primary animate-pulse ml-1.5 font-normal">
+                <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                Yangilanmoqda...
+              </span>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Arizalar & Murojaatlar
@@ -220,6 +236,19 @@ export function ApplicationsPage() {
               <option value="HAL_QILINDI">Hal qilindi</option>
               <option value="RAD_ETILDI">Rad etildi</option>
             </select>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-9 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted/80 shrink-0 cursor-pointer"
+              title="Arizalar ro‘yxatini serverdan yangilash"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')} />
+              <span className="hidden sm:inline">Yangilash</span>
+            </Button>
           </div>
         </CardContent>
       </Card>

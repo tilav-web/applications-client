@@ -107,7 +107,8 @@ export function DashboardPage() {
         startDate: period === 'custom' ? startDate : undefined,
         endDate: period === 'custom' ? endDate : undefined,
       }),
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const handlePeriodChange = (newPeriod: string) => {
