@@ -178,8 +178,8 @@ export interface ApplicationCustomField {
 export interface Application {
   id: string;
   application_number: string | null;
-  title: string | null;
   description: string | null;
+  officer_notes?: string | null;
   status: ApplicationStatus | null;
   date: string | null;
   citizen_id?: string | null;

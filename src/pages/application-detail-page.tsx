@@ -531,23 +531,23 @@ export function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* Ariza Mazmuni va Arizachi ko'rsatmasi */}
-          <div className="p-4 rounded-xl bg-muted/20 border border-border/50 space-y-2 text-xs">
+          {/* Ariza Mazmuni, Arizachi va Xodim ko'rsatmasi */}
+          <div className="p-4 rounded-xl bg-muted/20 border border-border/50 space-y-3 text-xs">
             <div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Murojaat Sarlavhasi:
-              </span>
-              <h4 className="font-bold text-foreground text-sm mt-0.5 print:text-black">
-                {app.title || 'Sarlavhasiz murojaat'}
-              </h4>
-            </div>
-
-            <div className="pt-2 border-t border-border/40">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
                 Arizachi Ko‘rsatmasi & Hodisa To‘liq Bayoni:
               </span>
               <div className="p-3.5 rounded-lg bg-background border border-border/60 text-foreground whitespace-pre-wrap leading-relaxed font-sans text-xs print:bg-white print:border-black print:text-black">
                 {app.description || 'Ariza bo‘yicha to‘liq tafsilot kiritilmagan.'}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-border/40">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
+                Xodim Ko‘rsatmasi & Qaydnomasi:
+              </span>
+              <div className="p-3.5 rounded-lg bg-background border border-border/60 text-foreground whitespace-pre-wrap leading-relaxed font-sans text-xs print:bg-white print:border-black print:text-black">
+                {app.officer_notes || 'Xodim tomonidan qo‘shimcha ma‘lumot kiritilmagan.'}
               </div>
             </div>
           </div>

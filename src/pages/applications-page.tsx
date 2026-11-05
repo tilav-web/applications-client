@@ -90,7 +90,6 @@ export function ApplicationsPage() {
   const createDraftMutation = useMutation({
     mutationFn: async () => {
       return applicationsApi.create({
-        title: 'Yangi Ariza',
         status: 'YANGI',
       });
     },
@@ -278,11 +277,11 @@ export function ApplicationsPage() {
                   </TableCell>
                   <TableCell className="max-w-xs">
                     <p className="font-semibold text-foreground truncate">
-                      {app.title || 'Sarlavhasiz'}
+                      {app.description || 'Tafsilot kiritilmagan'}
                     </p>
-                    {app.description && (
+                    {app.officer_notes && (
                       <p className="text-[11px] text-muted-foreground truncate">
-                        {app.description}
+                        Xodim: {app.officer_notes}
                       </p>
                     )}
                   </TableCell>

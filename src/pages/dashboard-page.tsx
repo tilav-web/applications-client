@@ -780,7 +780,7 @@ export function DashboardPage() {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-foreground truncate max-w-xs">
-                            {app.title || 'Sarlavhasiz'}
+                            {app.description || 'Murojaat tafsiloti'}
                           </p>
                           {app.citizen_name && (
                             <p className="text-[11px] text-muted-foreground">{app.citizen_name}</p>

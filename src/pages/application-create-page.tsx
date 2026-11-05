@@ -135,8 +135,8 @@ export function ApplicationCreatePage() {
   // 1. ASOSIY ARIZA QAYD REKVIZITLARI
   // ==========================================================================
   const [applicationNumber, setApplicationNumber] = useState('');
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [officerNotes, setOfficerNotes] = useState('');
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
 
@@ -345,8 +345,8 @@ export function ApplicationCreatePage() {
   useEffect(() => {
     if (initialApp) {
       setApplicationNumber(initialApp.application_number || '');
-      setTitle(initialApp.title || '');
       setDescription(initialApp.description || '');
+      setOfficerNotes(initialApp.officer_notes || '');
       setStatus(initialApp.status || 'YANGI');
       if (initialApp.date) {
         setDate(new Date(initialApp.date).toISOString().substring(0, 10));
@@ -848,8 +848,8 @@ export function ApplicationCreatePage() {
 
       const payload: Record<string, unknown> = {
         application_number: applicationNumber.trim() ? applicationNumber.trim() : null,
-        title: title || undefined,
         description: description || undefined,
+        officer_notes: officerNotes || undefined,
         status,
         date: date ? new Date(date).toISOString() : undefined,
       };
@@ -1483,25 +1483,29 @@ export function ApplicationCreatePage() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">
-              Ariza Sarlavhasi / Murojaat Mavzusi *
-            </label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value.toUpperCase())}
-              placeholder="BANK PLASTIK KARTASIDAN MABLAG‘LAR NOQONUNIY YECHIB OLINGANLIGI TO‘G‘RISIDA"
-              className="h-10 text-xs font-medium uppercase"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Hodisa To‘liq Bayoni / Arizachi Ko‘rsatmasi
+              Arizachi Ko‘rsatmasi (Hodisa To‘liq Bayoni)
             </label>
             <textarea
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value.toUpperCase())}
               placeholder="HODISA QANDAY SODIR BO‘LGANI, JABRLANUVCHINING MUROJAATI VA HOLAT TAFSILOTLARI..."
+              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed uppercase"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span>Xodim Ko‘rsatmasi / Ma'lumotnomasi</span>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                Xodim tomonidan kiritiladigan ma'lumot
+              </span>
+            </label>
+            <textarea
+              rows={4}
+              value={officerNotes}
+              onChange={(e) => setOfficerNotes(e.target.value.toUpperCase())}
+              placeholder="SURISHTIRUVCHI / XODIM TOMONIDAN ANIQLANGAN HOLATLAR, MA'LUMOTLAR VA QAYDLAR..."
               className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed uppercase"
             />
           </div>

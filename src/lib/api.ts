@@ -103,7 +103,8 @@ export interface DashboardStatistics {
   recentApplications: Array<{
     id: string;
     application_number: string | null;
-    title: string | null;
+    description: string | null;
+    officer_notes?: string | null;
     status: string | null;
     date: string | null;
     created_at: string;
