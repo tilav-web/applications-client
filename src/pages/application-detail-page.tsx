@@ -412,7 +412,7 @@ export function ApplicationDetailPage() {
           <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
             <User className="h-4 w-4" />
             <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-              I. Arizachi (Jabrlanuvchi Fuqaro) Shaxsiy Ma‘lumotlari
+              I. Arizachi Shaxsiy Ma‘lumotlari
             </h3>
           </div>
 

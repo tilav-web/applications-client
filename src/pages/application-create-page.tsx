@@ -1058,7 +1058,7 @@ export function ApplicationCreatePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
-                  Ariza & Tergov Bayonnomasi
+                  Murojaatlar
                 </h1>
                 <Badge
                   variant="outline"
@@ -1115,7 +1115,7 @@ export function ApplicationCreatePage() {
             <div className="flex items-center gap-2.5 text-primary">
               <User className="h-5 w-5" />
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                1. Arizachi (Jabrlanuvchi Fuqaro) Shaxsiy Ma‘lumotlari
+                1. Arizachi Shaxsiy Ma‘lumotlar
               </h2>
             </div>
             {selectedCitizenId ? (
@@ -1394,7 +1394,7 @@ export function ApplicationCreatePage() {
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
-                  Malakalangan Jinoyat Moddasi *
+                  Jinoyat turi
                 </label>
                 {selectedCrimeId ? (
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
