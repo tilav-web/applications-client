@@ -2348,16 +2348,6 @@ export function ApplicationCreatePage() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => handleAddCustomFieldItem('CARD', 'Qo‘shimcha karta')}
-                  className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <CreditCard className="h-3.5 w-3.5" />+ Qo‘shimcha karta
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
                   onClick={() => handleAddCustomFieldItem('TEXT', 'Tergov ko‘rsatmasi / Qayd')}
                   className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
                 >
