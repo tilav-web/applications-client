@@ -62,6 +62,7 @@ import type {
   CrimeGravity,
   CustomFieldType,
   District,
+  Mahalla,
   TransferCustomField,
 } from '@/types/models';
 
@@ -85,6 +86,10 @@ export interface AppCustomFieldState {
     phone_number: string;
     pinfl?: string;
     address?: string;
+    district_id?: string | null;
+    district_name?: string;
+    mahalla_id?: string | null;
+    mahalla_name?: string;
   };
   inline_card?: {
     card_number: string;
@@ -283,6 +288,11 @@ export function ApplicationCreatePage() {
   // 6. QO'SHIMCHA SUBYEKTLAR (APPLICATION CUSTOM FIELDS)
   // ==========================================================================
   const [customFields, setCustomFields] = useState<AppCustomFieldState[]>([]);
+  const [activeCitizenPopover, setActiveCitizenPopover] = useState<{
+    clientId: string;
+    field: 'district' | 'mahalla';
+  } | null>(null);
+  const citizenCustomContainerRef = useRef<HTMLDivElement>(null);
 
   // ==========================================================================
   // QUERY & DATA FETCHING
@@ -344,6 +354,18 @@ export function ApplicationCreatePage() {
     enabled: Boolean(citizenDistrictId),
   });
   const allCitizenMahallas = citizenMahallasData?.items || [];
+
+  const activeCustomCitizen = customFields.find(
+    (cf) => cf.clientId === activeCitizenPopover?.clientId,
+  );
+  const activeCustomCitDistrictId = activeCustomCitizen?.inline_citizen?.district_id || null;
+
+  const { data: customCitizenMahallasData } = useQuery({
+    queryKey: ['custom-citizen-mahallas', activeCustomCitDistrictId],
+    queryFn: () => mahallasApi.getAll({ district_id: activeCustomCitDistrictId!, limit: 200 }),
+    enabled: Boolean(activeCustomCitDistrictId),
+  });
+  const customCitizenMahallas: Mahalla[] = customCitizenMahallasData?.items || [];
 
   const createCitizenMahallaMutation = useMutation({
     mutationFn: async ({ name, district_id }: { name: string; district_id: string }) => {
@@ -532,6 +554,10 @@ export function ApplicationCreatePage() {
                     phone_number: cf.citizen.phone_number || '',
                     pinfl: cf.citizen.pinfl || '',
                     address: cf.citizen.address || '',
+                    district_id: cf.citizen.district_id || cf.citizen.district?.id || null,
+                    district_name: cf.citizen.district?.name || '',
+                    mahalla_id: cf.citizen.mahalla_id || cf.citizen.mahalla?.id || null,
+                    mahalla_name: cf.citizen.mahalla?.name || '',
                   }
                 : undefined,
               inline_card: cf.card
@@ -609,6 +635,12 @@ export function ApplicationCreatePage() {
       }
       if (transferContainerRef.current && !transferContainerRef.current.contains(target)) {
         setActiveTransferPopover(null);
+      }
+      if (
+        citizenCustomContainerRef.current &&
+        !citizenCustomContainerRef.current.contains(target)
+      ) {
+        setActiveCitizenPopover(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -769,6 +801,10 @@ export function ApplicationCreatePage() {
               phone_number: '',
               pinfl: '',
               address: '',
+              district_id: null,
+              district_name: '',
+              mahalla_id: null,
+              mahalla_name: '',
             }
           : undefined,
       inline_card:
@@ -2326,7 +2362,7 @@ export function ApplicationCreatePage() {
           </div>
 
           {/* B. QO'SHIMCHA FUQAROLAR */}
-          <div className="pt-4 border-t border-border/40 space-y-4">
+          <div ref={citizenCustomContainerRef} className="pt-4 border-t border-border/40 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-foreground">
@@ -2344,241 +2380,494 @@ export function ApplicationCreatePage() {
               <div className="space-y-4 pt-1">
                 {customFields
                   .filter((cf) => cf.type === 'CITIZEN')
-                  .map((cf, idx) => (
-                    <div
-                      key={cf.clientId}
-                      className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3.5"
-                    >
-                      <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2.5">
-                        <div className="flex items-center gap-2 flex-1">
-                          <Badge className="bg-primary/10 text-primary border-primary/30 text-xs py-1 px-2.5 font-bold shrink-0">
-                            <UserPlus className="h-3.5 w-3.5 mr-1" />#{idx + 1} Qo‘shimcha fuqaro
-                          </Badge>
-                          <Input
-                            placeholder="FUQARO MAQOMI / ROLI (MASALAN: GUMONLANUVCHI, GUVOH, SHERIK...)"
-                            value={cf.label}
-                            onChange={(e) =>
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                label: e.target.value.toUpperCase(),
-                              }))
-                            }
-                            className="h-8 text-xs font-bold max-w-md uppercase text-primary placeholder:text-muted-foreground/60"
-                          />
+                  .map((cf) => {
+                    const citDistName = cf.inline_citizen?.district_name || '';
+                    const citMahName = cf.inline_citizen?.mahalla_name || '';
+                    const citDistId = cf.inline_citizen?.district_id || null;
+                    const citMahId = cf.inline_citizen?.mahalla_id || null;
+
+                    const matchingDistricts = citDistName.trim()
+                      ? allDistricts.filter((d) =>
+                          (d.name || '').toLowerCase().includes(citDistName.trim().toLowerCase()),
+                        )
+                      : allDistricts;
+
+                    const matchingMahallas: Mahalla[] = customCitizenMahallas.filter(
+                      (m: Mahalla) => {
+                        if (citDistId && m.district_id !== citDistId) return false;
+                        if (!citMahName.trim()) return true;
+                        return (m.name || '')
+                          .toLowerCase()
+                          .includes(citMahName.trim().toLowerCase());
+                      },
+                    );
+
+                    return (
+                      <div
+                        key={cf.clientId}
+                        className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3.5"
+                      >
+                        {/* Karta sarlavhasi: Icon + Fuqaro Roli Inputi + O'chirish tugmasi */}
+                        <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2.5">
+                          <div className="flex items-center gap-2.5 flex-1">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                              <UserPlus className="h-4 w-4" />
+                            </div>
+                            <Input
+                              placeholder="Fuqaro maqomi / Roli (Masalan: Gumonlanuvchi, Guvoh, Sherik...)"
+                              value={cf.label}
+                              onChange={(e) =>
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  label: e.target.value.toUpperCase(),
+                                }))
+                              }
+                              className="h-9 text-xs font-bold w-full max-w-md uppercase text-primary placeholder:text-muted-foreground/60 placeholder:normal-case placeholder:font-normal"
+                            />
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCustomFieldItem(cf.clientId)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                            title="Fuqaroni ro‘yxatdan o‘chirish"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveCustomFieldItem(cf.clientId)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0"
-                          title="Fuqaroni ro‘yxatdan o‘chirish"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {/* FUQARO ANKETASI */}
+                        <div className="space-y-3">
+                          {/* 1-Qator: Ism, Familiya, Sharif */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Ism *
+                              </label>
+                              <Input
+                                placeholder="ISM"
+                                value={cf.inline_citizen?.first_name || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      first_name: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs uppercase font-medium"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Familiya
+                              </label>
+                              <Input
+                                placeholder="FAMILIYA"
+                                value={cf.inline_citizen?.last_name || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      last_name: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs uppercase font-medium"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Sharif (Otasining ismi)
+                              </label>
+                              <Input
+                                placeholder="SHARIF"
+                                value={cf.inline_citizen?.middle_name || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      middle_name: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs uppercase font-medium"
+                              />
+                            </div>
+                          </div>
+
+                          {/* 2-Qator: Telefon, Pasport, JSHSHIR */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Telefon raqami
+                              </label>
+                              <Input
+                                placeholder="998901234567"
+                                value={cf.inline_citizen?.phone_number || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      phone_number: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Pasport seriya & raqam
+                              </label>
+                              <Input
+                                placeholder="AA1234567"
+                                value={cf.inline_citizen?.passport || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                    .toUpperCase()
+                                    .replace(/[^A-Z0-9]/g, '')
+                                    .slice(0, 9);
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      passport: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs font-mono font-bold uppercase"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                JSHSHIR (PINFL - 14 ta raqam)
+                              </label>
+                              <Input
+                                placeholder="14 TALIK RAQAM"
+                                value={cf.inline_citizen?.pinfl || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '').slice(0, 14);
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      pinfl: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          {/* 3-Qator: Yashash Tumani va Yashash Mahallasi */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Yashash Tumani */}
+                            <div className="relative space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-primary" />
+                                  Yashash Tumani
+                                </label>
+                                {citDistId && (
+                                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    Biriktirildi
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                          ...f,
+                                          inline_citizen: {
+                                            ...(f.inline_citizen || {
+                                              first_name: '',
+                                              last_name: '',
+                                              passport: '',
+                                              phone_number: '',
+                                            }),
+                                            district_id: null,
+                                            district_name: '',
+                                            mahalla_id: null,
+                                            mahalla_name: '',
+                                          },
+                                        }))
+                                      }
+                                      className="ml-1 hover:text-foreground"
+                                      title="Tozalash"
+                                    >
+                                      <X className="h-2.5 w-2.5" />
+                                    </button>
+                                  </Badge>
+                                )}
+                              </div>
+                              <Input
+                                placeholder="TUMANNI TANLANG YOKI QIDIRING..."
+                                value={citDistName}
+                                onFocus={() =>
+                                  setActiveCitizenPopover({
+                                    clientId: cf.clientId,
+                                    field: 'district',
+                                  })
+                                }
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      district_id: null,
+                                      district_name: val,
+                                      mahalla_id: null,
+                                      mahalla_name: '',
+                                    },
+                                  }));
+                                  setActiveCitizenPopover({
+                                    clientId: cf.clientId,
+                                    field: 'district',
+                                  });
+                                }}
+                                className="h-9 text-xs uppercase font-medium"
+                              />
+
+                              {activeCitizenPopover?.clientId === cf.clientId &&
+                                activeCitizenPopover.field === 'district' &&
+                                matchingDistricts.length > 0 && (
+                                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-1.5 max-h-48 overflow-y-auto">
+                                    <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
+                                      Mavjud tumanlar:
+                                    </div>
+                                    {matchingDistricts.map((d) => (
+                                      <div
+                                        key={d.id}
+                                        onClick={() => {
+                                          handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                            ...f,
+                                            inline_citizen: {
+                                              ...(f.inline_citizen || {
+                                                first_name: '',
+                                                last_name: '',
+                                                passport: '',
+                                                phone_number: '',
+                                              }),
+                                              district_id: d.id,
+                                              district_name: d.name || '',
+                                              mahalla_id: null,
+                                              mahalla_name: '',
+                                            },
+                                          }));
+                                          setActiveCitizenPopover(null);
+                                        }}
+                                        className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                                      >
+                                        <span className="font-medium text-foreground">
+                                          {d.name}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                            </div>
+
+                            {/* Yashash Mahallasi */}
+                            <div className="relative space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                                  <Building2 className="h-3 w-3 text-primary" />
+                                  Yashash Mahallasi
+                                </label>
+                                {citMahId && (
+                                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    Biriktirildi
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                          ...f,
+                                          inline_citizen: {
+                                            ...(f.inline_citizen || {
+                                              first_name: '',
+                                              last_name: '',
+                                              passport: '',
+                                              phone_number: '',
+                                            }),
+                                            mahalla_id: null,
+                                            mahalla_name: '',
+                                          },
+                                        }))
+                                      }
+                                      className="ml-1 hover:text-foreground"
+                                      title="Tozalash"
+                                    >
+                                      <X className="h-2.5 w-2.5" />
+                                    </button>
+                                  </Badge>
+                                )}
+                              </div>
+                              <Input
+                                placeholder={
+                                  !citDistName && !citDistId
+                                    ? 'AVVAL TUMANNI TANLANG (MAHALLA UCHUN)...'
+                                    : 'MAHALLANI TANLANG YOKI QIDIRING...'
+                                }
+                                disabled={!citDistName && !citDistId}
+                                value={citMahName}
+                                onFocus={() => {
+                                  if (citDistName || citDistId) {
+                                    setActiveCitizenPopover({
+                                      clientId: cf.clientId,
+                                      field: 'mahalla',
+                                    });
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      mahalla_id: null,
+                                      mahalla_name: val,
+                                    },
+                                  }));
+                                  setActiveCitizenPopover({
+                                    clientId: cf.clientId,
+                                    field: 'mahalla',
+                                  });
+                                }}
+                                className="h-9 text-xs uppercase font-medium disabled:opacity-50"
+                              />
+
+                              {activeCitizenPopover?.clientId === cf.clientId &&
+                                activeCitizenPopover.field === 'mahalla' &&
+                                matchingMahallas.length > 0 && (
+                                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-1.5 max-h-48 overflow-y-auto">
+                                    <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
+                                      Mavjud mahallalar:
+                                    </div>
+                                    {matchingMahallas.map((m) => (
+                                      <div
+                                        key={m.id}
+                                        onClick={() => {
+                                          handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                            ...f,
+                                            inline_citizen: {
+                                              ...(f.inline_citizen || {
+                                                first_name: '',
+                                                last_name: '',
+                                                passport: '',
+                                                phone_number: '',
+                                              }),
+                                              mahalla_id: m.id,
+                                              mahalla_name: m.name || '',
+                                            },
+                                          }));
+                                          setActiveCitizenPopover(null);
+                                        }}
+                                        className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                                      >
+                                        <span className="font-medium text-foreground">
+                                          {m.name}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+
+                          {/* 4-Qator: Aniq yashash manzili */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Aniq yashash manzili (Ko‘cha, uy, xonadon...)
+                            </label>
+                            <Input
+                              placeholder="VILOYAT, TUMAN, KO‘CHA, UY..."
+                              value={cf.inline_citizen?.address || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    address: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs uppercase"
+                            />
+                          </div>
+                        </div>
                       </div>
-
-                      {/* FUQARO ANKETASI */}
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              Ism *
-                            </label>
-                            <Input
-                              placeholder="ISM"
-                              value={cf.inline_citizen?.first_name || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.toUpperCase();
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    first_name: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs uppercase font-medium"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              Familiya
-                            </label>
-                            <Input
-                              placeholder="FAMILIYA"
-                              value={cf.inline_citizen?.last_name || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.toUpperCase();
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    last_name: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs uppercase font-medium"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              Sharif (Otasining ismi)
-                            </label>
-                            <Input
-                              placeholder="SHARIF"
-                              value={cf.inline_citizen?.middle_name || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.toUpperCase();
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    middle_name: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs uppercase font-medium"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              Telefon raqami
-                            </label>
-                            <Input
-                              placeholder="998901234567"
-                              value={cf.inline_citizen?.phone_number || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '').slice(0, 12);
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    phone_number: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs font-mono"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              Pasport seriya & raqam
-                            </label>
-                            <Input
-                              placeholder="AA1234567"
-                              value={cf.inline_citizen?.passport || ''}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                  .toUpperCase()
-                                  .replace(/[^A-Z0-9]/g, '')
-                                  .slice(0, 9);
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    passport: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs font-mono font-bold uppercase"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              JSHSHIR (PINFL - 14 ta raqam)
-                            </label>
-                            <Input
-                              placeholder="14 TALIK RAQAM"
-                              value={cf.inline_citizen?.pinfl || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '').slice(0, 14);
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    pinfl: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-muted-foreground">
-                            Aniq yashash manzili
-                          </label>
-                          <Input
-                            placeholder="VILOYAT, TUMAN, KO‘CHA, UY..."
-                            value={cf.inline_citizen?.address || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  address: val,
-                                },
-                              }));
-                            }}
-                            className="h-9 text-xs uppercase"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
 
@@ -2586,7 +2875,7 @@ export function ApplicationCreatePage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleAddCustomFieldItem('CITIZEN', 'QO‘SHIMCHA FUQARO')}
+              onClick={() => handleAddCustomFieldItem('CITIZEN', '')}
               className="w-full h-11 border-dashed border-2 border-primary/40 hover:border-primary hover:bg-primary/5 text-primary text-xs font-semibold gap-2 shadow-sm rounded-xl transition-all"
             >
               <UserPlus className="h-4 w-4" />+ Fuqaro qo‘shish
