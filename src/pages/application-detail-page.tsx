@@ -830,11 +830,31 @@ export function ApplicationDetailPage() {
                       {field.type}
                     </Badge>
                   </div>
-                  <p className="font-semibold text-foreground text-xs break-words">
-                    {typeof field.value === 'object'
-                      ? JSON.stringify(field.value)
-                      : String(field.value ?? '—')}
-                  </p>
+                  {field.citizen ? (
+                    <div className="space-y-1 pt-1 text-xs">
+                      <p className="font-bold text-foreground">
+                        {[
+                          field.citizen.last_name,
+                          field.citizen.first_name,
+                          field.citizen.middle_name,
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                      </p>
+                      <div className="text-[11px] text-muted-foreground font-mono space-y-0.5">
+                        {field.citizen.phone_number && <p>Tel: {field.citizen.phone_number}</p>}
+                        {field.citizen.passport && <p>Pasport: {field.citizen.passport}</p>}
+                        {field.citizen.pinfl && <p>JSHSHIR: {field.citizen.pinfl}</p>}
+                        {field.citizen.address && <p>Manzil: {field.citizen.address}</p>}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="font-semibold text-foreground text-xs break-words">
+                      {typeof field.value === 'object'
+                        ? JSON.stringify(field.value)
+                        : String(field.value ?? '—')}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

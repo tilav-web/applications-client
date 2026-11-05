@@ -1075,16 +1075,6 @@ export function ApplicationCreatePage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
-              <span className="text-[11px] font-semibold text-muted-foreground">№</span>
-              <Input
-                value={applicationNumber}
-                onChange={(e) => setApplicationNumber(e.target.value.toUpperCase())}
-                placeholder="Ixtiyoriy raqam..."
-                className="h-7 w-36 border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
               <span className="text-[11px] font-semibold text-muted-foreground">Sana:</span>
               <input
                 type="date"
@@ -1111,15 +1101,29 @@ export function ApplicationCreatePage() {
         {/* 1-QISM: ARIZACHI (JABRLANUVCHI FUQARO) SHAXSIY ANKETASI */}
         {/* ================================================================= */}
         <div className="p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-border/40 pb-3">
-            <div className="flex items-center gap-2.5 text-primary">
-              <User className="h-5 w-5" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                1. Arizachi Shaxsiy Ma‘lumotlar
-              </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-3">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="flex items-center gap-2.5 text-primary">
+                <User className="h-5 w-5" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground whitespace-nowrap">
+                  1. Arizachi Shaxsiy Ma‘lumotlar
+                </h2>
+              </div>
+
+              {/* Ariza / Murojaat Raqami (kengaytirilgan va qulay) */}
+              <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm min-w-[260px] sm:w-80">
+                <span className="text-xs font-bold text-primary font-mono">№</span>
+                <Input
+                  value={applicationNumber}
+                  onChange={(e) => setApplicationNumber(e.target.value.toUpperCase())}
+                  placeholder="ARIZA RAQAMI (IXTIYORIY)..."
+                  className="h-7 w-full border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase text-foreground placeholder:text-muted-foreground/60"
+                />
+              </div>
             </div>
+
             {selectedCitizenId ? (
-              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1.5 text-xs py-1 px-2.5">
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1.5 text-xs py-1 px-2.5 shrink-0">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Bazadagi fuqaro biriktirildi
                 <button
@@ -1132,7 +1136,7 @@ export function ApplicationCreatePage() {
                 </button>
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-[11px] text-muted-foreground">
+              <Badge variant="outline" className="text-[11px] text-muted-foreground shrink-0">
                 Yangi fuqaro sifatida qayd etiladi
               </Badge>
             )}
@@ -2321,332 +2325,272 @@ export function ApplicationCreatePage() {
             )}
           </div>
 
-          {/* B. QO'SHIMCHA SUBYEKTLAR (GUMONLANUVCHI, TRANZIT KARTA, TERGOV QAYDI) */}
+          {/* B. QO'SHIMCHA FUQAROLAR */}
           <div className="pt-4 border-t border-border/40 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-foreground">
-                  Ishga aloqador qo‘shimcha shaxslar va qaydlar ({customFields.length})
+                  Ishga aloqador qo‘shimcha fuqarolar (
+                  {customFields.filter((cf) => cf.type === 'CITIZEN').length})
                 </span>
                 <p className="text-[11px] text-muted-foreground">
-                  Guvohlar, gumonlanuvchilar yoki tergov ko‘rsatmalarini qo‘shish
+                  Gumonlanuvchilar, guvohlar, sheriklar yoki boshqa aloqador shaxslarni kiritish
                 </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAddCustomFieldItem('CITIZEN', 'Gumonlanuvchi / Guvoh shaxs')}
-                  className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <UserPlus className="h-3.5 w-3.5" />+ Guvoh / Gumonlanuvchi
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAddCustomFieldItem('TEXT', 'Tergov ko‘rsatmasi / Qayd')}
-                  className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <FileText className="h-3.5 w-3.5" />+ Tergov qaydi
-                </Button>
               </div>
             </div>
 
-            {/* QO'SHILGAN SUBYEKTLAR KARTOCHKALARI */}
-            {customFields.length > 0 && (
-              <div className="space-y-3 pt-1">
-                {customFields.map((cf) => (
-                  <div
-                    key={cf.clientId}
-                    className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3"
-                  >
-                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2.5">
-                      <div className="flex items-center gap-2 flex-1">
-                        {cf.type === 'CITIZEN' && (
-                          <Badge className="bg-primary/10 text-primary border-primary/30 text-xs">
-                            Guvoh / Gumonlanuvchi
+            {/* QO'SHILGAN FUQAROLAR KARTOCHKALARI */}
+            {customFields.filter((cf) => cf.type === 'CITIZEN').length > 0 && (
+              <div className="space-y-4 pt-1">
+                {customFields
+                  .filter((cf) => cf.type === 'CITIZEN')
+                  .map((cf, idx) => (
+                    <div
+                      key={cf.clientId}
+                      className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3.5"
+                    >
+                      <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2.5">
+                        <div className="flex items-center gap-2 flex-1">
+                          <Badge className="bg-primary/10 text-primary border-primary/30 text-xs py-1 px-2.5 font-bold shrink-0">
+                            <UserPlus className="h-3.5 w-3.5 mr-1" />#{idx + 1} Qo‘shimcha fuqaro
                           </Badge>
-                        )}
-                        {cf.type === 'CARD' && (
-                          <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-xs">
-                            Qo‘shimcha karta
-                          </Badge>
-                        )}
-                        {cf.type === 'TEXT' && (
-                          <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-xs">
-                            Tergov qaydi
-                          </Badge>
-                        )}
+                          <Input
+                            placeholder="FUQARO MAQOMI / ROLI (MASALAN: GUMONLANUVCHI, GUVOH, SHERIK...)"
+                            value={cf.label}
+                            onChange={(e) =>
+                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                ...f,
+                                label: e.target.value.toUpperCase(),
+                              }))
+                            }
+                            className="h-8 text-xs font-bold max-w-md uppercase text-primary placeholder:text-muted-foreground/60"
+                          />
+                        </div>
 
-                        <Input
-                          placeholder="Mavzu / Rol (Masalan: Gumonlanuvchi, Guvoh ko‘rsatmasi...)"
-                          value={cf.label}
-                          onChange={(e) =>
-                            handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              label: e.target.value.toUpperCase(),
-                            }))
-                          }
-                          className="h-8 text-xs font-semibold max-w-sm uppercase"
-                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveCustomFieldItem(cf.clientId)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                          title="Fuqaroni ro‘yxatdan o‘chirish"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveCustomFieldItem(cf.clientId)}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* FUQARO ANKETASI */}
-                    {cf.type === 'CITIZEN' && (
+                      {/* FUQARO ANKETASI */}
                       <div className="space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <Input
-                            placeholder="Ism *"
-                            value={cf.inline_citizen?.first_name || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  first_name: val,
-                                },
-                              }));
-                            }}
-                            className="h-8 text-xs uppercase"
-                          />
-                          <Input
-                            placeholder="Familiya"
-                            value={cf.inline_citizen?.last_name || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  last_name: val,
-                                },
-                              }));
-                            }}
-                            className="h-8 text-xs uppercase"
-                          />
-                          <Input
-                            placeholder="Sharif"
-                            value={cf.inline_citizen?.middle_name || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  middle_name: val,
-                                },
-                              }));
-                            }}
-                            className="h-8 text-xs uppercase"
-                          />
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Ism *
+                            </label>
+                            <Input
+                              placeholder="ISM"
+                              value={cf.inline_citizen?.first_name || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    first_name: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs uppercase font-medium"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Familiya
+                            </label>
+                            <Input
+                              placeholder="FAMILIYA"
+                              value={cf.inline_citizen?.last_name || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    last_name: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs uppercase font-medium"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Sharif (Otasining ismi)
+                            </label>
+                            <Input
+                              placeholder="SHARIF"
+                              value={cf.inline_citizen?.middle_name || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    middle_name: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs uppercase font-medium"
+                            />
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <Input
-                            placeholder="Telefon raqami"
-                            value={cf.inline_citizen?.phone_number || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  phone_number: val,
-                                },
-                              }));
-                            }}
-                            className="h-8 text-xs font-mono uppercase"
-                          />
-                          <Input
-                            placeholder="Pasport (ixtiyoriy)"
-                            value={cf.inline_citizen?.passport || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  passport: val,
-                                },
-                              }));
-                            }}
-                            className="h-8 text-xs font-mono uppercase"
-                          />
-                          <Input
-                            placeholder="JSHSHIR (ixtiyoriy)"
-                            value={cf.inline_citizen?.pinfl || ''}
-                            onChange={(e) => {
-                              const val = e.target.value.toUpperCase();
-                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                ...f,
-                                inline_citizen: {
-                                  ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
-                                    passport: '',
-                                    phone_number: '',
-                                  }),
-                                  pinfl: val,
-                                },
-                              }));
-                            }}
-                            className="h-8 text-xs font-mono uppercase"
-                          />
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Telefon raqami
+                            </label>
+                            <Input
+                              placeholder="998901234567"
+                              value={cf.inline_citizen?.phone_number || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    phone_number: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Pasport seriya & raqam
+                            </label>
+                            <Input
+                              placeholder="AA1234567"
+                              value={cf.inline_citizen?.passport || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                  .toUpperCase()
+                                  .replace(/[^A-Z0-9]/g, '')
+                                  .slice(0, 9);
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    passport: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs font-mono font-bold uppercase"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              JSHSHIR (PINFL - 14 ta raqam)
+                            </label>
+                            <Input
+                              placeholder="14 TALIK RAQAM"
+                              value={cf.inline_citizen?.pinfl || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 14);
+                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                  ...f,
+                                  inline_citizen: {
+                                    ...(f.inline_citizen || {
+                                      first_name: '',
+                                      last_name: '',
+                                      middle_name: '',
+                                      passport: '',
+                                      phone_number: '',
+                                    }),
+                                    pinfl: val,
+                                  },
+                                }));
+                              }}
+                              className="h-9 text-xs font-mono"
+                            />
+                          </div>
                         </div>
 
-                        <Input
-                          placeholder="Yashash manzili"
-                          value={cf.inline_citizen?.address || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_citizen: {
-                                ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
-                                  passport: '',
-                                  phone_number: '',
-                                }),
-                                address: val,
-                              },
-                            }));
-                          }}
-                          className="h-8 text-xs uppercase"
-                        />
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">
+                            Aniq yashash manzili
+                          </label>
+                          <Input
+                            placeholder="VILOYAT, TUMAN, KO‘CHA, UY..."
+                            value={cf.inline_citizen?.address || ''}
+                            onChange={(e) => {
+                              const val = e.target.value.toUpperCase();
+                              handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                ...f,
+                                inline_citizen: {
+                                  ...(f.inline_citizen || {
+                                    first_name: '',
+                                    last_name: '',
+                                    middle_name: '',
+                                    passport: '',
+                                    phone_number: '',
+                                  }),
+                                  address: val,
+                                },
+                              }));
+                            }}
+                            className="h-9 text-xs uppercase"
+                          />
+                        </div>
                       </div>
-                    )}
-
-                    {/* KARTA ANKETASI */}
-                    {cf.type === 'CARD' && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <Input
-                          placeholder="Karta raqami (16 talik)"
-                          value={cf.inline_card?.card_number || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_card: {
-                                ...(f.inline_card || {
-                                  card_number: '',
-                                  expire_date: '',
-                                  bank_name: '',
-                                }),
-                                card_number: val,
-                              },
-                            }));
-                          }}
-                          className="h-8 text-xs font-mono font-bold uppercase"
-                        />
-                        <Input
-                          placeholder="Muddati (MM/YY)"
-                          value={cf.inline_card?.expire_date || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_card: {
-                                ...(f.inline_card || {
-                                  card_number: '',
-                                  expire_date: '',
-                                  bank_name: '',
-                                }),
-                                expire_date: val,
-                              },
-                            }));
-                          }}
-                          className="h-8 text-xs font-mono uppercase"
-                        />
-                        <Input
-                          placeholder="Bank nomi"
-                          value={cf.inline_card?.bank_name || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_card: {
-                                ...(f.inline_card || {
-                                  card_number: '',
-                                  expire_date: '',
-                                  bank_name: '',
-                                }),
-                                bank_name: val,
-                              },
-                            }));
-                          }}
-                          className="h-8 text-xs uppercase"
-                        />
-                      </div>
-                    )}
-
-                    {/* MATN / TERGOV QAYDI */}
-                    {cf.type === 'TEXT' && (
-                      <textarea
-                        rows={3}
-                        placeholder="Tergov qaydi, shaxsning ko‘rsatmalari yoki qo‘shimcha ma‘lumotlar..."
-                        value={String(cf.value || '')}
-                        onChange={(e) =>
-                          handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                            ...f,
-                            value: e.target.value.toUpperCase(),
-                          }))
-                        }
-                        className="w-full rounded-lg border border-input bg-background p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-inner uppercase"
-                      />
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ))}
               </div>
             )}
+
+            {/* PASTDAGI UZUN TUGMA (HUDDI KARTA KABI) */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleAddCustomFieldItem('CITIZEN', 'QO‘SHIMCHA FUQARO')}
+              className="w-full h-11 border-dashed border-2 border-primary/40 hover:border-primary hover:bg-primary/5 text-primary text-xs font-semibold gap-2 shadow-sm rounded-xl transition-all"
+            >
+              <UserPlus className="h-4 w-4" />+ Fuqaro qo‘shish
+            </Button>
           </div>
         </div>
       </div>
