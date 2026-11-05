@@ -104,6 +104,7 @@ export interface Card {
   card_number: string | null;
   masked_number: string | null;
   expire_date: string | null;
+  full_name?: string | null;
   citizen_id: string | null;
   citizen?: Citizen | null;
   bank_id: string | null;
@@ -150,6 +151,8 @@ export interface Transfer {
   amount: number | null;
   currency: string | null;
   status: TransferStatus | null;
+  transfer_date?: string | null;
+  transfer_time?: string | null;
   application_id: string | null;
   payment_provider_id: string | null;
   payment_provider?: PaymentProvider | null;

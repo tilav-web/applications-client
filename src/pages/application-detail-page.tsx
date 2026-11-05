@@ -2,8 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowLeftRight,
   Building2,
   CheckCircle2,
+  Clock,
   CreditCard,
   Download,
   Edit2,
@@ -241,8 +243,69 @@ export function ApplicationDetailPage() {
             }
           });
         }
+      } else if (cf.type === 'TRANSFER' || cf.transfer) {
+        // III-bo'limda aks ettiriladi
       } else {
         otherCustomFields.push(cf);
+      }
+    });
+  }
+
+  // Barcha kartalar va pul o'tkazmalari (Asosiy va qo'shimcha shakllar)
+  const allTransfersList: Array<{
+    title: string;
+    amount: number | null;
+    currency: string;
+    transferDate: string | null;
+    transferTime: string | null;
+    providerName: string | null;
+    senderCardNumber: string | null;
+    senderFullName: string | null;
+    senderBankName: string | null;
+    receiverCardNumber: string | null;
+    receiverFullName: string | null;
+    receiverBankName: string | null;
+  }> = [];
+
+  if (app?.transfer || app?.card) {
+    allTransfersList.push({
+      title: '1-O‘tkazma shakli (Asosiy)',
+      amount: app.transfer?.amount ?? null,
+      currency: app.transfer?.currency || 'UZS',
+      transferDate: app.transfer?.transfer_date || null,
+      transferTime: app.transfer?.transfer_time || null,
+      providerName: app.transfer?.payment_provider?.name || null,
+      senderCardNumber: app.transfer?.sender_card?.card_number || app.card?.card_number || null,
+      senderFullName: app.transfer?.sender_card?.full_name || app.card?.full_name || null,
+      senderBankName: app.transfer?.sender_card?.bank?.name || app.card?.bank?.name || null,
+      receiverCardNumber: app.transfer?.receiver_card?.card_number || null,
+      receiverFullName: app.transfer?.receiver_card?.full_name || null,
+      receiverBankName: app.transfer?.receiver_card?.bank?.name || null,
+    });
+  }
+
+  if (app?.custom_fields) {
+    let customIdx = 2;
+    app.custom_fields.forEach((cf) => {
+      if (cf.type === 'TRANSFER' || cf.transfer) {
+        const t = cf.transfer;
+        const sc = cf.card || t?.sender_card;
+        const rc = t?.receiver_card;
+        allTransfersList.push({
+          title: `${customIdx}-O‘tkazma shakli`,
+          amount: t?.amount ?? null,
+          currency: t?.currency || 'UZS',
+          transferDate: t?.transfer_date || null,
+          transferTime: t?.transfer_time || null,
+          providerName: t?.payment_provider?.name || null,
+          senderCardNumber: sc?.card_number || null,
+          senderFullName: sc?.full_name || null,
+          senderBankName: sc?.bank?.name || null,
+          receiverCardNumber: rc?.card_number || null,
+          receiverFullName: rc?.full_name || null,
+          receiverBankName: rc?.bank?.name || null,
+        });
+        customIdx++;
       }
     });
   }
@@ -509,11 +572,6 @@ export function ApplicationDetailPage() {
               <p className="font-bold text-foreground text-sm print:text-black">
                 {app.district ? app.district.name : '—'}
               </p>
-              {app.district?.code && (
-                <span className="font-mono text-[10px] text-muted-foreground block">
-                  Hudud kodi: {app.district.code}
-                </span>
-              )}
             </div>
 
             {/* Jinoyat Turi */}
@@ -559,74 +617,108 @@ export function ApplicationDetailPage() {
         {/* ================================================================= */}
         {/* III-BO'LIM: MOLIYAVIY ZARAR VA NOQONUNIY PUL O'TKAZMASI */}
         {/* ================================================================= */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
-            <CreditCard className="h-4 w-4" />
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-              III. Moddiy Zarar va Bank Plastik Kartalari (Pul O‘tkazmasi)
-            </h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
+                III. Moddiy Zarar va Bank Plastik Kartalari ({allTransfersList.length} ta)
+              </h3>
+            </div>
           </div>
 
-          {app.transfer || app.card ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-              {/* Moddiy zarar summasi */}
-              <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1 sm:col-span-2 md:col-span-1 print:border-black">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Yetkazilgan Moddiy Zarar:
-                </span>
-                <p className="font-mono font-black text-lg text-primary print:text-black">
-                  {formatCurrency(app.transfer?.amount, app.transfer?.currency || 'UZS')}
-                </p>
-                <span className="text-[10px] text-muted-foreground font-medium block">
-                  Holati: {app.transfer?.status || 'AMALGA_OSHIRILDI'}
-                </span>
-              </div>
-
-              {/* To'lov provayderi */}
-              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  To‘lov Tizimi (Provayder):
-                </span>
-                <p className="font-bold text-foreground text-sm print:text-black">
-                  {app.transfer?.payment_provider?.name || '—'}
-                </p>
-                {app.transfer?.payment_provider?.code && (
-                  <span className="font-mono text-[10px] text-muted-foreground block">
-                    Kodi: {app.transfer.payment_provider.code}
-                  </span>
-                )}
-              </div>
-
-              {/* Pul tushgan karta */}
-              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Qabul Qiluvchi Karta:
-                </span>
-                <p className="font-mono font-bold text-foreground text-sm tracking-wide print:text-black">
-                  {app.transfer?.receiver_card?.card_number || app.card?.card_number || '—'}
-                </p>
-                <span className="text-[10px] text-muted-foreground block">
-                  Muddati:{' '}
-                  {app.transfer?.receiver_card?.expire_date || app.card?.expire_date || '—'}
-                </span>
-              </div>
-
-              {/* Bank nomi va MFO */}
-              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1 sm:col-span-2">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Xizmat Ko‘rsatuvchi Bank & MFO:
-                </span>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-foreground text-xs print:text-black">
-                    {app.transfer?.receiver_card?.bank?.name || app.card?.bank?.name || '—'}
-                  </span>
-                  {(app.transfer?.receiver_card?.bank?.mfo || app.card?.bank?.mfo) && (
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      MFO: {app.transfer?.receiver_card?.bank?.mfo || app.card?.bank?.mfo}
+          {allTransfersList.length > 0 ? (
+            <div className="space-y-4">
+              {allTransfersList.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-xl border border-border/80 bg-card/60 backdrop-blur-sm space-y-3"
+                >
+                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+                        {idx + 1}
+                      </span>
+                      {item.title}
                     </span>
-                  )}
+                    {item.transferDate && (
+                      <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-primary" />
+                        {item.transferDate} {item.transferTime ? `(${item.transferTime})` : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    {/* 1. Jabrlanuvchi kartasi */}
+                    <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
+                        <CreditCard className="h-3 w-3 text-primary" />
+                        Jabrlanuvchi Kartasi:
+                      </span>
+                      <p className="font-mono font-bold text-foreground text-sm tracking-wide">
+                        {item.senderCardNumber || '—'}
+                      </p>
+                      <div className="pt-1 border-t border-border/30 text-[11px] space-y-0.5">
+                        <p className="text-foreground font-medium">
+                          <span className="text-muted-foreground">Egasi: </span>
+                          {item.senderFullName || '—'}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span>Bank: </span>
+                          <span className="text-foreground">{item.senderBankName || '—'}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 2. O'tkazma ma'lumoti */}
+                    <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
+                        <ArrowLeftRight className="h-3 w-3 text-primary" />
+                        O‘tkazma Tafsiloti:
+                      </span>
+                      <p className="font-mono font-black text-lg text-primary">
+                        {formatCurrency(item.amount, item.currency)}
+                      </p>
+                      <div className="pt-1 border-t border-border/30 text-[11px] space-y-0.5">
+                        <p className="text-foreground font-medium">
+                          <span className="text-muted-foreground">To‘lov tizimi: </span>
+                          {item.providerName || '—'}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span>Vaqti: </span>
+                          <span className="text-foreground">
+                            {item.transferDate
+                              ? `${item.transferDate}${item.transferTime ? ' ' + item.transferTime : ''}`
+                              : '—'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 3. Firibgar kartasi */}
+                    <div className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/20 space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold text-red-400 block flex items-center gap-1">
+                        <ShieldAlert className="h-3 w-3" />
+                        Qabul Qiluvchi (Firibgar) Kartasi:
+                      </span>
+                      <p className="font-mono font-bold text-foreground text-sm tracking-wide">
+                        {item.receiverCardNumber || '—'}
+                      </p>
+                      <div className="pt-1 border-t border-border/30 text-[11px] space-y-0.5">
+                        <p className="text-foreground font-medium">
+                          <span className="text-muted-foreground">Egasi: </span>
+                          {item.receiverFullName || '—'}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span>Bank: </span>
+                          <span className="text-foreground">{item.receiverBankName || '—'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           ) : (
             <div className="p-4 rounded-xl bg-muted/20 border border-border/50 text-xs text-muted-foreground italic">

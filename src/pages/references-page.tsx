@@ -298,14 +298,13 @@ export function ReferencesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Tuman / Bo&apos;lim Nomi</TableHead>
-                  <TableHead>Kodi</TableHead>
                   <TableHead className="text-right">Amallar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isDistrictsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
                       Yuklanmoqda...
                     </TableCell>
                   </TableRow>
@@ -314,9 +313,6 @@ export function ReferencesPage() {
                     <TableRow key={district.id}>
                       <TableCell className="font-medium text-foreground">
                         {district.name || '—'}
-                      </TableCell>
-                      <TableCell className="font-mono text-muted-foreground">
-                        {district.code || '—'}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
@@ -783,23 +779,10 @@ export function ReferencesPage() {
                   <option value="">Tumanni tanlang...</option>
                   {allDistrictsList.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} {d.code ? `(${d.code})` : ''}
+                      {d.name}
                     </option>
                   ))}
                 </select>
-              </div>
-            )}
-
-            {/* Code / Article */}
-            {activeTab === 'districts' && (
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Bo‘lim Kodi</label>
-                <Input
-                  placeholder="YUNUSOBOD_IIB"
-                  value={formData.code || ''}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="h-9 text-xs font-mono"
-                />
               </div>
             )}
 

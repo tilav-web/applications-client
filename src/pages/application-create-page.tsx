@@ -4,8 +4,9 @@ import {
   ArrowLeftRight,
   BookmarkCheck,
   Building2,
-  Check,
+  Calendar,
   CheckCircle2,
+  Clock,
   CreditCard,
   ExternalLink,
   File as FileIcon,
@@ -15,17 +16,17 @@ import {
   MapPin,
   Paperclip,
   Plus,
-  Receipt,
   Save,
   ShieldAlert,
   Sparkles,
   Trash2,
   UploadCloud,
   User,
+  UserCheck,
   UserPlus,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
@@ -56,17 +57,12 @@ import {
 import { getErrorMessage } from '@/lib/error';
 import type {
   ApplicationStatus,
-  Bank,
-  Card as CardModel,
   Citizen,
   Crime,
   CrimeGravity,
   CustomFieldType,
   District,
-  PaymentProvider,
   TransferCustomField,
-  TransferCustomFieldType,
-  TransferStatus,
 } from '@/types/models';
 
 export interface AppCustomFieldState {
@@ -93,6 +89,7 @@ export interface AppCustomFieldState {
   inline_card?: {
     card_number: string;
     expire_date?: string;
+    full_name?: string;
     bank_name?: string;
     bank_mfo?: string;
   };
@@ -110,11 +107,36 @@ export interface AppCustomFieldState {
   inline_transfer?: {
     amount: string | number;
     currency: string;
-    receiver_card_number?: string;
+    payment_provider_id?: string;
     payment_provider_name?: string;
+    receiver_card_id?: string;
+    receiver_card_number?: string;
+    receiver_card_full_name?: string;
+    receiver_bank_name?: string;
+    transfer_date?: string;
+    transfer_time?: string;
     transfer_custom_fields?: TransferCustomField[];
   };
   isUploading?: boolean;
+}
+
+export interface FinancialTransferEntry {
+  clientId: string;
+  victimCardId: string | null;
+  victimCardNumber: string;
+  victimCardFullName: string;
+  victimBankName: string;
+  transferId: string | null;
+  amount: string;
+  currency: string;
+  providerId: string | null;
+  providerName: string;
+  transferDate: string; // YYYY-MM-DD
+  transferTime: string; // HH:MM
+  receiverCardId: string | null;
+  receiverCardNumber: string;
+  receiverCardFullName: string;
+  receiverBankName: string;
 }
 
 const formatFileSize = (bytes?: number) => {
@@ -123,6 +145,26 @@ const formatFileSize = (bytes?: number) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+let transferClientIdCounter = 0;
+const createDefaultTransferEntry = (): FinancialTransferEntry => ({
+  clientId: `ft_${++transferClientIdCounter}`,
+  victimCardId: null,
+  victimCardNumber: '',
+  victimCardFullName: '',
+  victimBankName: '',
+  transferId: null,
+  amount: '',
+  currency: 'UZS',
+  providerId: null,
+  providerName: '',
+  transferDate: '',
+  transferTime: '',
+  receiverCardId: null,
+  receiverCardNumber: '',
+  receiverCardFullName: '',
+  receiverBankName: '',
+});
 
 export function ApplicationCreatePage() {
   const { id } = useParams<{ id: string }>();
@@ -174,7 +216,6 @@ export function ApplicationCreatePage() {
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null);
   const [districtForm, setDistrictForm] = useState({
     name: '',
-    code: '',
   });
   const [showDistrictPopover, setShowDistrictPopover] = useState(false);
   const districtPopoverRef = useRef<HTMLDivElement>(null);
@@ -189,70 +230,46 @@ export function ApplicationCreatePage() {
   const crimePopoverRef = useRef<HTMLDivElement>(null);
 
   // ==========================================================================
-  // 4. MOLIYAVIY ZARAR VA TRANZAKSIYA SWITCH
+  // 4. MOLIYAVIY ZARAR VA TRANZAKSIYA SHAKLLARI
   // ==========================================================================
   const [hasFinancialLoss, setHasFinancialLoss] = useState(false);
 
-  // A. Jabrlanuvchi kartasi
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [cardForm, setCardForm] = useState({
-    card_number: '',
-    expire_date: '',
-    bank_name: '',
-    bank_mfo: '',
-  });
-  const [showCardPopover, setShowCardPopover] = useState(false);
-  const cardPopoverRef = useRef<HTMLDivElement>(null);
-  const [showBankPopover, setShowBankPopover] = useState(false);
-  const bankPopoverRef = useRef<HTMLDivElement>(null);
+  const [financialTransfers, setFinancialTransfers] = useState<FinancialTransferEntry[]>([
+    createDefaultTransferEntry(),
+  ]);
 
-  // B. O'tkazma tafsilotlari
-  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
-  const [transferForm, setTransferForm] = useState({
-    transaction_id: '',
-    amount: '',
-    currency: 'UZS',
-    status: 'KUTILMOQDA' as TransferStatus,
-  });
+  const [activeTransferPopover, setActiveTransferPopover] = useState<{
+    index: number;
+    type: 'victimCard' | 'victimBank' | 'provider' | 'receiverCard' | 'receiverBank';
+  } | null>(null);
+  const transferContainerRef = useRef<HTMLDivElement>(null);
 
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [providerName, setProviderName] = useState('');
-  const [showProviderPopover, setShowProviderPopover] = useState(false);
-  const providerPopoverRef = useRef<HTMLDivElement>(null);
+  const handleUpdateTransferEntry = (index: number, patch: Partial<FinancialTransferEntry>) => {
+    setFinancialTransfers((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item)),
+    );
+  };
 
-  // C. Firibgar / Qabul qiluvchi karta
-  const [selectedReceiverCardId, setSelectedReceiverCardId] = useState<string | null>(null);
-  const [receiverCardForm, setReceiverCardForm] = useState({
-    card_number: '',
-    expire_date: '',
-    bank_name: '',
-    bank_mfo: '',
-  });
-  const [showReceiverCardPopover, setShowReceiverCardPopover] = useState(false);
-  const receiverCardPopoverRef = useRef<HTMLDivElement>(null);
-  const [showReceiverBankPopover, setShowReceiverBankPopover] = useState(false);
-  const receiverBankPopoverRef = useRef<HTMLDivElement>(null);
+  const handleAddTransferEntry = () => {
+    setFinancialTransfers((prev) => [...prev, createDefaultTransferEntry()]);
+  };
 
-  // D. O'tkazma ichki sub-modellar
-  const [transferCustomFields, setTransferCustomFields] = useState<TransferCustomField[]>([]);
-  const [activeTransferType, setActiveTransferType] = useState<TransferCustomFieldType | null>(
-    null,
-  );
-  const [transferCardRole, setTransferCardRole] = useState('Tranzit / Qo‘shimcha karta');
-  const [transferCardId, setTransferCardId] = useState<string | null>(null);
-  const [transferCardForm, setTransferCardForm] = useState({
-    card_number: '',
-    expire_date: '',
-    bank_name: '',
-    bank_mfo: '',
-  });
+  const handleRemoveTransferEntry = (index: number) => {
+    setFinancialTransfers((prev) => prev.filter((_, idx) => idx !== index));
+  };
 
-  const [transferBankRole, setTransferBankRole] = useState('Vositachi bank');
-  const [transferBankId, setTransferBankId] = useState<string | null>(null);
-  const [transferBankName, setTransferBankName] = useState('');
-
-  const [transferTextLabel, setTransferTextLabel] = useState('Tranzaksiya izohi');
-  const [transferTextValue, setTransferTextValue] = useState('');
+  const handleFillApplicantName = (index: number) => {
+    const parts = [citizenForm.last_name, citizenForm.first_name, citizenForm.middle_name].filter(
+      (p) => Boolean(p && p.trim()),
+    );
+    const fullName = parts.join(' ').trim();
+    if (!fullName) {
+      toast.info('Avval 1-bo‘limda arizachining F.I.SH. ma‘lumotlarini kiriting');
+      return;
+    }
+    handleUpdateTransferEntry(index, { victimCardFullName: fullName.toUpperCase() });
+    toast.success('Arizachining F.I.SH. ma‘lumoti kartaga nusxalandi');
+  };
 
   // ==========================================================================
   // 5. YAGONA ISBOTLAR VA DALILLAR (MinIO)
@@ -406,7 +423,6 @@ export function ApplicationCreatePage() {
         setSelectedDistrictId(initialApp.district.id);
         setDistrictForm({
           name: initialApp.district.name || '',
-          code: initialApp.district.code || '',
         });
       }
 
@@ -417,50 +433,31 @@ export function ApplicationCreatePage() {
         });
       }
 
-      const hasCard = Boolean(initialApp.card || initialApp.card_id);
-      const hasTransfer = Boolean(initialApp.transfer || initialApp.transfer_id);
+      const hasPrimaryFinancial = Boolean(
+        initialApp.card || initialApp.card_id || initialApp.transfer || initialApp.transfer_id,
+      );
 
-      if (hasCard || hasTransfer) {
-        setHasFinancialLoss(true);
-      }
+      const loadedTransfers: FinancialTransferEntry[] = [];
 
-      if (initialApp.card) {
-        setSelectedCardId(initialApp.card.id);
-        setCardForm({
-          card_number: initialApp.card.card_number || '',
-          expire_date: initialApp.card.expire_date || '',
-          bank_name: initialApp.card.bank?.name || '',
-          bank_mfo: initialApp.card.bank?.mfo || '',
+      if (hasPrimaryFinancial) {
+        loadedTransfers.push({
+          clientId: 'primary_ft',
+          victimCardId: initialApp.card?.id || initialApp.card_id || null,
+          victimCardNumber: initialApp.card?.card_number || '',
+          victimCardFullName: initialApp.card?.full_name || '',
+          victimBankName: initialApp.card?.bank?.name || '',
+          transferId: initialApp.transfer?.id || initialApp.transfer_id || null,
+          amount: initialApp.transfer?.amount ? String(initialApp.transfer.amount) : '',
+          currency: initialApp.transfer?.currency || 'UZS',
+          providerId: initialApp.transfer?.payment_provider?.id || null,
+          providerName: initialApp.transfer?.payment_provider?.name || '',
+          transferDate: initialApp.transfer?.transfer_date || '',
+          transferTime: initialApp.transfer?.transfer_time || '',
+          receiverCardId: initialApp.transfer?.receiver_card?.id || null,
+          receiverCardNumber: initialApp.transfer?.receiver_card?.card_number || '',
+          receiverCardFullName: initialApp.transfer?.receiver_card?.full_name || '',
+          receiverBankName: initialApp.transfer?.receiver_card?.bank?.name || '',
         });
-      }
-
-      if (initialApp.transfer) {
-        setSelectedTransferId(initialApp.transfer.id);
-        setTransferForm({
-          transaction_id: initialApp.transfer.transaction_id || '',
-          amount: initialApp.transfer.amount ? String(initialApp.transfer.amount) : '',
-          currency: initialApp.transfer.currency || 'UZS',
-          status: initialApp.transfer.status || 'KUTILMOQDA',
-        });
-
-        if (initialApp.transfer.payment_provider) {
-          setSelectedProviderId(initialApp.transfer.payment_provider.id);
-          setProviderName(initialApp.transfer.payment_provider.name || '');
-        }
-
-        if (initialApp.transfer.receiver_card) {
-          setSelectedReceiverCardId(initialApp.transfer.receiver_card.id);
-          setReceiverCardForm({
-            card_number: initialApp.transfer.receiver_card.card_number || '',
-            expire_date: initialApp.transfer.receiver_card.expire_date || '',
-            bank_name: initialApp.transfer.receiver_card.bank?.name || '',
-            bank_mfo: initialApp.transfer.receiver_card.bank?.mfo || '',
-          });
-        }
-
-        if (initialApp.transfer.custom_fields) {
-          setTransferCustomFields(initialApp.transfer.custom_fields);
-        }
       }
 
       if (initialApp.custom_fields) {
@@ -491,6 +488,28 @@ export function ApplicationCreatePage() {
                 }
               });
             }
+          } else if (cf.type === 'TRANSFER' || cf.transfer) {
+            const t = cf.transfer;
+            const sc = cf.card || t?.sender_card;
+            const rc = t?.receiver_card;
+            loadedTransfers.push({
+              clientId: cf.id || `custom_ft_${idx}`,
+              victimCardId: sc?.id || cf.card_id || null,
+              victimCardNumber: sc?.card_number || '',
+              victimCardFullName: sc?.full_name || '',
+              victimBankName: sc?.bank?.name || '',
+              transferId: t?.id || cf.transfer_id || null,
+              amount: t?.amount ? String(t.amount) : '',
+              currency: t?.currency || 'UZS',
+              providerId: t?.payment_provider?.id || null,
+              providerName: t?.payment_provider?.name || '',
+              transferDate: t?.transfer_date || '',
+              transferTime: t?.transfer_time || '',
+              receiverCardId: rc?.id || null,
+              receiverCardNumber: rc?.card_number || '',
+              receiverCardFullName: rc?.full_name || '',
+              receiverBankName: rc?.bank?.name || '',
+            });
           } else {
             nonEvidenceFields.push({
               clientId: cf.id || `cf_loaded_${idx}`,
@@ -519,6 +538,7 @@ export function ApplicationCreatePage() {
                 ? {
                     card_number: cf.card.card_number || '',
                     expire_date: cf.card.expire_date || '',
+                    full_name: cf.card.full_name || '',
                     bank_name: cf.card.bank?.name || '',
                   }
                 : undefined,
@@ -533,18 +553,9 @@ export function ApplicationCreatePage() {
               inline_district: cf.district
                 ? {
                     name: cf.district.name || '',
-                    code: cf.district.code || '',
                   }
                 : undefined,
-              inline_transfer: cf.transfer
-                ? {
-                    amount: cf.transfer.amount || '',
-                    currency: cf.transfer.currency || 'UZS',
-                    receiver_card_number: cf.transfer.receiver_card?.card_number || '',
-                    payment_provider_name: cf.transfer.payment_provider?.name || '',
-                    transfer_custom_fields: cf.transfer.custom_fields || [],
-                  }
-                : undefined,
+              inline_transfer: undefined,
             });
           }
         });
@@ -553,6 +564,11 @@ export function ApplicationCreatePage() {
           setEvidenceFiles(loadedEvidence);
         }
         setCustomFields(nonEvidenceFields);
+      }
+
+      if (loadedTransfers.length > 0) {
+        setHasFinancialLoss(true);
+        setFinancialTransfers(loadedTransfers);
       }
     }
   }, [initialApp]);
@@ -591,20 +607,8 @@ export function ApplicationCreatePage() {
       if (crimePopoverRef.current && !crimePopoverRef.current.contains(target)) {
         setShowCrimePopover(false);
       }
-      if (cardPopoverRef.current && !cardPopoverRef.current.contains(target)) {
-        setShowCardPopover(false);
-      }
-      if (bankPopoverRef.current && !bankPopoverRef.current.contains(target)) {
-        setShowBankPopover(false);
-      }
-      if (providerPopoverRef.current && !providerPopoverRef.current.contains(target)) {
-        setShowProviderPopover(false);
-      }
-      if (receiverCardPopoverRef.current && !receiverCardPopoverRef.current.contains(target)) {
-        setShowReceiverCardPopover(false);
-      }
-      if (receiverBankPopoverRef.current && !receiverBankPopoverRef.current.contains(target)) {
-        setShowReceiverBankPopover(false);
+      if (transferContainerRef.current && !transferContainerRef.current.contains(target)) {
+        setActiveTransferPopover(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -616,17 +620,14 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   const filteredDistricts = allDistricts.filter((d) => {
     const q = districtForm.name.trim().toLowerCase();
-    const qCode = districtForm.code.trim().toLowerCase();
-    if (!q && !qCode) return false;
-    const matchName = !q || (d.name || '').toLowerCase().includes(q);
-    const matchCode = !qCode || (d.code || '').toLowerCase().includes(qCode);
-    return matchName && matchCode;
+    if (!q) return false;
+    return (d.name || '').toLowerCase().includes(q);
   });
 
   const filteredCitizenDistricts = allDistricts.filter((d) => {
     const q = citizenDistrictName.trim().toLowerCase();
     if (!q) return true;
-    return (d.name || '').toLowerCase().includes(q) || (d.code || '').toLowerCase().includes(q);
+    return (d.name || '').toLowerCase().includes(q);
   });
 
   const filteredCitizenMahallas = allCitizenMahallas.filter((m) => {
@@ -641,37 +642,46 @@ export function ApplicationCreatePage() {
     return (c.article || '').toLowerCase().includes(q) || (c.title || '').toLowerCase().includes(q);
   });
 
-  const filteredCards = allCards.filter((c) => {
-    const q = cardForm.card_number.replace(/\D/g, '');
-    if (!q) return false;
-    const cNum = (c.card_number || '').replace(/\D/g, '');
-    return cNum.includes(q);
-  });
+  const currentActiveTransfer =
+    activeTransferPopover !== null ? financialTransfers[activeTransferPopover.index] : null;
 
-  const filteredBanks = allBanks.filter((b) => {
-    const q = cardForm.bank_name.trim().toLowerCase();
-    if (!q) return false;
-    return (b.name || '').toLowerCase().includes(q) || (b.mfo || '').includes(q);
-  });
+  const activeVictimCardNumber = currentActiveTransfer?.victimCardNumber || '';
+  const activeVictimBankName = currentActiveTransfer?.victimBankName || '';
+  const activeProviderName = currentActiveTransfer?.providerName || '';
+  const activeReceiverCardNumber = currentActiveTransfer?.receiverCardNumber || '';
+  const activeReceiverBankName = currentActiveTransfer?.receiverBankName || '';
 
-  const filteredProviders = allProviders.filter((p) => {
-    const q = providerName.trim().toLowerCase();
-    if (!q) return false;
-    return (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q);
-  });
+  const filteredVictimCards = useMemo(() => {
+    const q = activeVictimCardNumber.replace(/\D/g, '');
+    if (!q) return [];
+    return allCards.filter((c) => (c.card_number || '').replace(/\D/g, '').includes(q));
+  }, [allCards, activeVictimCardNumber]);
 
-  const filteredReceiverCards = allCards.filter((c) => {
-    const q = receiverCardForm.card_number.replace(/\D/g, '');
-    if (!q) return false;
-    const cNum = (c.card_number || '').replace(/\D/g, '');
-    return cNum.includes(q);
-  });
+  const filteredVictimBanks = useMemo(() => {
+    const q = activeVictimBankName.trim().toLowerCase();
+    if (!q) return [];
+    return allBanks.filter((b) => (b.name || '').toLowerCase().includes(q));
+  }, [allBanks, activeVictimBankName]);
 
-  const filteredReceiverBanks = allBanks.filter((b) => {
-    const q = receiverCardForm.bank_name.trim().toLowerCase();
-    if (!q) return false;
-    return (b.name || '').toLowerCase().includes(q) || (b.mfo || '').includes(q);
-  });
+  const filteredEntryProviders = useMemo(() => {
+    const q = activeProviderName.trim().toLowerCase();
+    if (!q) return [];
+    return allProviders.filter(
+      (p) => (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q),
+    );
+  }, [allProviders, activeProviderName]);
+
+  const filteredReceiverCards = useMemo(() => {
+    const q = activeReceiverCardNumber.replace(/\D/g, '');
+    if (!q) return [];
+    return allCards.filter((c) => (c.card_number || '').replace(/\D/g, '').includes(q));
+  }, [allCards, activeReceiverCardNumber]);
+
+  const filteredReceiverBanks = useMemo(() => {
+    const q = activeReceiverBankName.trim().toLowerCase();
+    if (!q) return [];
+    return allBanks.filter((b) => (b.name || '').toLowerCase().includes(q));
+  }, [allBanks, activeReceiverBankName]);
 
   // ==========================================================================
   // SELECTION HANDLERS
@@ -698,7 +708,6 @@ export function ApplicationCreatePage() {
     setSelectedDistrictId(d.id);
     setDistrictForm({
       name: d.name || '',
-      code: d.code || '',
     });
     setShowDistrictPopover(false);
   };
@@ -709,117 +718,6 @@ export function ApplicationCreatePage() {
       article: c.article || c.title || '',
     });
     setShowCrimePopover(false);
-  };
-
-  const handleSelectCard = (c: CardModel) => {
-    setSelectedCardId(c.id);
-    setCardForm({
-      card_number: c.card_number || '',
-      expire_date: c.expire_date || '',
-      bank_name: c.bank?.name || '',
-      bank_mfo: c.bank?.mfo || '',
-    });
-    setShowCardPopover(false);
-  };
-
-  const handleSelectBank = (b: Bank) => {
-    setCardForm((prev) => ({
-      ...prev,
-      bank_name: b.name || '',
-      bank_mfo: b.mfo || '',
-    }));
-    setShowBankPopover(false);
-  };
-
-  const handleSelectProvider = (p: PaymentProvider) => {
-    setSelectedProviderId(p.id);
-    setProviderName(p.name || '');
-    setShowProviderPopover(false);
-  };
-
-  const handleSelectReceiverCard = (c: CardModel) => {
-    setSelectedReceiverCardId(c.id);
-    setReceiverCardForm({
-      card_number: c.card_number || '',
-      expire_date: c.expire_date || '',
-      bank_name: c.bank?.name || '',
-      bank_mfo: c.bank?.mfo || '',
-    });
-    setShowReceiverCardPopover(false);
-  };
-
-  const handleSelectReceiverBank = (b: Bank) => {
-    setReceiverCardForm((prev) => ({
-      ...prev,
-      bank_name: b.name || '',
-      bank_mfo: b.mfo || '',
-    }));
-    setShowReceiverBankPopover(false);
-  };
-
-  // Transfer Sub-modellar qo'shish
-  const handleAddTransferCard = () => {
-    if (!transferCardForm.card_number.trim() && !transferCardId) return;
-    setTransferCustomFields((prev) => [
-      ...prev,
-      {
-        label: transferCardRole || 'Tranzit / Qo‘shimcha karta',
-        key: `transfer_card_${Date.now()}`,
-        type: 'CARD' as TransferCustomFieldType,
-        card_id: transferCardId || undefined,
-        value: {
-          card_number: transferCardForm.card_number,
-          expire_date: transferCardForm.expire_date,
-          bank_name: transferCardForm.bank_name,
-          is_existing: !!transferCardId,
-        },
-        order: prev.length,
-      },
-    ]);
-    setTransferCardId(null);
-    setTransferCardForm({ card_number: '', expire_date: '', bank_name: '', bank_mfo: '' });
-    setActiveTransferType(null);
-  };
-
-  const handleAddTransferBank = () => {
-    if (!transferBankName.trim() && !transferBankId) return;
-    setTransferCustomFields((prev) => [
-      ...prev,
-      {
-        label: transferBankRole || 'Vositachi bank',
-        key: `transfer_bank_${Date.now()}`,
-        type: 'BANK' as TransferCustomFieldType,
-        bank_id: transferBankId || undefined,
-        value: {
-          name: transferBankName,
-          is_existing: !!transferBankId,
-        },
-        order: prev.length,
-      },
-    ]);
-    setTransferBankId(null);
-    setTransferBankName('');
-    setActiveTransferType(null);
-  };
-
-  const handleAddTransferText = () => {
-    if (!transferTextValue.trim()) return;
-    setTransferCustomFields((prev) => [
-      ...prev,
-      {
-        label: transferTextLabel.trim() || 'Tranzaksiya izohi',
-        key: `transfer_text_${Date.now()}`,
-        type: 'STRING' as TransferCustomFieldType,
-        value: transferTextValue.trim(),
-        order: prev.length,
-      },
-    ]);
-    setTransferTextValue('');
-    setActiveTransferType(null);
-  };
-
-  const handleRemoveTransferField = (index: number) => {
-    setTransferCustomFields((prev) => prev.filter((_, i) => i !== index));
   };
 
   // ==========================================================================
@@ -948,10 +846,9 @@ export function ApplicationCreatePage() {
       // 2. Tuman
       if (selectedDistrictId) {
         payload.district_id = selectedDistrictId;
-      } else if (districtForm.name) {
+      } else if (districtForm.name.trim()) {
         payload.district_data = {
-          name: districtForm.name,
-          code: districtForm.code,
+          name: districtForm.name.trim(),
         };
       }
 
@@ -965,49 +862,90 @@ export function ApplicationCreatePage() {
         };
       }
 
-      // 4. Moliyaviy Zarar / Karta va O'tkazma
-      if (hasFinancialLoss) {
-        // Jabrlanuvchi kartasi
-        if (selectedCardId) {
-          payload.card_id = selectedCardId;
-        } else if (cardForm.card_number) {
+      // 4. Moliyaviy Zarar / Karta va O'tkazmalar
+      const allCustomFields = [...customFields];
+
+      if (hasFinancialLoss && financialTransfers.length > 0) {
+        const primary = financialTransfers[0];
+
+        // Primary Karta
+        if (primary.victimCardId) {
+          payload.card_id = primary.victimCardId;
+        }
+        if (primary.victimCardNumber || primary.victimCardFullName || primary.victimBankName) {
           payload.card_data = {
-            card_number: cardForm.card_number.replace(/\D/g, ''),
-            expire_date: cardForm.expire_date,
-            bank_name: cardForm.bank_name,
-            bank_mfo: cardForm.bank_mfo,
+            card_number: primary.victimCardNumber.replace(/\D/g, ''),
+            full_name: primary.victimCardFullName || undefined,
+            bank_name: primary.victimBankName || undefined,
           };
         }
 
-        // To'lov o'tkazmasi
-        if (selectedTransferId) {
-          payload.transfer_id = selectedTransferId;
+        // Primary O'tkazma
+        if (primary.transferId) {
+          payload.transfer_id = primary.transferId;
         }
-        if (transferForm.amount) {
+        if (
+          primary.amount ||
+          primary.receiverCardNumber ||
+          primary.receiverCardFullName ||
+          primary.transferDate
+        ) {
           payload.transfer_data = {
-            transaction_id: transferForm.transaction_id,
-            amount: Number(transferForm.amount),
-            currency: transferForm.currency,
-            status: transferForm.status,
-            payment_provider_id: selectedProviderId || undefined,
-            payment_provider_name: selectedProviderId ? undefined : providerName,
-            receiver_card_id: selectedReceiverCardId || undefined,
-            receiver_card_number: selectedReceiverCardId
+            amount: primary.amount ? Number(primary.amount) : undefined,
+            currency: primary.currency || 'UZS',
+            payment_provider_id: primary.providerId || undefined,
+            payment_provider_name: primary.providerId
               ? undefined
-              : receiverCardForm.card_number.replace(/\D/g, ''),
-            receiver_card_expire: receiverCardForm.expire_date,
-            receiver_bank_name: receiverCardForm.bank_name,
-            receiver_bank_mfo: receiverCardForm.bank_mfo,
-            custom_fields: transferCustomFields,
+              : primary.providerName || undefined,
+            receiver_card_id: primary.receiverCardId || undefined,
+            receiver_card_number: primary.receiverCardId
+              ? undefined
+              : primary.receiverCardNumber.replace(/\D/g, ''),
+            receiver_card_full_name: primary.receiverCardFullName || undefined,
+            receiver_bank_name: primary.receiverBankName || undefined,
+            transfer_date: primary.transferDate || undefined,
+            transfer_time: primary.transferTime || undefined,
           };
         }
+
+        // Qo'shimcha o'tkazmalar (1 dan boshlab)
+        financialTransfers.slice(1).forEach((entry, idx) => {
+          allCustomFields.push({
+            clientId: entry.clientId,
+            type: 'TRANSFER',
+            label: `Qo‘shimcha o‘tkazma #${idx + 2}`,
+            key: `transfer_${entry.clientId}`,
+            value: entry.amount ? `${entry.amount} ${entry.currency}` : 'O‘tkazma',
+            order: allCustomFields.length + idx,
+            card_id: entry.victimCardId || undefined,
+            transfer_id: entry.transferId || undefined,
+            inline_card: {
+              card_number: entry.victimCardNumber ? entry.victimCardNumber.replace(/\D/g, '') : '',
+              full_name: entry.victimCardFullName || undefined,
+              bank_name: entry.victimBankName || undefined,
+            },
+            inline_transfer: {
+              amount: entry.amount ? Number(entry.amount) : '',
+              currency: entry.currency || 'UZS',
+              payment_provider_id: entry.providerId || undefined,
+              payment_provider_name: entry.providerId ? undefined : entry.providerName || undefined,
+              receiver_card_id: entry.receiverCardId || undefined,
+              receiver_card_number: entry.receiverCardId
+                ? undefined
+                : entry.receiverCardNumber.replace(/\D/g, ''),
+              receiver_card_full_name: entry.receiverCardFullName || undefined,
+              receiver_bank_name: entry.receiverBankName || undefined,
+              transfer_date: entry.transferDate || undefined,
+              transfer_time: entry.transferTime || undefined,
+            },
+          });
+        });
       } else {
         payload.card_id = null;
         payload.transfer_id = null;
       }
 
       // 5. Universal Custom Fields & MinIO Dalillar
-      const allCustomFields = [...customFields];
       if (evidenceFiles.length > 0) {
         const evidenceField: AppCustomFieldState = {
           clientId: 'evidence_auto_files',
@@ -1369,9 +1307,6 @@ export function ApplicationCreatePage() {
                         className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
                       >
                         <span className="font-medium text-foreground">{d.name}</span>
-                        {d.code && (
-                          <span className="font-mono text-muted-foreground">{d.code}</span>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -1589,31 +1524,17 @@ export function ApplicationCreatePage() {
                   </Badge>
                 ) : null}
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <Input
-                    placeholder="CHILONZOR, YUNUSOBOD..."
-                    value={districtForm.name}
-                    onFocus={() => setShowDistrictPopover(true)}
-                    onChange={(e) => {
-                      setDistrictForm({ ...districtForm, name: e.target.value.toUpperCase() });
-                      setSelectedDistrictId(null);
-                      setShowDistrictPopover(true);
-                    }}
-                    className="h-10 text-xs uppercase"
-                  />
-                </div>
-                <div>
-                  <Input
-                    placeholder="KODI (CHL-01)"
-                    value={districtForm.code}
-                    onChange={(e) =>
-                      setDistrictForm({ ...districtForm, code: e.target.value.toUpperCase() })
-                    }
-                    className="h-10 text-xs font-mono uppercase"
-                  />
-                </div>
-              </div>
+              <Input
+                placeholder="CHILONZOR, YUNUSOBOD, MIRZO ULUG‘BEK..."
+                value={districtForm.name}
+                onFocus={() => setShowDistrictPopover(true)}
+                onChange={(e) => {
+                  setDistrictForm({ name: e.target.value.toUpperCase() });
+                  setSelectedDistrictId(null);
+                  setShowDistrictPopover(true);
+                }}
+                className="h-10 text-xs uppercase"
+              />
 
               {showDistrictPopover && filteredDistricts.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
@@ -1627,7 +1548,6 @@ export function ApplicationCreatePage() {
                       className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
                     >
                       <span className="font-medium text-foreground">{d.name}</span>
-                      <span className="font-mono text-muted-foreground">{d.code}</span>
                     </div>
                   ))}
                 </div>
@@ -1787,627 +1707,461 @@ export function ApplicationCreatePage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-5 animate-in fade-in-50 duration-200">
-              {/* 3 TA BOG'LANGAN TRANZAKSIYA KARTALARI (FLOW) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* 1. JABRLANUVCHI KARTASI */}
-                <div className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3 relative">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <CreditCard className="h-4 w-4 text-primary" />
-                      Jabrlanuvchi Bank Kartasi
-                    </span>
-                    {selectedCardId ? (
-                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Bazadagi karta biriktirildi
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCardId(null)}
-                          className="ml-1 hover:text-foreground"
-                          title="Bog‘lanishni bekor qilish"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : cardForm.card_number ? (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                        Yangi karta
-                      </Badge>
-                    ) : null}
+            <div
+              ref={transferContainerRef}
+              className="space-y-6 animate-in fade-in-50 duration-200"
+            >
+              {financialTransfers.map((entry, index) => (
+                <div
+                  key={entry.clientId}
+                  className="p-4 sm:p-5 rounded-2xl border border-border bg-card/70 shadow-sm space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                        {index === 0
+                          ? '1-O‘tkazma shakli (Asosiy)'
+                          : `${index + 1}-O‘tkazma shakli`}
+                      </span>
+                    </div>
+                    {financialTransfers.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveTransferEntry(index)}
+                        className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1 px-2"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        O‘chirish
+                      </Button>
+                    )}
                   </div>
 
-                  <div ref={cardPopoverRef} className="relative space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2 space-y-1">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* 1. JABRLANUVCHI KARTASI */}
+                    <div className="p-4 rounded-xl border border-border bg-muted/10 shadow-sm space-y-3 relative">
+                      <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <CreditCard className="h-4 w-4 text-primary" />
+                          Jabrlanuvchi Bank Kartasi
+                        </span>
+                        {entry.victimCardId ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Bazadagi karta
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateTransferEntry(index, { victimCardId: null })
+                              }
+                              className="ml-1 hover:text-foreground"
+                              title="Bog‘lanishni bekor qilish"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ) : entry.victimCardNumber ? (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Yangi karta
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      <div className="relative space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           Karta raqami (16 talik) *
                         </label>
                         <Input
                           placeholder="8600 0000 0000 0000"
-                          value={cardForm.card_number}
-                          onFocus={() => setShowCardPopover(true)}
+                          value={entry.victimCardNumber}
+                          onFocus={() => setActiveTransferPopover({ index, type: 'victimCard' })}
                           onChange={(e) => {
-                            setCardForm({ ...cardForm, card_number: e.target.value.toUpperCase() });
-                            setSelectedCardId(null);
-                            setShowCardPopover(true);
+                            handleUpdateTransferEntry(index, {
+                              victimCardNumber: e.target.value.toUpperCase(),
+                              victimCardId: null,
+                            });
+                            setActiveTransferPopover({ index, type: 'victimCard' });
                           }}
                           className="h-9 text-xs font-mono font-bold uppercase"
                         />
+                        {activeTransferPopover?.index === index &&
+                          activeTransferPopover.type === 'victimCard' &&
+                          filteredVictimCards.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
+                              <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
+                                Bazada mavjud kartalar:
+                              </div>
+                              {filteredVictimCards.map((c) => (
+                                <div
+                                  key={c.id}
+                                  onClick={() => {
+                                    handleUpdateTransferEntry(index, {
+                                      victimCardId: c.id,
+                                      victimCardNumber: c.card_number || '',
+                                      victimCardFullName: c.full_name || '',
+                                      victimBankName: c.bank?.name || '',
+                                    });
+                                    setActiveTransferPopover(null);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
+                                >
+                                  <span className="font-bold text-foreground">
+                                    {c.masked_number || c.card_number}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {c.bank?.name || 'Bank'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
+
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Muddati
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-muted-foreground">
+                            Karta egasining F.I.SH.
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleFillApplicantName(index)}
+                            className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1 cursor-pointer bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded transition-colors"
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            Arizachining o‘zi
+                          </button>
+                        </div>
                         <Input
-                          placeholder="MM/YY"
-                          value={cardForm.expire_date}
+                          placeholder="ESHMURODOV TOSHPULAT..."
+                          value={entry.victimCardFullName}
                           onChange={(e) =>
-                            setCardForm({ ...cardForm, expire_date: e.target.value.toUpperCase() })
+                            handleUpdateTransferEntry(index, {
+                              victimCardFullName: e.target.value.toUpperCase(),
+                            })
                           }
-                          className="h-9 text-xs font-mono text-center uppercase"
+                          className="h-9 text-xs uppercase"
                         />
                       </div>
-                    </div>
 
-                    {showCardPopover && filteredCards.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                        <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
-                          Bazada mavjud kartalar:
-                        </div>
-                        {filteredCards.map((c) => (
-                          <div
-                            key={c.id}
-                            onClick={() => handleSelectCard(c)}
-                            className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
-                          >
-                            <span className="font-bold text-foreground">
-                              {c.masked_number || c.card_number}
-                            </span>
-                            <span className="text-muted-foreground">{c.bank?.name || 'Bank'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div ref={bankPopoverRef} className="relative space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2 space-y-1">
+                      <div className="relative space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           Xizmat ko‘rsatuvchi bank
                         </label>
                         <Input
-                          placeholder="KAPITALBANK, XALQ BANKI..."
-                          value={cardForm.bank_name}
-                          onFocus={() => setShowBankPopover(true)}
+                          placeholder="KAPITALBANK, XALQ BANKI, AGROBANK..."
+                          value={entry.victimBankName}
+                          onFocus={() => setActiveTransferPopover({ index, type: 'victimBank' })}
                           onChange={(e) => {
-                            setCardForm({ ...cardForm, bank_name: e.target.value.toUpperCase() });
-                            setShowBankPopover(true);
+                            handleUpdateTransferEntry(index, {
+                              victimBankName: e.target.value.toUpperCase(),
+                            });
+                            setActiveTransferPopover({ index, type: 'victimBank' });
                           }}
                           className="h-9 text-xs uppercase"
                         />
+                        {activeTransferPopover?.index === index &&
+                          activeTransferPopover.type === 'victimBank' &&
+                          filteredVictimBanks.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
+                              {filteredVictimBanks.map((b) => (
+                                <div
+                                  key={b.id}
+                                  onClick={() => {
+                                    handleUpdateTransferEntry(index, {
+                                      victimBankName: b.name || '',
+                                    });
+                                    setActiveTransferPopover(null);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                                >
+                                  <span className="font-medium text-foreground">{b.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
-                      <div className="space-y-1">
+                    </div>
+
+                    {/* 2. O'TKAZMA MA'LUMOTI */}
+                    <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-primary/20 pb-2">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <ArrowLeftRight className="h-4 w-4 text-primary" />
+                          O‘tkazma Ma‘lumoti
+                        </span>
+                        {entry.transferDate && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-primary/40 text-primary"
+                          >
+                            {entry.transferDate}{' '}
+                            {entry.transferTime ? `(${entry.transferTime})` : ''}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2 space-y-1">
+                          <label className="text-[11px] font-semibold text-foreground">
+                            O‘tkazma Summasi *
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="2500000"
+                            value={entry.amount}
+                            onChange={(e) =>
+                              handleUpdateTransferEntry(index, { amount: e.target.value })
+                            }
+                            className="h-9 text-xs font-mono font-bold text-emerald-400 bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">
+                            Valyuta
+                          </label>
+                          <select
+                            value={entry.currency}
+                            onChange={(e) =>
+                              handleUpdateTransferEntry(index, { currency: e.target.value })
+                            }
+                            className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs font-mono font-bold"
+                          >
+                            <option value="UZS">UZS</option>
+                            <option value="USD">USD</option>
+                            <option value="RUB">RUB</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="relative space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
-                          Bank MFO
+                          To‘lov Provayderi / Ilova Nomi
                         </label>
                         <Input
-                          placeholder="00014"
-                          value={cardForm.bank_mfo}
-                          onChange={(e) =>
-                            setCardForm({ ...cardForm, bank_mfo: e.target.value.toUpperCase() })
-                          }
-                          className="h-9 text-xs font-mono uppercase"
+                          placeholder="PAYME, CLICK, UZUM, ANORBANK..."
+                          value={entry.providerName}
+                          onFocus={() => setActiveTransferPopover({ index, type: 'provider' })}
+                          onChange={(e) => {
+                            handleUpdateTransferEntry(index, {
+                              providerName: e.target.value.toUpperCase(),
+                              providerId: null,
+                            });
+                            setActiveTransferPopover({ index, type: 'provider' });
+                          }}
+                          className="h-9 text-xs bg-background uppercase"
                         />
+                        {activeTransferPopover?.index === index &&
+                          activeTransferPopover.type === 'provider' &&
+                          filteredEntryProviders.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
+                              {filteredEntryProviders.map((p) => (
+                                <div
+                                  key={p.id}
+                                  onClick={() => {
+                                    handleUpdateTransferEntry(index, {
+                                      providerId: p.id,
+                                      providerName: p.name || '',
+                                    });
+                                    setActiveTransferPopover(null);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                                >
+                                  <span className="font-medium text-foreground">{p.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-primary" /> O‘tkazma Sanasi
+                          </label>
+                          <Input
+                            type="date"
+                            value={entry.transferDate}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              handleUpdateTransferEntry(index, {
+                                transferDate: newDate,
+                                transferTime: newDate ? entry.transferTime : '',
+                              });
+                            }}
+                            className="h-9 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-primary" /> O‘tkazma Vaqti
+                          </label>
+                          <Input
+                            type="time"
+                            value={entry.transferTime}
+                            disabled={!entry.transferDate}
+                            onChange={(e) =>
+                              handleUpdateTransferEntry(index, { transferTime: e.target.value })
+                            }
+                            className={`h-9 text-xs bg-background ${!entry.transferDate ? 'opacity-50 cursor-not-allowed bg-muted' : ''}`}
+                            title={
+                              !entry.transferDate ? 'Avval o‘tkazma sanasini tanlang' : undefined
+                            }
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {showBankPopover && filteredBanks.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                        {filteredBanks.map((b) => (
-                          <div
-                            key={b.id}
-                            onClick={() => handleSelectBank(b)}
-                            className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                          >
-                            <span className="font-medium text-foreground">{b.name}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              {b.mfo}
-                            </span>
-                          </div>
-                        ))}
+                    {/* 3. FIRIBGAR (QABUL QILUVCHI) KARTASI */}
+                    <div className="p-4 rounded-xl border border-red-500/30 bg-muted/10 shadow-sm space-y-3 relative">
+                      <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <ShieldAlert className="h-4 w-4 text-red-400" />
+                          Qabul Qiluvchi (Firibgar) Kartasi
+                        </span>
+                        {entry.receiverCardId ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Bazadagi karta
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateTransferEntry(index, { receiverCardId: null })
+                              }
+                              className="ml-1 hover:text-foreground"
+                              title="Bog‘lanishni bekor qilish"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ) : entry.receiverCardNumber ? (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Yangi karta
+                          </Badge>
+                        ) : null}
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* 2. NOQONUNIY TRANZAKSIYA TAFSILOTI */}
-                <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between border-b border-primary/20 pb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <ArrowLeftRight className="h-4 w-4 text-primary" />
-                      O‘tkazma Ma‘lumoti
-                    </span>
-                    <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
-                      {transferForm.status}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2 space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">
-                        O‘tkazma Summasi *
-                      </label>
-                      <Input
-                        type="number"
-                        placeholder="2500000"
-                        value={transferForm.amount}
-                        onChange={(e) =>
-                          setTransferForm({ ...transferForm, amount: e.target.value })
-                        }
-                        className="h-9 text-xs font-mono font-bold text-emerald-400 bg-background"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-muted-foreground">
-                        Valyuta
-                      </label>
-                      <select
-                        value={transferForm.currency}
-                        onChange={(e) =>
-                          setTransferForm({ ...transferForm, currency: e.target.value })
-                        }
-                        className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs font-mono font-bold"
-                      >
-                        <option value="UZS">UZS</option>
-                        <option value="USD">USD</option>
-                        <option value="RUB">RUB</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div ref={providerPopoverRef} className="relative space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground">
-                      To‘lov Provayderi / Ilova Nomi
-                    </label>
-                    <Input
-                      placeholder="PAYME, CLICK, UZUM, ANORBANK..."
-                      value={providerName}
-                      onFocus={() => setShowProviderPopover(true)}
-                      onChange={(e) => {
-                        setProviderName(e.target.value.toUpperCase());
-                        setSelectedProviderId(null);
-                        setShowProviderPopover(true);
-                      }}
-                      className="h-9 text-xs bg-background uppercase"
-                    />
-
-                    {showProviderPopover && filteredProviders.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                        {filteredProviders.map((p) => (
-                          <div
-                            key={p.id}
-                            onClick={() => handleSelectProvider(p)}
-                            className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                          >
-                            <span className="font-medium text-foreground">{p.name}</span>
-                            <span className="font-mono text-[10px] text-primary">{p.code}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-muted-foreground">
-                        Chek / Tranzaksiya ID
-                      </label>
-                      <Input
-                        placeholder="TRX-98210"
-                        value={transferForm.transaction_id}
-                        onChange={(e) =>
-                          setTransferForm({
-                            ...transferForm,
-                            transaction_id: e.target.value.toUpperCase(),
-                          })
-                        }
-                        className="h-9 text-xs font-mono bg-background uppercase"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-muted-foreground">
-                        Holati
-                      </label>
-                      <select
-                        value={transferForm.status}
-                        onChange={(e) =>
-                          setTransferForm({
-                            ...transferForm,
-                            status: e.target.value as TransferStatus,
-                          })
-                        }
-                        className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs"
-                      >
-                        <option value="KUTILMOQDA">Kutilmoqda</option>
-                        <option value="MUVAFFAQIYATLI">Muvaffaqiyatli</option>
-                        <option value="BEKOR_QILINDI">Bekor qilingan</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. FIRIBGAR (QABUL QILUVCHI) KARTASI */}
-                <div className="p-4 rounded-xl border border-red-500/30 bg-card shadow-sm space-y-3 relative">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <ShieldAlert className="h-4 w-4 text-red-400" />
-                      Qabul Qiluvchi (Firibgar) Kartasi
-                    </span>
-                    {selectedReceiverCardId ? (
-                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Bazadagi karta biriktirildi
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReceiverCardId(null)}
-                          className="ml-1 hover:text-foreground"
-                          title="Bog‘lanishni bekor qilish"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : receiverCardForm.card_number ? (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                        Yangi karta
-                      </Badge>
-                    ) : null}
-                  </div>
-
-                  <div ref={receiverCardPopoverRef} className="relative space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2 space-y-1">
+                      <div className="relative space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           Karta raqami (16 talik) *
                         </label>
                         <Input
                           placeholder="9860 0000 0000 0000"
-                          value={receiverCardForm.card_number}
-                          onFocus={() => setShowReceiverCardPopover(true)}
+                          value={entry.receiverCardNumber}
+                          onFocus={() => setActiveTransferPopover({ index, type: 'receiverCard' })}
                           onChange={(e) => {
-                            setReceiverCardForm({
-                              ...receiverCardForm,
-                              card_number: e.target.value.toUpperCase(),
+                            handleUpdateTransferEntry(index, {
+                              receiverCardNumber: e.target.value.toUpperCase(),
+                              receiverCardId: null,
                             });
-                            setSelectedReceiverCardId(null);
-                            setShowReceiverCardPopover(true);
+                            setActiveTransferPopover({ index, type: 'receiverCard' });
                           }}
                           className="h-9 text-xs font-mono font-bold uppercase"
                         />
+                        {activeTransferPopover?.index === index &&
+                          activeTransferPopover.type === 'receiverCard' &&
+                          filteredReceiverCards.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
+                              <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
+                                Bazada mavjud kartalar:
+                              </div>
+                              {filteredReceiverCards.map((c) => (
+                                <div
+                                  key={c.id}
+                                  onClick={() => {
+                                    handleUpdateTransferEntry(index, {
+                                      receiverCardId: c.id,
+                                      receiverCardNumber: c.card_number || '',
+                                      receiverCardFullName: c.full_name || '',
+                                      receiverBankName: c.bank?.name || '',
+                                    });
+                                    setActiveTransferPopover(null);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
+                                >
+                                  <span className="font-bold text-foreground">
+                                    {c.masked_number || c.card_number}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {c.bank?.name || 'Bank'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
+
                       <div className="space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
-                          Muddati
+                          Karta egasining F.I.SH.
                         </label>
                         <Input
-                          placeholder="MM/YY"
-                          value={receiverCardForm.expire_date}
+                          placeholder="FIRIBGAR / NOMA‘LUM SHAXS F.I.SH."
+                          value={entry.receiverCardFullName}
                           onChange={(e) =>
-                            setReceiverCardForm({
-                              ...receiverCardForm,
-                              expire_date: e.target.value.toUpperCase(),
+                            handleUpdateTransferEntry(index, {
+                              receiverCardFullName: e.target.value.toUpperCase(),
                             })
                           }
-                          className="h-9 text-xs font-mono text-center uppercase"
+                          className="h-9 text-xs uppercase"
                         />
                       </div>
-                    </div>
 
-                    {showReceiverCardPopover && filteredReceiverCards.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                        <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
-                          Bazada mavjud kartalar:
-                        </div>
-                        {filteredReceiverCards.map((c) => (
-                          <div
-                            key={c.id}
-                            onClick={() => handleSelectReceiverCard(c)}
-                            className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
-                          >
-                            <span className="font-bold text-foreground">
-                              {c.masked_number || c.card_number}
-                            </span>
-                            <span className="text-muted-foreground">{c.bank?.name || 'Bank'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div ref={receiverBankPopoverRef} className="relative space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2 space-y-1">
+                      <div className="relative space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           Firibgar kartasi banki
                         </label>
                         <Input
-                          placeholder="KAPITALBANK, IPAK YO‘LI..."
-                          value={receiverCardForm.bank_name}
-                          onFocus={() => setShowReceiverBankPopover(true)}
+                          placeholder="KAPITALBANK, IPAK YO‘LI, TBC..."
+                          value={entry.receiverBankName}
+                          onFocus={() => setActiveTransferPopover({ index, type: 'receiverBank' })}
                           onChange={(e) => {
-                            setReceiverCardForm({
-                              ...receiverCardForm,
-                              bank_name: e.target.value.toUpperCase(),
+                            handleUpdateTransferEntry(index, {
+                              receiverBankName: e.target.value.toUpperCase(),
                             });
-                            setShowReceiverBankPopover(true);
+                            setActiveTransferPopover({ index, type: 'receiverBank' });
                           }}
                           className="h-9 text-xs uppercase"
                         />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          MFO
-                        </label>
-                        <Input
-                          placeholder="00014"
-                          value={receiverCardForm.bank_mfo}
-                          onChange={(e) =>
-                            setReceiverCardForm({
-                              ...receiverCardForm,
-                              bank_mfo: e.target.value.toUpperCase(),
-                            })
-                          }
-                          className="h-9 text-xs font-mono uppercase"
-                        />
+                        {activeTransferPopover?.index === index &&
+                          activeTransferPopover.type === 'receiverBank' &&
+                          filteredReceiverBanks.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
+                              {filteredReceiverBanks.map((b) => (
+                                <div
+                                  key={b.id}
+                                  onClick={() => {
+                                    handleUpdateTransferEntry(index, {
+                                      receiverBankName: b.name || '',
+                                    });
+                                    setActiveTransferPopover(null);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                                >
+                                  <span className="font-medium text-foreground">{b.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
                     </div>
-
-                    {showReceiverBankPopover && filteredReceiverBanks.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                        {filteredReceiverBanks.map((b) => (
-                          <div
-                            key={b.id}
-                            onClick={() => handleSelectReceiverBank(b)}
-                            className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                          >
-                            <span className="font-medium text-foreground">{b.name}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              {b.mfo}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
+              ))}
 
-              {/* TRANZIT / QO'SHIMCHA TRANZAKSIYA SUB-MODELLARI */}
-              <div className="pt-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <Receipt className="h-3.5 w-3.5 text-primary" />
-                    Qo‘shimcha tranzit kartalar yoki vositachi banklar (
-                    {transferCustomFields.length})
-                  </span>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={activeTransferType === 'CARD' ? 'default' : 'outline'}
-                      onClick={() =>
-                        setActiveTransferType(activeTransferType === 'CARD' ? null : 'CARD')
-                      }
-                      className="h-7 text-xs gap-1"
-                    >
-                      <CreditCard className="h-3.5 w-3.5" />+ Tranzit karta
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={activeTransferType === 'BANK' ? 'default' : 'outline'}
-                      onClick={() =>
-                        setActiveTransferType(activeTransferType === 'BANK' ? null : 'BANK')
-                      }
-                      className="h-7 text-xs gap-1"
-                    >
-                      <Building2 className="h-3.5 w-3.5" />+ Vositachi bank
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={activeTransferType === 'STRING' ? 'default' : 'outline'}
-                      onClick={() =>
-                        setActiveTransferType(activeTransferType === 'STRING' ? null : 'STRING')
-                      }
-                      className="h-7 text-xs gap-1"
-                    >
-                      <FileText className="h-3.5 w-3.5" />+ O‘tkazma qaydi
-                    </Button>
-                  </div>
-                </div>
-
-                {/* AKTIV SUB-FORMA */}
-                {activeTransferType === 'CARD' && (
-                  <div className="mt-3 p-3 rounded-xl border border-primary/30 bg-card space-y-2 animate-in fade-in-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">
-                        Tranzit / Qo‘shimcha karta kiritish
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setActiveTransferType(null)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <Input
-                        placeholder="Roli (Tranzit 1, Vositachi...)"
-                        value={transferCardRole}
-                        onChange={(e) => setTransferCardRole(e.target.value.toUpperCase())}
-                        className="h-8 text-xs uppercase"
-                      />
-                      <Input
-                        placeholder="Karta raqami"
-                        value={transferCardForm.card_number}
-                        onChange={(e) =>
-                          setTransferCardForm({
-                            ...transferCardForm,
-                            card_number: e.target.value.toUpperCase(),
-                          })
-                        }
-                        className="h-8 text-xs font-mono uppercase"
-                      />
-                      <Input
-                        placeholder="Bank nomi"
-                        value={transferCardForm.bank_name}
-                        onChange={(e) =>
-                          setTransferCardForm({
-                            ...transferCardForm,
-                            bank_name: e.target.value.toUpperCase(),
-                          })
-                        }
-                        className="h-8 text-xs uppercase"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleAddTransferCard}
-                        className="h-7 text-xs gap-1"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Biriktirish
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {activeTransferType === 'BANK' && (
-                  <div className="mt-3 p-3 rounded-xl border border-primary/30 bg-card space-y-2 animate-in fade-in-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">
-                        Vositachi bank kiritish
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setActiveTransferType(null)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <Input
-                        placeholder="Bank roli (Kliring banki, Vositachi...)"
-                        value={transferBankRole}
-                        onChange={(e) => setTransferBankRole(e.target.value.toUpperCase())}
-                        className="h-8 text-xs uppercase"
-                      />
-                      <Input
-                        placeholder="Bank nomi (Kapitalbank, TBC...)"
-                        value={transferBankName}
-                        onChange={(e) => setTransferBankName(e.target.value.toUpperCase())}
-                        className="h-8 text-xs uppercase"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleAddTransferBank}
-                        className="h-7 text-xs gap-1"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Biriktirish
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {activeTransferType === 'STRING' && (
-                  <div className="mt-3 p-3 rounded-xl border border-primary/30 bg-card space-y-2 animate-in fade-in-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">
-                        Tranzaksiya bo‘yicha qo‘shimcha izoh
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setActiveTransferType(null)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <Input
-                        placeholder="Mavzu / Rol"
-                        value={transferTextLabel}
-                        onChange={(e) => setTransferTextLabel(e.target.value.toUpperCase())}
-                        className="h-8 text-xs uppercase"
-                      />
-                      <div className="sm:col-span-2">
-                        <Input
-                          placeholder="Izoh matni..."
-                          value={transferTextValue}
-                          onChange={(e) => setTransferTextValue(e.target.value.toUpperCase())}
-                          className="h-8 text-xs uppercase"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleAddTransferText}
-                        className="h-7 text-xs gap-1"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Biriktirish
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* BIRIKTIRILGAN SUB-MODELLAR RO'YXATI */}
-                {transferCustomFields.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {transferCustomFields.map((tcf, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 bg-background border border-border px-2.5 py-1 rounded-lg text-xs shadow-sm"
-                      >
-                        <span className="font-semibold text-foreground">{tcf.label}:</span>
-                        <span className="text-muted-foreground font-mono">
-                          {typeof tcf.value === 'object'
-                            ? JSON.stringify(tcf.value)
-                            : String(tcf.value)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTransferField(idx)}
-                          className="text-muted-foreground hover:text-red-400"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* + TUGMASI: YANGI KARTA VA O'TKAZMA SHAKLI QO'SHISH */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddTransferEntry}
+                className="w-full border-dashed py-5 text-xs font-semibold gap-2 border-primary/40 hover:border-primary text-primary hover:bg-primary/5 transition-all shadow-sm"
+              >
+                <Plus className="h-4 w-4" />
+                Yangi karta & o‘tkazma shaklini qo‘shish
+              </Button>
             </div>
           )}
         </div>
