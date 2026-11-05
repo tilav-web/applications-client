@@ -1616,9 +1616,7 @@ export function ApplicationCreatePage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Arizachi Ko‘rsatmasi (Hodisa To‘liq Bayoni)
-            </label>
+            <label className="text-xs font-semibold text-foreground">Fabula</label>
             <textarea
               rows={4}
               value={description}

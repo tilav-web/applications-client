@@ -592,11 +592,11 @@ export function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* Ariza Mazmuni, Arizachi va Xodim ko'rsatmasi */}
+          {/* Ariza Mazmuni, Fabula va Xodim ko'rsatmasi */}
           <div className="p-4 rounded-xl bg-muted/20 border border-border/50 space-y-3 text-xs">
             <div>
               <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
-                Arizachi Ko‘rsatmasi & Hodisa To‘liq Bayoni:
+                Fabula:
               </span>
               <div className="p-3.5 rounded-lg bg-background border border-border/60 text-foreground whitespace-pre-wrap leading-relaxed font-sans text-xs print:bg-white print:border-black print:text-black">
                 {app.description || 'Ariza bo‘yicha to‘liq tafsilot kiritilmagan.'}
