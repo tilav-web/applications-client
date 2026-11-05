@@ -182,14 +182,8 @@ export function ApplicationCreatePage() {
   const [selectedCrimeId, setSelectedCrimeId] = useState<string | null>(null);
   const [crimeForm, setCrimeForm] = useState<{
     article: string;
-    title: string;
-    part: string;
-    gravity: CrimeGravity;
   }>({
     article: '',
-    title: '',
-    part: '',
-    gravity: 'ORTA_OGIR',
   });
   const [showCrimePopover, setShowCrimePopover] = useState(false);
   const crimePopoverRef = useRef<HTMLDivElement>(null);
@@ -419,10 +413,7 @@ export function ApplicationCreatePage() {
       if (initialApp.crime) {
         setSelectedCrimeId(initialApp.crime.id);
         setCrimeForm({
-          article: initialApp.crime.article || '',
-          title: initialApp.crime.title || '',
-          part: initialApp.crime.part || '',
-          gravity: (initialApp.crime.gravity as CrimeGravity) || 'ORTA_OGIR',
+          article: initialApp.crime.article || initialApp.crime.title || '',
         });
       }
 
@@ -715,10 +706,7 @@ export function ApplicationCreatePage() {
   const handleSelectCrime = (c: Crime) => {
     setSelectedCrimeId(c.id);
     setCrimeForm({
-      article: c.article || '',
-      title: c.title || '',
-      part: c.part || '',
-      gravity: (c.gravity as CrimeGravity) || 'ORTA_OGIR',
+      article: c.article || c.title || '',
     });
     setShowCrimePopover(false);
   };
@@ -967,15 +955,13 @@ export function ApplicationCreatePage() {
         };
       }
 
-      // 3. Jinoyat moddasi
+      // 3. Jinoyat turi
       if (selectedCrimeId) {
         payload.crime_id = selectedCrimeId;
-      } else if (crimeForm.article) {
+      } else if (crimeForm.article.trim()) {
         payload.crime_data = {
-          article: crimeForm.article,
-          title: crimeForm.title,
-          part: crimeForm.part,
-          gravity: crimeForm.gravity,
+          article: crimeForm.article.trim(),
+          title: crimeForm.article.trim(),
         };
       }
 
@@ -1658,10 +1644,13 @@ export function ApplicationCreatePage() {
                 {selectedCrimeId ? (
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                     <CheckCircle2 className="h-3 w-3" />
-                    Bazadagi modda biriktirildi
+                    Jinoyat turi biriktirildi
                     <button
                       type="button"
-                      onClick={() => setSelectedCrimeId(null)}
+                      onClick={() => {
+                        setSelectedCrimeId(null);
+                        setCrimeForm({ article: '' });
+                      }}
                       className="ml-1 hover:text-foreground"
                       title="Bog‘lanishni bekor qilish"
                     >
@@ -1670,58 +1659,27 @@ export function ApplicationCreatePage() {
                   </Badge>
                 ) : crimeForm.article ? (
                   <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                    Yangi modda
+                    Yangi jinoyat turi
                   </Badge>
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-12 gap-2">
-                <div className="col-span-5">
-                  <Input
-                    placeholder="168-MODDA"
-                    value={crimeForm.article}
-                    onFocus={() => setShowCrimePopover(true)}
-                    onChange={(e) => {
-                      setCrimeForm({ ...crimeForm, article: e.target.value.toUpperCase() });
-                      setSelectedCrimeId(null);
-                      setShowCrimePopover(true);
-                    }}
-                    className="h-10 text-xs font-bold uppercase"
-                  />
-                </div>
-                <div className="col-span-3">
-                  <Input
-                    placeholder="3-QISM"
-                    value={crimeForm.part}
-                    onChange={(e) =>
-                      setCrimeForm({ ...crimeForm, part: e.target.value.toUpperCase() })
-                    }
-                    className="h-10 text-xs uppercase"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <select
-                    value={crimeForm.gravity}
-                    onChange={(e) =>
-                      setCrimeForm({
-                        ...crimeForm,
-                        gravity: e.target.value as CrimeGravity,
-                      })
-                    }
-                    className="w-full h-10 rounded-md border border-input bg-background px-2 text-xs"
-                  >
-                    <option value="UNCHA_OGIR_EMAS">Uncha og‘ir emas</option>
-                    <option value="ORTA_OGIR">O‘rta og‘ir</option>
-                    <option value="OGIR">Og‘ir</option>
-                    <option value="OTA_OGIR">O‘ta og‘ir</option>
-                  </select>
-                </div>
-              </div>
+              <Input
+                placeholder="JINOYAT TURINI TANLANG YOKI YOZING (MASALAN: FIRIBGARLIK)..."
+                value={crimeForm.article}
+                onFocus={() => setShowCrimePopover(true)}
+                onChange={(e) => {
+                  setCrimeForm({ article: e.target.value.toUpperCase() });
+                  setSelectedCrimeId(null);
+                  setShowCrimePopover(true);
+                }}
+                className="h-10 text-xs uppercase font-medium"
+              />
 
               {showCrimePopover && filteredCrimes.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
                   <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
-                    Bazada mavjud jinoyat moddalari:
+                    Bazada mavjud jinoyat turlari:
                   </div>
                   {filteredCrimes.map((c) => (
                     <div
@@ -1729,10 +1687,7 @@ export function ApplicationCreatePage() {
                       onClick={() => handleSelectCrime(c)}
                       className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
                     >
-                      <span className="font-bold text-foreground">{c.article}</span>
-                      <span className="text-muted-foreground truncate max-w-[200px]">
-                        {c.title}
-                      </span>
+                      <span className="font-medium text-foreground">{c.article || c.title}</span>
                     </div>
                   ))}
                 </div>

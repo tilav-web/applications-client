@@ -132,7 +132,11 @@ export function ReferencesPage() {
           name: formData.name || '',
           district_id: formData.district_id || '',
         });
-      if (activeTab === 'crimes') return crimesApi.create(formData);
+      if (activeTab === 'crimes')
+        return crimesApi.create({
+          article: formData.name || formData.title || formData.article || '',
+          title: formData.name || formData.title || formData.article || '',
+        });
       if (activeTab === 'banks') return banksApi.create(formData);
       if (activeTab === 'providers') return paymentProvidersApi.create(formData);
     },
@@ -157,7 +161,11 @@ export function ReferencesPage() {
           name: formData.name || undefined,
           district_id: formData.district_id || undefined,
         });
-      if (activeTab === 'crimes') return crimesApi.update(targetItem.id, formData);
+      if (activeTab === 'crimes')
+        return crimesApi.update(targetItem.id, {
+          article: formData.name || formData.title || formData.article || undefined,
+          title: formData.name || formData.title || formData.article || undefined,
+        });
       if (activeTab === 'banks') return banksApi.update(targetItem.id, formData);
       if (activeTab === 'providers') return paymentProvidersApi.update(targetItem.id, formData);
     },
@@ -217,27 +225,6 @@ export function ReferencesPage() {
     setFormData({});
   };
 
-  const getGravityBadge = (gravity: CrimeGravity | null) => {
-    switch (gravity) {
-      case 'JUDA_OGIR':
-        return <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Juda Og‘ir</Badge>;
-      case 'OGIR':
-        return (
-          <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/30">Og‘ir</Badge>
-        );
-      case 'ORTA_OGIR':
-        return (
-          <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">O‘rta Og‘ir</Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-            Uncha Og‘ir Bo‘lmagan
-          </Badge>
-        );
-    }
-  };
-
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -275,7 +262,7 @@ export function ReferencesPage() {
           </TabsTrigger>
           <TabsTrigger value="crimes" className="gap-2 text-xs">
             <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
-            Jinoyat Moddalari
+            Jinoyat Turlari
           </TabsTrigger>
           <TabsTrigger value="banks" className="gap-2 text-xs">
             <Building2 className="h-3.5 w-3.5 text-primary" />
@@ -472,7 +459,7 @@ export function ReferencesPage() {
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Modda yoki jinoyat nomi bo'yicha qidiruv..."
+                  placeholder="Jinoyat turi bo'yicha qidiruv..."
                   value={crimeSearch}
                   onChange={(e) => {
                     setCrimeSearch(e.target.value);
@@ -488,36 +475,30 @@ export function ReferencesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>JK Moddasi</TableHead>
-                  <TableHead>Jinoyat Nomi</TableHead>
-                  <TableHead>Qismi</TableHead>
-                  <TableHead>Og&apos;irlik Darajasi</TableHead>
+                  <TableHead>Jinoyat Turi</TableHead>
                   <TableHead className="text-right">Amallar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isCrimesLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
                       Yuklanmoqda...
                     </TableCell>
                   </TableRow>
                 ) : crimesData?.items?.length ? (
                   crimesData.items.map((crime: Crime) => (
                     <TableRow key={crime.id}>
-                      <TableCell className="font-mono font-bold text-primary">
-                        {crime.article || '—'}
+                      <TableCell className="font-semibold text-foreground">
+                        {crime.article || crime.title || '—'}
                       </TableCell>
-                      <TableCell className="font-medium text-foreground">
-                        {crime.title || '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{crime.part || '—'}</TableCell>
-                      <TableCell>{getGravityBadge(crime.gravity)}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => openEditModal(crime)}
+                          onClick={() =>
+                            openEditModal({ ...crime, name: crime.article || crime.title || '' })
+                          }
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
@@ -535,8 +516,8 @@ export function ReferencesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Hech qanday jinoyat moddasi topilmadi
+                    <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
+                      Hech qanday jinoyat turi topilmadi
                     </TableCell>
                   </TableRow>
                 )}
@@ -762,7 +743,7 @@ export function ReferencesPage() {
             <DialogDescription className="text-xs">
               {activeTab === 'districts' && 'Tuman yoki hududiy bo‘lim ma‘lumotlarini kiriting'}
               {activeTab === 'mahallas' && 'Mahalla nomi va tegishli tumanni tanlang'}
-              {activeTab === 'crimes' && 'Jinoyat kodeksi moddasi va tasnifini kiriting'}
+              {activeTab === 'crimes' && 'Jinoyat turini kiriting'}
               {activeTab === 'banks' && 'Tijorat banki nomi va MFO kodini kiriting'}
               {activeTab === 'providers' && 'To‘lov xizmati provayderi ma‘lumotlarini kiriting'}
             </DialogDescription>
@@ -771,16 +752,18 @@ export function ReferencesPage() {
           <div className="space-y-3 py-2 text-xs">
             {/* Common Name field */}
             <div className="space-y-1">
-              <label className="font-medium text-foreground">Nomi / Sarlavha</label>
+              <label className="font-medium text-foreground">
+                {activeTab === 'crimes' ? 'Jinoyat Turi Nomi *' : 'Nomi / Sarlavha'}
+              </label>
               <Input
-                placeholder="Nomi..."
-                value={formData.name || formData.title || ''}
+                placeholder={activeTab === 'crimes' ? 'Masalan: Firibgarlik...' : 'Nomi...'}
+                value={formData.name || formData.title || formData.article || ''}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    ...(activeTab === 'crimes'
-                      ? { title: e.target.value }
-                      : { name: e.target.value }),
+                    name: e.target.value,
+                    title: e.target.value,
+                    article: e.target.value,
                   })
                 }
                 className="h-9 text-xs"
@@ -818,29 +801,6 @@ export function ReferencesPage() {
                   className="h-9 text-xs font-mono"
                 />
               </div>
-            )}
-
-            {activeTab === 'crimes' && (
-              <>
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">JK Moddasi</label>
-                  <Input
-                    placeholder="168-modda"
-                    value={formData.article || ''}
-                    onChange={(e) => setFormData({ ...formData, article: e.target.value })}
-                    className="h-9 text-xs font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Qismi / Bandi</label>
-                  <Input
-                    placeholder="2-qismi 'a' bandi"
-                    value={formData.part || ''}
-                    onChange={(e) => setFormData({ ...formData, part: e.target.value })}
-                    className="h-9 text-xs"
-                  />
-                </div>
-              </>
             )}
 
             {activeTab === 'banks' && (

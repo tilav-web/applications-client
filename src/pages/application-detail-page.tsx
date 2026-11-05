@@ -516,32 +516,17 @@ export function ApplicationDetailPage() {
               )}
             </div>
 
-            {/* Jinoyat Moddasi */}
+            {/* Jinoyat Turi */}
             <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
               <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
                 <ShieldAlert className="h-3 w-3 text-primary print:text-black" />
-                Jinoyat Kodeksi Moddasi:
+                Jinoyat Turi:
               </span>
               {app.crime ? (
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-black text-primary text-sm print:text-black">
-                      {app.crime.article}
-                    </span>
-                    <span className="font-bold text-foreground">{app.crime.title}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-                    {app.crime.part && <span>Qismi: {app.crime.part}</span>}
-                    {app.crime.category && <span>Toifa: {app.crime.category}</span>}
-                    {app.crime.gravity && (
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] py-0 px-1.5 uppercase font-mono"
-                      >
-                        {app.crime.gravity}
-                      </Badge>
-                    )}
-                  </div>
+                  <span className="font-bold text-foreground text-sm">
+                    {app.crime.article || app.crime.title || '—'}
+                  </span>
                 </div>
               ) : (
                 <p className="text-muted-foreground">—</p>

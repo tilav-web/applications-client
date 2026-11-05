@@ -639,10 +639,10 @@ export function DashboardPage() {
             <CardTitle className="text-sm font-bold flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-amber-400" />
-                <span>Malakalangan Jinoyat Moddalari</span>
+                <span>Jinoyat Turlari</span>
               </span>
               <Badge variant="outline" className="text-[10px]">
-                {crimeData.length} ta modda
+                {crimeData.length} ta tur
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -760,7 +760,7 @@ export function DashboardPage() {
                   <tr>
                     <th className="px-4 py-3">№ Ariza Raqami</th>
                     <th className="px-4 py-3">Murojaat / Jabrlanuvchi</th>
-                    <th className="px-4 py-3">Hudud & Modda</th>
+                    <th className="px-4 py-3">Hudud & Jinoyat Turi</th>
                     <th className="px-4 py-3">Zarar Summasi</th>
                     <th className="px-4 py-3">Holati</th>
                     <th className="px-4 py-3 text-right">Sana</th>

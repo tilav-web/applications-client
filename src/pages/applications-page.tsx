@@ -252,7 +252,7 @@ export function ApplicationsPage() {
               <TableHead>Tafsilot & Xodim Qaydlari</TableHead>
               <TableHead>Holati</TableHead>
               <TableHead>Asosiy Arizachi</TableHead>
-              <TableHead>Hudud & Modda</TableHead>
+              <TableHead>Hudud & Jinoyat Turi</TableHead>
               <TableHead>Qo‘shimcha Maydonlar</TableHead>
               <TableHead>Sana</TableHead>
               <TableHead className="text-right">Amallar</TableHead>
@@ -307,8 +307,8 @@ export function ApplicationsPage() {
                         </div>
                       )}
                       {app.crime && (
-                        <span className="font-mono text-[11px] text-primary">
-                          {app.crime.article}
+                        <span className="text-[11px] font-semibold text-primary block truncate max-w-[160px]">
+                          {app.crime.article || app.crime.title}
                         </span>
                       )}
                       {!app.district && !app.crime && (
