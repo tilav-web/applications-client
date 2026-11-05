@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Activity,
   BookmarkCheck,
   Building2,
+  CheckCircle2,
   CreditCard,
   Edit2,
   MapPin,
@@ -34,16 +36,35 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { banksApi, crimesApi, districtsApi, mahallasApi, paymentProvidersApi } from '@/lib/api';
+import {
+  applicationStatusesApi,
+  banksApi,
+  crimesApi,
+  districtsApi,
+  mahallasApi,
+  paymentProvidersApi,
+} from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
-import type { Bank, Crime, CrimeGravity, District, Mahalla, PaymentProvider } from '@/types/models';
+import type {
+  ApplicationStatusItem,
+  Bank,
+  Crime,
+  CrimeGravity,
+  District,
+  Mahalla,
+  PaymentProvider,
+} from '@/types/models';
 
-type ReferenceItem = District | Mahalla | Crime | Bank | PaymentProvider;
+type ReferenceItem = District | Mahalla | Crime | Bank | PaymentProvider | ApplicationStatusItem;
 
 interface ReferenceFormData {
   name?: string | null;
   title?: string | null;
   code?: string | null;
+  color?: string | null;
+  description?: string | null;
+  is_default?: boolean | null;
+  sort_order?: number | null;
   article?: string | null;
   part?: string | null;
   mfo?: string | null;
@@ -55,7 +76,7 @@ interface ReferenceFormData {
 export function ReferencesPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<
-    'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers'
+    'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers' | 'statuses'
   >('districts');
 
   // Search and page state for each tab
@@ -73,6 +94,9 @@ export function ReferencesPage() {
 
   const [providerSearch, setProviderSearch] = useState('');
   const [providerPage, setProviderPage] = useState(1);
+
+  const [statusSearch, setStatusSearch] = useState('');
+  const [statusPage, setStatusPage] = useState(1);
 
   // Modal dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
@@ -123,6 +147,14 @@ export function ReferencesPage() {
     enabled: activeTab === 'providers',
   });
 
+  // 5. Application Statuses Query
+  const { data: statusesData, isLoading: isStatusesLoading } = useQuery({
+    queryKey: ['application-statuses', { page: statusPage, search: statusSearch }],
+    queryFn: () =>
+      applicationStatusesApi.getAll({ page: statusPage, limit: 10, search: statusSearch }),
+    enabled: activeTab === 'statuses',
+  });
+
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -139,11 +171,30 @@ export function ReferencesPage() {
         });
       if (activeTab === 'banks') return banksApi.create(formData);
       if (activeTab === 'providers') return paymentProvidersApi.create(formData);
+      if (activeTab === 'statuses')
+        return applicationStatusesApi.create({
+          name: formData.name || '',
+          code: formData.code || undefined,
+          color: (formData.color as string) || 'blue',
+          description: (formData.description as string) || undefined,
+          is_default: Boolean(formData.is_default),
+          sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [activeTab === 'providers' ? 'payment-providers' : activeTab],
+        queryKey: [
+          activeTab === 'providers'
+            ? 'payment-providers'
+            : activeTab === 'statuses'
+              ? 'application-statuses'
+              : activeTab,
+        ],
       });
+      if (activeTab === 'statuses') {
+        queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
+        queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
+      }
       closeModal();
       toast.success('Yangi yozuv muvaffaqiyatli qo‘shildi');
     },
@@ -168,11 +219,30 @@ export function ReferencesPage() {
         });
       if (activeTab === 'banks') return banksApi.update(targetItem.id, formData);
       if (activeTab === 'providers') return paymentProvidersApi.update(targetItem.id, formData);
+      if (activeTab === 'statuses')
+        return applicationStatusesApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          code: formData.code || undefined,
+          color: (formData.color as string) || undefined,
+          description: (formData.description as string) || undefined,
+          is_default: formData.is_default !== undefined ? Boolean(formData.is_default) : undefined,
+          sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [activeTab === 'providers' ? 'payment-providers' : activeTab],
+        queryKey: [
+          activeTab === 'providers'
+            ? 'payment-providers'
+            : activeTab === 'statuses'
+              ? 'application-statuses'
+              : activeTab,
+        ],
       });
+      if (activeTab === 'statuses') {
+        queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
+        queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
+      }
       closeModal();
       toast.success('Yozuv muvaffaqiyatli yangilandi');
     },
@@ -189,11 +259,22 @@ export function ReferencesPage() {
       if (activeTab === 'crimes') return crimesApi.delete(targetItem.id);
       if (activeTab === 'banks') return banksApi.delete(targetItem.id);
       if (activeTab === 'providers') return paymentProvidersApi.delete(targetItem.id);
+      if (activeTab === 'statuses') return applicationStatusesApi.delete(targetItem.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [activeTab === 'providers' ? 'payment-providers' : activeTab],
+        queryKey: [
+          activeTab === 'providers'
+            ? 'payment-providers'
+            : activeTab === 'statuses'
+              ? 'application-statuses'
+              : activeTab,
+        ],
       });
+      if (activeTab === 'statuses') {
+        queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
+        queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
+      }
       closeModal();
       toast.success('Yozuv o‘chirildi');
     },
@@ -251,7 +332,7 @@ export function ReferencesPage() {
         }
         className="w-full space-y-4"
       >
-        <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-6 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
           <TabsTrigger value="districts" className="gap-2 text-xs">
             <MapPin className="h-3.5 w-3.5 text-primary" />
             Tumanlar
@@ -271,6 +352,10 @@ export function ReferencesPage() {
           <TabsTrigger value="providers" className="gap-2 text-xs">
             <CreditCard className="h-3.5 w-3.5 text-primary" />
             To&apos;lov Provayderlari
+          </TabsTrigger>
+          <TabsTrigger value="statuses" className="gap-2 text-xs">
+            <Activity className="h-3.5 w-3.5 text-primary" />
+            Ariza Statuslari
           </TabsTrigger>
         </TabsList>
 
@@ -727,6 +812,137 @@ export function ReferencesPage() {
             )}
           </Card>
         </TabsContent>
+
+        {/* 5. APPLICATION STATUSES TAB */}
+        <TabsContent value="statuses" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="relative max-w-md lg:max-w-lg">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Status nomi yoki kodi bo'yicha qidiruv..."
+                  value={statusSearch}
+                  onChange={(e) => {
+                    setStatusSearch(e.target.value);
+                    setStatusPage(1);
+                  }}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status Nomi</TableHead>
+                  <TableHead>Tizim Kodi</TableHead>
+                  <TableHead>Rangi</TableHead>
+                  <TableHead>Standart Holat</TableHead>
+                  <TableHead>Tartib</TableHead>
+                  <TableHead>Izoh</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isStatusesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : statusesData?.items?.length ? (
+                  statusesData.items.map((st: ApplicationStatusItem) => (
+                    <TableRow key={st.id}>
+                      <TableCell className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              st.color === 'emerald'
+                                ? 'bg-emerald-500'
+                                : st.color === 'amber'
+                                  ? 'bg-amber-500'
+                                  : st.color === 'rose' || st.color === 'red'
+                                    ? 'bg-rose-500'
+                                    : st.color === 'purple'
+                                      ? 'bg-purple-500'
+                                      : 'bg-blue-500'
+                            }`}
+                          />
+                          <span>{st.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs font-bold text-primary">
+                        {st.code || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[11px] capitalize">
+                          {st.color || 'blue'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {st.is_default ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[11px]">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Birlamchi
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {st.sort_order ?? 0}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                        {st.description || '—'}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(st)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          title="Tahrirlash"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteModal(st)}
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          title="O‘chirish"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Hech qanday ariza statusi topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+
+            {statusesData?.meta && (
+              <PaginationBar
+                page={statusesData.meta.page}
+                totalPages={statusesData.meta.totalPages}
+                total={statusesData.meta.total}
+                limit={statusesData.meta.limit}
+                hasNextPage={statusesData.meta.hasNextPage}
+                hasPreviousPage={statusesData.meta.hasPreviousPage}
+                onPageChange={(p) => setStatusPage(p)}
+                isLoading={isStatusesLoading}
+              />
+            )}
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* CREATE / EDIT DIALOG */}
@@ -742,6 +958,8 @@ export function ReferencesPage() {
               {activeTab === 'crimes' && 'Jinoyat turini kiriting'}
               {activeTab === 'banks' && 'Tijorat banki nomi va MFO kodini kiriting'}
               {activeTab === 'providers' && 'To‘lov xizmati provayderi ma‘lumotlarini kiriting'}
+              {activeTab === 'statuses' &&
+                'Ariza holati/statusi nomi, kodi, rangi va parametrlarini kiriting'}
             </DialogDescription>
           </DialogHeader>
 
@@ -819,6 +1037,85 @@ export function ReferencesPage() {
                   className="h-9 text-xs font-mono"
                 />
               </div>
+            )}
+
+            {activeTab === 'statuses' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Tizim Kodi (Slug)</label>
+                    <Input
+                      placeholder="YANGI, JARAYONDA, EKSPERTIZADA..."
+                      value={formData.code || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, code: e.target.value.toUpperCase() })
+                      }
+                      className="h-9 text-xs font-mono font-bold uppercase"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Status Rangi</label>
+                    <select
+                      value={(formData.color as string) || 'blue'}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="blue">Ko‘k (Blue)</option>
+                      <option value="amber">Sariq / Oltinrang (Amber)</option>
+                      <option value="emerald">Yashil (Emerald)</option>
+                      <option value="rose">Qizil (Rose)</option>
+                      <option value="purple">Binafsha (Purple)</option>
+                      <option value="gray">Kulrang (Gray)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">
+                      Tartib raqami (Sort order)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="1, 2, 3..."
+                      value={formData.sort_order ?? 0}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
+                      }
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">
+                      Standart (Birlamchi) holat
+                    </label>
+                    <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background">
+                      <input
+                        type="checkbox"
+                        id="is_default_check"
+                        checked={Boolean(formData.is_default)}
+                        onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
+                        className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+                      />
+                      <label htmlFor="is_default_check" className="text-xs cursor-pointer">
+                        Yangi arizalarga avtomatik biriksin
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-medium text-foreground">Izoh (Tavsif)</label>
+                  <Input
+                    placeholder="Ariza statusi haqida qisqacha izoh..."
+                    value={(formData.description as string) || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </>
             )}
           </div>
 

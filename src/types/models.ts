@@ -1,4 +1,16 @@
-export type ApplicationStatus = 'YANGI' | 'JARAYONDA' | 'HAL_QILINDI' | 'RAD_ETILDI';
+export type ApplicationStatus = 'YANGI' | 'JARAYONDA' | 'HAL_QILINDI' | 'RAD_ETILDI' | string;
+
+export interface ApplicationStatusItem {
+  id: string;
+  name: string;
+  code?: string | null;
+  color?: string | null;
+  description?: string | null;
+  is_default?: boolean;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export type CrimeGravity = 'UNCHA_OGIR_BOLMAGAN' | 'ORTA_OGIR' | 'OGIR' | 'JUDA_OGIR';
 
@@ -198,6 +210,8 @@ export interface Application {
   description: string | null;
   officer_notes?: string | null;
   status: ApplicationStatus | null;
+  status_id?: string | null;
+  application_status?: ApplicationStatusItem | null;
   date: string | null;
   citizen_id?: string | null;
   citizen?: Citizen | null;

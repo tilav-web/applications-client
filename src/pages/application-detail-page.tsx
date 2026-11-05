@@ -36,10 +36,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/sonner';
-import { applicationsApi, type UploadedFile } from '@/lib/api';
+import { applicationsApi, applicationStatusesApi, type UploadedFile } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
-import type { ApplicationStatus } from '@/types/models';
+import type { ApplicationStatus, ApplicationStatusItem } from '@/types/models';
 
 const formatCurrency = (amount?: number | string | null, currency = 'UZS') => {
   if (amount === undefined || amount === null || amount === '') return '0 UZS';
@@ -123,19 +123,29 @@ export function ApplicationDetailPage() {
     },
   });
 
+  // 2.1. Dynamic Statuses Query
+  const { data: statusesData } = useQuery({
+    queryKey: ['application-statuses-all'],
+    queryFn: () => applicationStatusesApi.getAll({ limit: 100 }),
+  });
+  const allApplicationStatuses = statusesData?.items || [];
+
   // 3. Quick Status Update Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async (newStatus: ApplicationStatus) => {
+    mutationFn: async ({ status, status_id }: { status: string; status_id?: string }) => {
       if (!id) return;
-      return applicationsApi.update(id, { status: newStatus });
+      return applicationsApi.update(id, { status, status_id });
     },
-    onSuccess: async (_, newStatus) => {
+    onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['application-detail', id], refetchType: 'all' }),
+        queryClient.invalidateQueries({
+          queryKey: ['application-detail', id],
+          refetchType: 'all',
+        }),
         queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
       ]);
-      toast.success(`Ariza holati "${newStatus}" ga o‘zgartirildi`);
+      toast.success('Ariza holati muvaffaqiyatli o‘zgartirildi');
     },
     onError: (err: unknown) => {
       toast.error('Holatni o‘zgartirishda xatolik', {
@@ -144,39 +154,54 @@ export function ApplicationDetailPage() {
     },
   });
 
-  const getStatusBadge = (status: ApplicationStatus | null | undefined) => {
-    switch (status) {
-      case 'YANGI':
-        return (
-          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs py-1 px-3">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" />
-            Yangi (Qabul qilindi)
-          </Badge>
-        );
-      case 'JARAYONDA':
-        return (
-          <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 text-xs py-1 px-3">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-            Jarayonda (Surishtiruvda)
-          </Badge>
-        );
-      case 'HAL_QILINDI':
-        return (
-          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs py-1 px-3">
-            <CheckCircle2 className="h-3 w-3" />
-            Hal qilindi (Tugatildi)
-          </Badge>
-        );
-      case 'RAD_ETILDI':
-        return (
-          <Badge className="bg-red-500/10 text-red-500 border-red-500/30 gap-1 text-xs py-1 px-3">
-            <X className="h-3 w-3" />
-            Rad etildi
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">—</Badge>;
+  const getStatusBadge = (
+    status: ApplicationStatus | null | undefined,
+    statusItem?: ApplicationStatusItem | null,
+  ) => {
+    const item =
+      statusItem || allApplicationStatuses.find((s) => s.code === status || s.name === status);
+    const label = item?.name || status || 'Noma‘lum';
+    const color = (item?.color || '').toLowerCase();
+
+    if (color.includes('amber') || color.includes('yellow') || status === 'JARAYONDA') {
+      return (
+        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 text-xs py-1 px-3">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+          {label}
+        </Badge>
+      );
     }
+    if (color.includes('emerald') || color.includes('green') || status === 'HAL_QILINDI') {
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs py-1 px-3">
+          <CheckCircle2 className="h-3 w-3" />
+          {label}
+        </Badge>
+      );
+    }
+    if (color.includes('red') || color.includes('rose') || status === 'RAD_ETILDI') {
+      return (
+        <Badge className="bg-red-500/10 text-red-500 border-red-500/30 gap-1 text-xs py-1 px-3">
+          <X className="h-3 w-3" />
+          {label}
+        </Badge>
+      );
+    }
+    if (color.includes('purple')) {
+      return (
+        <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/30 gap-1 text-xs py-1 px-3">
+          <span className="h-1.5 w-1.5 rounded-full bg-purple-500 inline-block" />
+          {label}
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs py-1 px-3">
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" />
+        {label}
+      </Badge>
+    );
   };
 
   if (isLoading) {
@@ -334,7 +359,7 @@ export function ApplicationDetailPage() {
             <span className="font-mono text-sm font-bold text-foreground">
               {app.application_number ? `№ ${app.application_number}` : 'Raqamsiz Ariza'}
             </span>
-            {getStatusBadge(app.status)}
+            {getStatusBadge(app.status, app.application_status)}
             {isFetching && (
               <span title="Yangilanmoqda">
                 <RefreshCw className="h-3 w-3 animate-spin text-primary" />
@@ -346,15 +371,36 @@ export function ApplicationDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Holatni tezkor o'zgartirish */}
           <select
-            value={app.status || 'YANGI'}
-            onChange={(e) => updateStatusMutation.mutate(e.target.value as ApplicationStatus)}
+            value={app.status_id || app.status || 'YANGI'}
+            onChange={(e) => {
+              const val = e.target.value;
+              const found = allApplicationStatuses.find((s) => s.id === val || s.code === val);
+              if (found) {
+                updateStatusMutation.mutate({
+                  status: found.code || found.name,
+                  status_id: found.id,
+                });
+              } else {
+                updateStatusMutation.mutate({ status: val });
+              }
+            }}
             disabled={updateStatusMutation.isPending}
             className="h-9 rounded-lg border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary font-medium"
           >
-            <option value="YANGI">Yangi</option>
-            <option value="JARAYONDA">Jarayonda</option>
-            <option value="HAL_QILINDI">Hal qilindi</option>
-            <option value="RAD_ETILDI">Rad etildi</option>
+            {allApplicationStatuses.length > 0 ? (
+              allApplicationStatuses.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="YANGI">Yangi</option>
+                <option value="JARAYONDA">Jarayonda</option>
+                <option value="HAL_QILINDI">Hal qilindi</option>
+                <option value="RAD_ETILDI">Rad etildi</option>
+              </>
+            )}
           </select>
 
           <Button
@@ -454,7 +500,9 @@ export function ApplicationDetailPage() {
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">
                 Murojaat Holati:
               </span>
-              <span className="inline-block mt-0.5">{getStatusBadge(app.status)}</span>
+              <span className="inline-block mt-0.5">
+                {getStatusBadge(app.status, app.application_status)}
+              </span>
             </div>
 
             <div className="text-left">

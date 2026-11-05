@@ -37,10 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { applicationsApi } from '@/lib/api';
+import { applicationsApi, applicationStatusesApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
-import type { Application, ApplicationStatus } from '@/types/models';
+import type { Application, ApplicationStatus, ApplicationStatusItem } from '@/types/models';
 
 export function ApplicationsPage() {
   const navigate = useNavigate();
@@ -52,6 +52,13 @@ export function ApplicationsPage() {
   const limit = 10;
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // Statuses Query
+  const { data: statusesData } = useQuery({
+    queryKey: ['application-statuses-all'],
+    queryFn: () => applicationStatusesApi.getAll({ limit: 100 }),
+  });
+  const allApplicationStatuses = statusesData?.items || [];
 
   // 1. Fetch Applications Query
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -130,25 +137,33 @@ export function ApplicationsPage() {
     },
   });
 
-  const getStatusBadge = (status: ApplicationStatus | null) => {
-    switch (status) {
-      case 'YANGI':
-        return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30">Yangi</Badge>;
-      case 'JARAYONDA':
-        return (
-          <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">Jarayonda</Badge>
-        );
-      case 'HAL_QILINDI':
-        return (
-          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-            Hal qilindi
-          </Badge>
-        );
-      case 'RAD_ETILDI':
-        return <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Rad etildi</Badge>;
-      default:
-        return <Badge variant="outline">—</Badge>;
+  const getStatusBadge = (
+    status: ApplicationStatus | null,
+    statusItem?: ApplicationStatusItem | null,
+  ) => {
+    const item =
+      statusItem || allApplicationStatuses.find((s) => s.code === status || s.name === status);
+    const label = item?.name || status || '—';
+    const color = (item?.color || '').toLowerCase();
+
+    if (color.includes('amber') || color.includes('yellow') || status === 'JARAYONDA') {
+      return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">{label}</Badge>;
     }
+    if (color.includes('emerald') || color.includes('green') || status === 'HAL_QILINDI') {
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">{label}</Badge>
+      );
+    }
+    if (color.includes('red') || color.includes('rose') || status === 'RAD_ETILDI') {
+      return <Badge className="bg-red-500/10 text-red-400 border-red-500/30">{label}</Badge>;
+    }
+    if (color.includes('purple')) {
+      return (
+        <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30">{label}</Badge>
+      );
+    }
+
+    return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30">{label}</Badge>;
   };
 
   return (
@@ -221,10 +236,20 @@ export function ApplicationsPage() {
               className="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">Barcha holatlar</option>
-              <option value="YANGI">Yangi</option>
-              <option value="JARAYONDA">Jarayonda</option>
-              <option value="HAL_QILINDI">Hal qilindi</option>
-              <option value="RAD_ETILDI">Rad etildi</option>
+              {allApplicationStatuses.length > 0 ? (
+                allApplicationStatuses.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="YANGI">Yangi</option>
+                  <option value="JARAYONDA">Jarayonda</option>
+                  <option value="HAL_QILINDI">Hal qilindi</option>
+                  <option value="RAD_ETILDI">Rad etildi</option>
+                </>
+              )}
             </select>
 
             <Button
@@ -285,7 +310,7 @@ export function ApplicationsPage() {
                       </p>
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(app.status)}</TableCell>
+                  <TableCell>{getStatusBadge(app.status, app.application_status)}</TableCell>
                   <TableCell>
                     {app.citizen ? (
                       <div className="flex items-center gap-1.5 text-xs">

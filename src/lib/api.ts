@@ -1,5 +1,6 @@
 import type {
   Application,
+  ApplicationStatusItem,
   Bank,
   Card,
   Citizen,
@@ -263,6 +264,37 @@ export const mahallasApi = {
   },
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/mahallas/${id}`);
+    return res.data;
+  },
+};
+
+// 5.2. Application Statuses API
+export const applicationStatusesApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<ApplicationStatusItem>>(
+      '/application-statuses',
+      {
+        params,
+      },
+    );
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<ApplicationStatusItem>(`/application-statuses/${id}`);
+    return res.data;
+  },
+  create: async (data: Partial<ApplicationStatusItem>) => {
+    const res = await apiClient.post<ApplicationStatusItem>('/application-statuses', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<ApplicationStatusItem>) => {
+    const res = await apiClient.patch<ApplicationStatusItem>(`/application-statuses/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/application-statuses/${id}`,
+    );
     return res.data;
   },
 };

@@ -44,6 +44,7 @@ import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
   applicationsApi,
+  applicationStatusesApi,
   banksApi,
   cardsApi,
   citizensApi,
@@ -186,6 +187,7 @@ export function ApplicationCreatePage() {
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
+  const [statusId, setStatusId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
 
   // ==========================================================================
@@ -407,6 +409,12 @@ export function ApplicationCreatePage() {
   });
   const allProviders = providersData?.items || [];
 
+  const { data: statusesData } = useQuery({
+    queryKey: ['application-statuses-autocomplete'],
+    queryFn: () => applicationStatusesApi.getAll({ limit: 100 }),
+  });
+  const allApplicationStatuses = statusesData?.items || [];
+
   // ==========================================================================
   // POPULATE INITIAL DATA
   // ==========================================================================
@@ -415,7 +423,8 @@ export function ApplicationCreatePage() {
       setApplicationNumber(initialApp.application_number || '');
       setDescription(initialApp.description || '');
       setOfficerNotes(initialApp.officer_notes || '');
-      setStatus(initialApp.status || 'YANGI');
+      setStatus(initialApp.status || initialApp.application_status?.code || 'YANGI');
+      setStatusId(initialApp.status_id || initialApp.application_status?.id || null);
       if (initialApp.date) {
         setDate(new Date(initialApp.date).toISOString().substring(0, 10));
       }
@@ -841,6 +850,7 @@ export function ApplicationCreatePage() {
         description: description || undefined,
         officer_notes: officerNotes || undefined,
         status,
+        status_id: statusId || undefined,
         date: date ? new Date(date).toISOString() : undefined,
       };
 
@@ -1100,7 +1110,8 @@ export function ApplicationCreatePage() {
                   variant="outline"
                   className="text-[10px] uppercase font-mono px-2 py-0 border-primary/40 text-primary font-bold"
                 >
-                  {status}
+                  {allApplicationStatuses.find((s) => s.id === statusId || s.code === status)
+                    ?.name || status}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -1121,14 +1132,33 @@ export function ApplicationCreatePage() {
             </div>
 
             <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as ApplicationStatus)}
+              value={statusId || status}
+              onChange={(e) => {
+                const val = e.target.value;
+                const found = allApplicationStatuses.find((s) => s.id === val || s.code === val);
+                if (found) {
+                  setStatusId(found.id);
+                  setStatus(found.code || found.name);
+                } else {
+                  setStatus(val as ApplicationStatus);
+                }
+              }}
               className="h-10 rounded-lg border border-input bg-background px-3 text-xs shadow-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value="YANGI">Yangi (Qabul qilindi)</option>
-              <option value="JARAYONDA">Jarayonda (Tergovda)</option>
-              <option value="HAL_QILINDI">Hal qilindi</option>
-              <option value="RAD_ETILDI">Rad etildi</option>
+              {allApplicationStatuses.length > 0 ? (
+                allApplicationStatuses.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="YANGI">Yangi (Qabul qilindi)</option>
+                  <option value="JARAYONDA">Jarayonda (Tergovda)</option>
+                  <option value="HAL_QILINDI">Hal qilindi</option>
+                  <option value="RAD_ETILDI">Rad etildi</option>
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -2902,7 +2932,8 @@ export function ApplicationCreatePage() {
                   variant="outline"
                   className="text-[10px] font-mono uppercase px-2 py-0 border-primary/40 text-primary font-bold"
                 >
-                  {status}
+                  {allApplicationStatuses.find((s) => s.id === statusId || s.code === status)
+                    ?.name || status}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
