@@ -5,6 +5,7 @@ import type {
   Citizen,
   Crime,
   District,
+  Mahalla,
   PaginatedResponse,
   PaymentProvider,
   Transfer,
@@ -231,6 +232,37 @@ export const districtsApi = {
   },
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/districts/${id}`);
+    return res.data;
+  },
+};
+
+// 5.1. Mahallas API
+export const mahallasApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    district_id?: string;
+    search?: string;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<Mahalla>>('/mahallas', {
+      params,
+    });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<Mahalla>(`/mahallas/${id}`);
+    return res.data;
+  },
+  create: async (data: { name: string; district_id: string }) => {
+    const res = await apiClient.post<Mahalla>('/mahallas', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<{ name: string; district_id: string }>) => {
+    const res = await apiClient.patch<Mahalla>(`/mahallas/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/mahallas/${id}`);
     return res.data;
   },
 };

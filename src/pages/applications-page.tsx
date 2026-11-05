@@ -200,7 +200,7 @@ export function ApplicationsPage() {
           <div className="relative flex-1 w-full sm:max-w-lg lg:max-w-xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Ariza raqami yoki sarlavha bo'yicha qidiruv..."
+              placeholder="Ariza raqami yoki tafsilot bo'yicha qidiruv..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -249,7 +249,7 @@ export function ApplicationsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Ariza Raqami</TableHead>
-              <TableHead>Mavzusi & Tafsiloti</TableHead>
+              <TableHead>Tafsilot & Xodim Qaydlari</TableHead>
               <TableHead>Holati</TableHead>
               <TableHead>Asosiy Arizachi</TableHead>
               <TableHead>Hudud & Modda</TableHead>

@@ -34,11 +34,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { banksApi, crimesApi, districtsApi, paymentProvidersApi } from '@/lib/api';
+import { banksApi, crimesApi, districtsApi, mahallasApi, paymentProvidersApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
-import type { Bank, Crime, CrimeGravity, District, PaymentProvider } from '@/types/models';
+import type { Bank, Crime, CrimeGravity, District, Mahalla, PaymentProvider } from '@/types/models';
 
-type ReferenceItem = District | Crime | Bank | PaymentProvider;
+type ReferenceItem = District | Mahalla | Crime | Bank | PaymentProvider;
 
 interface ReferenceFormData {
   name?: string | null;
@@ -48,18 +48,22 @@ interface ReferenceFormData {
   part?: string | null;
   mfo?: string | null;
   gravity?: CrimeGravity | null;
+  district_id?: string | null;
   [key: string]: unknown;
 }
 
 export function ReferencesPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'districts' | 'crimes' | 'banks' | 'providers'>(
-    'districts',
-  );
+  const [activeTab, setActiveTab] = useState<
+    'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers'
+  >('districts');
 
   // Search and page state for each tab
   const [districtSearch, setDistrictSearch] = useState('');
   const [districtPage, setDistrictPage] = useState(1);
+
+  const [mahallaSearch, setMahallaSearch] = useState('');
+  const [mahallaPage, setMahallaPage] = useState(1);
 
   const [crimeSearch, setCrimeSearch] = useState('');
   const [crimePage, setCrimePage] = useState(1);
@@ -81,6 +85,21 @@ export function ReferencesPage() {
     queryFn: () => districtsApi.getAll({ page: districtPage, limit: 10, search: districtSearch }),
     enabled: activeTab === 'districts',
   });
+
+  // 1.1. Mahallas Query
+  const { data: mahallasData, isLoading: isMahallasLoading } = useQuery({
+    queryKey: ['mahallas', { page: mahallaPage, search: mahallaSearch }],
+    queryFn: () => mahallasApi.getAll({ page: mahallaPage, limit: 10, search: mahallaSearch }),
+    enabled: activeTab === 'mahallas',
+  });
+
+  // Tumanlar lug'ati (Mahalla yaratish uchun)
+  const { data: allDistrictsForMahalla } = useQuery({
+    queryKey: ['all-districts-for-mahalla'],
+    queryFn: () => districtsApi.getAll({ limit: 100 }),
+    enabled: activeTab === 'mahallas' || modalType === 'create' || modalType === 'edit',
+  });
+  const allDistrictsList = allDistrictsForMahalla?.items || [];
 
   // 2. Crimes Query
   const { data: crimesData, isLoading: isCrimesLoading } = useQuery({
@@ -108,6 +127,11 @@ export function ReferencesPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (activeTab === 'districts') return districtsApi.create(formData);
+      if (activeTab === 'mahallas')
+        return mahallasApi.create({
+          name: formData.name || '',
+          district_id: formData.district_id || '',
+        });
       if (activeTab === 'crimes') return crimesApi.create(formData);
       if (activeTab === 'banks') return banksApi.create(formData);
       if (activeTab === 'providers') return paymentProvidersApi.create(formData);
@@ -128,6 +152,11 @@ export function ReferencesPage() {
     mutationFn: async () => {
       if (!targetItem) return;
       if (activeTab === 'districts') return districtsApi.update(targetItem.id, formData);
+      if (activeTab === 'mahallas')
+        return mahallasApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          district_id: formData.district_id || undefined,
+        });
       if (activeTab === 'crimes') return crimesApi.update(targetItem.id, formData);
       if (activeTab === 'banks') return banksApi.update(targetItem.id, formData);
       if (activeTab === 'providers') return paymentProvidersApi.update(targetItem.id, formData);
@@ -148,6 +177,7 @@ export function ReferencesPage() {
     mutationFn: async () => {
       if (!targetItem) return;
       if (activeTab === 'districts') return districtsApi.delete(targetItem.id);
+      if (activeTab === 'mahallas') return mahallasApi.delete(targetItem.id);
       if (activeTab === 'crimes') return crimesApi.delete(targetItem.id);
       if (activeTab === 'banks') return banksApi.delete(targetItem.id);
       if (activeTab === 'providers') return paymentProvidersApi.delete(targetItem.id);
@@ -229,13 +259,19 @@ export function ReferencesPage() {
 
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'districts' | 'crimes' | 'banks' | 'providers')}
+        onValueChange={(val) =>
+          setActiveTab(val as 'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers')
+        }
         className="w-full space-y-4"
       >
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
           <TabsTrigger value="districts" className="gap-2 text-xs">
             <MapPin className="h-3.5 w-3.5 text-primary" />
             Tumanlar
+          </TabsTrigger>
+          <TabsTrigger value="mahallas" className="gap-2 text-xs">
+            <Building2 className="h-3.5 w-3.5 text-primary" />
+            Mahallalar
           </TabsTrigger>
           <TabsTrigger value="crimes" className="gap-2 text-xs">
             <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
@@ -335,6 +371,95 @@ export function ReferencesPage() {
                 hasPreviousPage={districtsData.meta.hasPreviousPage}
                 onPageChange={(p) => setDistrictPage(p)}
                 isLoading={isDistrictsLoading}
+              />
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* 1.1. MAHALLAS TAB */}
+        <TabsContent value="mahallas" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="relative max-w-md lg:max-w-lg">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Mahalla nomi bo'yicha qidiruv..."
+                  value={mahallaSearch}
+                  onChange={(e) => {
+                    setMahallaSearch(e.target.value);
+                    setMahallaPage(1);
+                  }}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mahalla Nomi</TableHead>
+                  <TableHead>Tegishli Tuman</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isMahallasLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : mahallasData?.items?.length ? (
+                  mahallasData.items.map((mahalla: Mahalla) => (
+                    <TableRow key={mahalla.id}>
+                      <TableCell className="font-medium text-foreground">
+                        {mahalla.name || '—'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {mahalla.district?.name || '—'}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(mahalla)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteModal(mahalla)}
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Hech qanday mahalla topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+
+            {mahallasData?.meta && (
+              <PaginationBar
+                page={mahallasData.meta.page}
+                totalPages={mahallasData.meta.totalPages}
+                total={mahallasData.meta.total}
+                limit={mahallasData.meta.limit}
+                hasNextPage={mahallasData.meta.hasNextPage}
+                hasPreviousPage={mahallasData.meta.hasPreviousPage}
+                onPageChange={(p) => setMahallaPage(p)}
+                isLoading={isMahallasLoading}
               />
             )}
           </Card>
@@ -636,6 +761,7 @@ export function ReferencesPage() {
             </DialogTitle>
             <DialogDescription className="text-xs">
               {activeTab === 'districts' && 'Tuman yoki hududiy bo‘lim ma‘lumotlarini kiriting'}
+              {activeTab === 'mahallas' && 'Mahalla nomi va tegishli tumanni tanlang'}
               {activeTab === 'crimes' && 'Jinoyat kodeksi moddasi va tasnifini kiriting'}
               {activeTab === 'banks' && 'Tijorat banki nomi va MFO kodini kiriting'}
               {activeTab === 'providers' && 'To‘lov xizmati provayderi ma‘lumotlarini kiriting'}
@@ -660,6 +786,26 @@ export function ReferencesPage() {
                 className="h-9 text-xs"
               />
             </div>
+
+            {/* Mahalla uchun tegishli Tuman tanlash */}
+            {activeTab === 'mahallas' && (
+              <div className="space-y-1">
+                <label className="font-medium text-foreground">Tegishli Tuman *</label>
+                <select
+                  value={formData.district_id || ''}
+                  onChange={(e) => setFormData({ ...formData, district_id: e.target.value })}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  required
+                >
+                  <option value="">Tumanni tanlang...</option>
+                  {allDistrictsList.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} {d.code ? `(${d.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Code / Article */}
             {activeTab === 'districts' && (

@@ -454,9 +454,27 @@ export function ApplicationDetailPage() {
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1 sm:col-span-2">
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Doimiy Yashash Manzili:
+                  Yashash Tumani:
+                </span>
+                <p className="text-foreground text-xs font-bold print:text-black">
+                  {app.citizen.district?.name || '— (Kiritilmagan)'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                  Yashash Mahallasi:
+                </span>
+                <p className="text-foreground text-xs font-bold print:text-black">
+                  {app.citizen.mahalla?.name || '— (Kiritilmagan)'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1 sm:col-span-3">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                  Doimiy Yashash Aniq Manzili:
                 </span>
                 <p className="text-foreground text-xs font-medium print:text-black">
                   {app.citizen.address || '— (Kiritilmagan)'}
@@ -477,7 +495,7 @@ export function ApplicationDetailPage() {
           <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
             <Scale className="h-4 w-4" />
             <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-              II. Hodisa Tafsilotlari va Jinoyat Malakalanishi
+              II. Yo‘naltirilgan Tuman & Jinoyat Turi
             </h3>
           </div>
 
@@ -486,7 +504,7 @@ export function ApplicationDetailPage() {
             <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
               <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
                 <MapPin className="h-3 w-3 text-primary print:text-black" />
-                Hodisa Sodir Bo‘lgan Hudud / Bo‘lim:
+                Ariza Yo‘naltirilgan Tuman / Biriktirilgan Bo‘lim:
               </span>
               <p className="font-bold text-foreground text-sm print:text-black">
                 {app.district ? app.district.name : '—'}

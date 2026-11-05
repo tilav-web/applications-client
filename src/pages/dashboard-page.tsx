@@ -759,7 +759,7 @@ export function DashboardPage() {
                 <thead className="bg-muted/40 border-b border-border/50 text-muted-foreground uppercase text-[10px] font-semibold">
                   <tr>
                     <th className="px-4 py-3">№ Ariza Raqami</th>
-                    <th className="px-4 py-3">Mavzusi / Jabrlanuvchi</th>
+                    <th className="px-4 py-3">Murojaat / Jabrlanuvchi</th>
                     <th className="px-4 py-3">Hudud & Modda</th>
                     <th className="px-4 py-3">Zarar Summasi</th>
                     <th className="px-4 py-3">Holati</th>

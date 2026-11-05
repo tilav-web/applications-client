@@ -49,6 +49,7 @@ import {
   crimesApi,
   districtsApi,
   filesApi,
+  mahallasApi,
   paymentProvidersApi,
   type UploadedFile,
 } from '@/lib/api';
@@ -155,6 +156,17 @@ export function ApplicationCreatePage() {
   });
   const [showCitizenPopover, setShowCitizenPopover] = useState(false);
   const citizenPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Fuqaroning yashash tumani va mahallasi
+  const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(null);
+  const [citizenDistrictName, setCitizenDistrictName] = useState('');
+  const [showCitizenDistrictPopover, setShowCitizenDistrictPopover] = useState(false);
+  const citizenDistrictPopoverRef = useRef<HTMLDivElement>(null);
+
+  const [citizenMahallaId, setCitizenMahallaId] = useState<string | null>(null);
+  const [citizenMahallaName, setCitizenMahallaName] = useState('');
+  const [showCitizenMahallaPopover, setShowCitizenMahallaPopover] = useState(false);
+  const citizenMahallaPopoverRef = useRef<HTMLDivElement>(null);
 
   // ==========================================================================
   // 3. HODISA HUDUDI VA JINOYAT MODDASI
@@ -315,6 +327,29 @@ export function ApplicationCreatePage() {
   });
   const allDistricts = districtsData?.items || [];
 
+  const { data: citizenMahallasData, isLoading: isLoadingCitizenMahallas } = useQuery({
+    queryKey: ['citizen-mahallas', citizenDistrictId],
+    queryFn: () => mahallasApi.getAll({ district_id: citizenDistrictId!, limit: 200 }),
+    enabled: Boolean(citizenDistrictId),
+  });
+  const allCitizenMahallas = citizenMahallasData?.items || [];
+
+  const createCitizenMahallaMutation = useMutation({
+    mutationFn: async ({ name, district_id }: { name: string; district_id: string }) => {
+      return mahallasApi.create({ name, district_id });
+    },
+    onSuccess: (newM) => {
+      queryClient.invalidateQueries({ queryKey: ['citizen-mahallas', citizenDistrictId] });
+      setCitizenMahallaId(newM.id);
+      setCitizenMahallaName(newM.name || '');
+      setShowCitizenMahallaPopover(false);
+      toast.success('Yangi mahalla qo‘shildi va biriktirildi');
+    },
+    onError: (err) => {
+      toast.error('Mahallani saqlashda xatolik', { description: getErrorMessage(err) });
+    },
+  });
+
   const { data: crimesData } = useQuery({
     queryKey: ['crimes-autocomplete'],
     queryFn: () => crimesApi.getAll({ limit: 100 }),
@@ -354,6 +389,14 @@ export function ApplicationCreatePage() {
 
       if (initialApp.citizen) {
         setSelectedCitizenId(initialApp.citizen.id);
+        setCitizenDistrictId(
+          initialApp.citizen.district_id || initialApp.citizen.district?.id || null,
+        );
+        setCitizenDistrictName(initialApp.citizen.district?.name || '');
+        setCitizenMahallaId(
+          initialApp.citizen.mahalla_id || initialApp.citizen.mahalla?.id || null,
+        );
+        setCitizenMahallaName(initialApp.citizen.mahalla?.name || '');
         setCitizenForm({
           first_name: initialApp.citizen.first_name || '',
           last_name: initialApp.citizen.last_name || '',
@@ -542,6 +585,15 @@ export function ApplicationCreatePage() {
       if (citizenPopoverRef.current && !citizenPopoverRef.current.contains(target)) {
         setShowCitizenPopover(false);
       }
+      if (
+        citizenDistrictPopoverRef.current &&
+        !citizenDistrictPopoverRef.current.contains(target)
+      ) {
+        setShowCitizenDistrictPopover(false);
+      }
+      if (citizenMahallaPopoverRef.current && !citizenMahallaPopoverRef.current.contains(target)) {
+        setShowCitizenMahallaPopover(false);
+      }
       if (districtPopoverRef.current && !districtPopoverRef.current.contains(target)) {
         setShowDistrictPopover(false);
       }
@@ -578,6 +630,18 @@ export function ApplicationCreatePage() {
     const matchName = !q || (d.name || '').toLowerCase().includes(q);
     const matchCode = !qCode || (d.code || '').toLowerCase().includes(qCode);
     return matchName && matchCode;
+  });
+
+  const filteredCitizenDistricts = allDistricts.filter((d) => {
+    const q = citizenDistrictName.trim().toLowerCase();
+    if (!q) return true;
+    return (d.name || '').toLowerCase().includes(q) || (d.code || '').toLowerCase().includes(q);
+  });
+
+  const filteredCitizenMahallas = allCitizenMahallas.filter((m) => {
+    const q = citizenMahallaName.trim().toLowerCase();
+    if (!q) return true;
+    return (m.name || '').toLowerCase().includes(q);
   });
 
   const filteredCrimes = allCrimes.filter((c) => {
@@ -623,6 +687,10 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   const handleSelectCitizen = (c: Citizen) => {
     setSelectedCitizenId(c.id);
+    setCitizenDistrictId(c.district_id || c.district?.id || null);
+    setCitizenDistrictName(c.district?.name || '');
+    setCitizenMahallaId(c.mahalla_id || c.mahalla?.id || null);
+    setCitizenMahallaName(c.mahalla?.name || '');
     setCitizenForm({
       first_name: c.first_name || '',
       last_name: c.last_name || '',
@@ -855,30 +923,38 @@ export function ApplicationCreatePage() {
       };
 
       // 1. Fuqaro
+      const citizenDataObj: Record<string, unknown> = {
+        first_name: citizenForm.first_name || undefined,
+        last_name: citizenForm.last_name || undefined,
+        middle_name: citizenForm.middle_name || undefined,
+        passport:
+          citizenForm.passport && citizenForm.passport.trim() !== ''
+            ? citizenForm.passport.trim().toUpperCase()
+            : undefined,
+        phone_number: citizenForm.phone_number || undefined,
+        pinfl:
+          citizenForm.pinfl && citizenForm.pinfl.trim() !== ''
+            ? citizenForm.pinfl.trim()
+            : undefined,
+        address: citizenForm.address || undefined,
+        district_id: citizenDistrictId || undefined,
+        mahalla_id: citizenMahallaId || undefined,
+      };
+
       if (selectedCitizenId) {
         payload.citizen_id = selectedCitizenId;
+        payload.citizen_data = citizenDataObj;
       } else if (
         citizenForm.first_name ||
         citizenForm.last_name ||
         citizenForm.phone_number ||
         citizenForm.passport ||
-        citizenForm.pinfl
+        citizenForm.pinfl ||
+        citizenDistrictId ||
+        citizenMahallaId ||
+        citizenForm.address
       ) {
-        payload.citizen_data = {
-          first_name: citizenForm.first_name || undefined,
-          last_name: citizenForm.last_name || undefined,
-          middle_name: citizenForm.middle_name || undefined,
-          passport:
-            citizenForm.passport && citizenForm.passport.trim() !== ''
-              ? citizenForm.passport.trim().toUpperCase()
-              : undefined,
-          phone_number: citizenForm.phone_number || undefined,
-          pinfl:
-            citizenForm.pinfl && citizenForm.pinfl.trim() !== ''
-              ? citizenForm.pinfl.trim()
-              : undefined,
-          address: citizenForm.address || undefined,
-        };
+        payload.citizen_data = citizenDataObj;
       }
 
       // 2. Tuman
@@ -1246,13 +1322,189 @@ export function ApplicationCreatePage() {
               </div>
             </div>
 
-            {/* 3-Qator: Doimiy yashash manzili */}
+            {/* 3-Qator: Tuman va Mahalla (Fuqaro yashaydigan hududi) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Yashash Tumani */}
+              <div ref={citizenDistrictPopoverRef} className="relative space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    Yashash Tumani
+                  </label>
+                  {citizenDistrictId ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Tuman tanlandi
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCitizenDistrictId(null);
+                          setCitizenDistrictName('');
+                          setCitizenMahallaId(null);
+                          setCitizenMahallaName('');
+                        }}
+                        className="ml-1 hover:text-foreground"
+                        title="Tozalash"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ) : null}
+                </div>
+                <Input
+                  placeholder="TUMANNI TANLANG YOKI QIDIRING..."
+                  value={citizenDistrictName}
+                  onFocus={() => setShowCitizenDistrictPopover(true)}
+                  onChange={(e) => {
+                    setCitizenDistrictName(e.target.value.toUpperCase());
+                    setCitizenDistrictId(null);
+                    setCitizenMahallaId(null);
+                    setCitizenMahallaName('');
+                    setShowCitizenDistrictPopover(true);
+                  }}
+                  className="h-10 text-xs uppercase font-medium"
+                />
+
+                {showCitizenDistrictPopover && filteredCitizenDistricts.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
+                    <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
+                      Mavjud tumanlar:
+                    </div>
+                    {filteredCitizenDistricts.map((d) => (
+                      <div
+                        key={d.id}
+                        onClick={() => {
+                          setCitizenDistrictId(d.id);
+                          setCitizenDistrictName(d.name || '');
+                          setCitizenMahallaId(null);
+                          setCitizenMahallaName('');
+                          setShowCitizenDistrictPopover(false);
+                        }}
+                        className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                      >
+                        <span className="font-medium text-foreground">{d.name}</span>
+                        {d.code && (
+                          <span className="font-mono text-muted-foreground">{d.code}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Yashash Mahallasi */}
+              <div ref={citizenMahallaPopoverRef} className="relative space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                    Yashash Mahallasi
+                  </label>
+                  {citizenMahallaId ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Mahalla tanlandi
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCitizenMahallaId(null);
+                          setCitizenMahallaName('');
+                        }}
+                        className="ml-1 hover:text-foreground"
+                        title="Tozalash"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ) : null}
+                </div>
+                <Input
+                  placeholder={
+                    citizenDistrictId
+                      ? 'MAHALLANI TANLANG YOKI YOZING...'
+                      : 'AVVAL TUMANNI TANLANG (MAHALLA UCHUN)...'
+                  }
+                  value={citizenMahallaName}
+                  disabled={!citizenDistrictId}
+                  onFocus={() => {
+                    if (citizenDistrictId) setShowCitizenMahallaPopover(true);
+                  }}
+                  onChange={(e) => {
+                    setCitizenMahallaName(e.target.value.toUpperCase());
+                    setCitizenMahallaId(null);
+                    setShowCitizenMahallaPopover(true);
+                  }}
+                  className={`h-10 text-xs uppercase font-medium ${
+                    !citizenDistrictId ? 'bg-muted/50 cursor-not-allowed text-muted-foreground' : ''
+                  }`}
+                />
+
+                {showCitizenMahallaPopover && citizenDistrictId && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
+                    <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1 flex items-center justify-between">
+                      <span>{citizenDistrictName} tumanidagi mahallalar:</span>
+                      {isLoadingCitizenMahallas && (
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                      )}
+                    </div>
+
+                    {filteredCitizenMahallas.length > 0 ? (
+                      filteredCitizenMahallas.map((m) => (
+                        <div
+                          key={m.id}
+                          onClick={() => {
+                            setCitizenMahallaId(m.id);
+                            setCitizenMahallaName(m.name || '');
+                            setShowCitizenMahallaPopover(false);
+                          }}
+                          className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
+                        >
+                          <span className="font-medium text-foreground">{m.name}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-2 text-xs text-muted-foreground">
+                        Ushbu tumanda hozircha mahalla topilmadi.
+                      </div>
+                    )}
+
+                    {citizenMahallaName.trim() &&
+                      !allCitizenMahallas.some(
+                        (m) =>
+                          (m.name || '').toUpperCase() === citizenMahallaName.trim().toUpperCase(),
+                      ) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            createCitizenMahallaMutation.mutate({
+                              name: citizenMahallaName.trim().toUpperCase(),
+                              district_id: citizenDistrictId,
+                            });
+                          }}
+                          disabled={createCitizenMahallaMutation.isPending}
+                          className="w-full mt-1 p-2 text-left rounded bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          {createCitizenMahallaMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Plus className="h-3.5 w-3.5" />
+                          )}
+                          <span>
+                            Yangi mahalla sifatida qo‘shish: &quot;{citizenMahallaName}&quot;
+                          </span>
+                        </button>
+                      )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 4-Qator: Doimiy yashash manzili */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
-                Doimiy Yashash Manzili
+                Aniq Yashash Manzili (Ko‘cha, uy, xonadon)
               </label>
               <Input
-                placeholder="TOSHKENT SH., CHILONZOR TUMANI, 9-MAVZE, 12-UY..."
+                placeholder="TOSHKENT SH., 9-MAVZE, 12-UY, 45-XONADON..."
                 value={citizenForm.address}
                 onChange={(e) =>
                   setCitizenForm({ ...citizenForm, address: e.target.value.toUpperCase() })
@@ -1314,21 +1566,28 @@ export function ApplicationCreatePage() {
         </div>
 
         {/* ================================================================= */}
-        {/* 2-QISM: HODISA TAFSILOTLARI, HUDUD VA ARIZA MAZMUNI */}
+        {/* 2-QISM: YO‘NALTIRILGAN HUDUD VA JINOYAT TURI */}
         {/* ================================================================= */}
         <div className="p-5 sm:p-6 space-y-4">
+          <div className="flex items-center gap-2.5 text-primary border-b border-border/40 pb-3">
+            <MapPin className="h-5 w-5" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+              2. Ariza Yo‘naltirilgan Tuman & Jinoyat Turi
+            </h2>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Tuman tanlash */}
             <div ref={districtPopoverRef} className="relative space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-primary" />
-                  Hodisa Sodir Bo‘lgan Tuman / Bo‘lim *
+                  Yo‘naltirilgan Tuman / Biriktirilgan Bo‘lim *
                 </label>
                 {selectedDistrictId ? (
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                     <CheckCircle2 className="h-3 w-3" />
-                    Bazadagi tuman biriktirildi
+                    Biriktirilgan tuman
                     <button
                       type="button"
                       onClick={() => setSelectedDistrictId(null)}

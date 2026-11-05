@@ -55,6 +55,16 @@ export interface District {
   id: string;
   name: string | null;
   code: string | null;
+  mahallas?: Mahalla[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Mahalla {
+  id: string;
+  name: string | null;
+  district_id: string;
+  district?: District | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -80,6 +90,10 @@ export interface Citizen {
   pinfl: string | null;
   phone_number: string | null;
   address: string | null;
+  district_id?: string | null;
+  district?: District | null;
+  mahalla_id?: string | null;
+  mahalla?: Mahalla | null;
   cards?: Card[];
   created_at?: string;
   updated_at?: string;

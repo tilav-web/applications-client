@@ -209,6 +209,8 @@ export function CitizensPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                      {citizen.district?.name ? `${citizen.district.name}, ` : ''}
+                      {citizen.mahalla?.name ? `${citizen.mahalla.name}, ` : ''}
                       {citizen.address || '—'}
                     </TableCell>
                     <TableCell>
