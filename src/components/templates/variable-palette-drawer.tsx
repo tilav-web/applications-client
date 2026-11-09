@@ -41,6 +41,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   app: FileText,
   crime: Scale,
   district: Building2,
+  suspect: ShieldAlert,
   victim_card: CreditCard,
   fraud_card: ShieldAlert,
   transfer: CreditCard,
