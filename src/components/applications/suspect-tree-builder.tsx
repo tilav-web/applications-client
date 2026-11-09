@@ -20,8 +20,6 @@ import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { SuspectTreeNode } from '@/types/models';
 
@@ -31,18 +29,19 @@ interface SuspectTreeBuilderProps {
   readOnly?: boolean;
 }
 
-const COMMON_PRESETS_ROOT = [
-  { label: 'Telegram', color: 'text-sky-500 bg-sky-500/10 border-sky-500/30' },
-  { label: 'Instagram', color: 'text-pink-500 bg-pink-500/10 border-pink-500/30' },
-  { label: 'Telefon', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30' },
-  { label: 'Shaxs (F.I.Sh)', color: 'text-amber-500 bg-amber-500/10 border-amber-500/30' },
-  { label: 'Karta raqami', color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/30' },
-  { label: 'Yashash manzili', color: 'text-teal-500 bg-teal-500/10 border-teal-500/30' },
-  { label: 'Kripto-hamyon', color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30' },
-  { label: 'Avtoraqam', color: 'text-orange-500 bg-orange-500/10 border-orange-500/30' },
+const ROOT_PRESET_CATEGORIES = [
+  'Telegram',
+  'Instagram',
+  'Telefon',
+  'Karta raqami',
+  'Shaxs (F.I.Sh)',
+  'Yashash manzili',
+  'Kripto-hamyon',
+  'Avtoraqam',
+  'Boshqa',
 ];
 
-const COMMON_PRESETS_CHILD = [
+const CHILD_PRESET_CATEGORIES = [
   'username',
   'bio',
   'telefon',
@@ -52,12 +51,12 @@ const COMMON_PRESETS_CHILD = [
   'f.i.sh',
   'pasport',
   'pinfl',
+  'karta',
   'manzil',
-  'avtomashina',
   'izoh',
 ];
 
-function renderNodeIcon(label: string, className = 'w-3 h-3') {
+function renderNodeIcon(label: string, className = 'w-3.5 h-3.5') {
   const l = (label || '').toLowerCase();
   if (l.includes('telegram') || l.includes('tg')) return <Send className={className} />;
   if (l.includes('instagram') || l.includes('insta'))
@@ -71,7 +70,7 @@ function renderNodeIcon(label: string, className = 'w-3 h-3') {
     return <MapPin className={className} />;
   if (l.includes('kripto') || l.includes('crypto') || l.includes('usdt') || l.includes('btc'))
     return <Coins className={className} />;
-  if (l.includes('avto') || l.includes('mashina') || l.includes('raqam'))
+  if (l.includes('avto') || l.includes('mashina') || l.includes('avtoraqam'))
     return <Car className={className} />;
   return <Hash className={className} />;
 }
@@ -79,19 +78,21 @@ function renderNodeIcon(label: string, className = 'w-3 h-3') {
 export function SuspectTreeBuilder({ value, onChange, readOnly = false }: SuspectTreeBuilderProps) {
   const tree: SuspectTreeNode[] = useMemo(() => value || [], [value]);
 
-  // Dialog & Popover states
+  // Qaysi ota-tugunda yangi shoxobcha (inline input) ochiq: 'ROOT' yoki tugun ID si yoki null
   const [activeAddParentId, setActiveAddParentId] = useState<string | null | 'ROOT'>(null);
-  const [newLabel, setNewLabel] = useState('');
-  const [newValue, setNewValue] = useState('');
+  const [addCategory, setAddCategory] = useState<string>('Telegram');
+  const [customCategory, setCustomCategory] = useState<string>('');
+  const [addValue, setAddValue] = useState<string>('');
 
-  const [editingNode, setEditingNode] = useState<{
-    id: string;
-    label: string;
-    value?: string;
-  } | null>(null);
+  // Tahrirlash holati
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState<string>('');
+  const [editValue, setEditValue] = useState<string>('');
+
+  // O'chirish holati
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
 
-  // Helper: Count total nodes
+  // Daraxtdagi barcha tugunlar sonini hisoblash
   const totalCount = useMemo(() => {
     let count = 0;
     const walk = (nodes: SuspectTreeNode[]) => {
@@ -104,20 +105,30 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
     return count;
   }, [tree]);
 
-  // Tree mutation functions
-  const handleAddChild = (parentId: string | 'ROOT') => {
-    if (!newLabel.trim()) return;
+  // Yangi shoxobcha qo'shishni boshlash
+  const handleStartAdd = (parentId: string | 'ROOT', defaultPreset?: string) => {
+    setActiveAddParentId(parentId);
+    const initialCategory = defaultPreset || (parentId === 'ROOT' ? 'Telegram' : 'username');
+    setAddCategory(initialCategory);
+    setCustomCategory('');
+    setAddValue('');
+    setEditingNodeId(null);
+  };
+
+  // Yangi tugunni saqlash (Enter bosilganda yoki Saqlash tugmasida)
+  const handleCommitAdd = (parentId: string | 'ROOT') => {
+    const finalLabel = addCategory === 'CUSTOM' ? customCategory.trim() : addCategory.trim();
+    if (!finalLabel) return;
 
     const newNode: SuspectTreeNode = {
       id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      label: newLabel.trim(),
-      value: newValue.trim() || undefined,
+      label: finalLabel,
+      value: addValue.trim() || undefined,
       children: [],
     };
 
     if (parentId === 'ROOT') {
-      const next = [...tree, newNode];
-      onChange?.(next);
+      onChange?.([...tree, newNode]);
     } else {
       const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
         return nodes.map((n) => {
@@ -139,21 +150,35 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
       onChange?.(recurse(tree));
     }
 
-    setNewLabel('');
-    setNewValue('');
+    setActiveAddParentId(null);
+    setAddValue('');
+    setCustomCategory('');
+  };
+
+  const handleCancelAdd = () => {
+    setActiveAddParentId(null);
+    setAddValue('');
+    setCustomCategory('');
+  };
+
+  // Tugunni tahrirlash
+  const handleStartEdit = (node: SuspectTreeNode) => {
+    setEditingNodeId(node.id);
+    setEditLabel(node.label);
+    setEditValue(node.value || '');
     setActiveAddParentId(null);
   };
 
-  const handleUpdateNode = () => {
-    if (!editingNode || !editingNode.label.trim()) return;
+  const handleCommitEdit = () => {
+    if (!editingNodeId || !editLabel.trim()) return;
 
     const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
       return nodes.map((n) => {
-        if (n.id === editingNode.id) {
+        if (n.id === editingNodeId) {
           return {
             ...n,
-            label: editingNode.label.trim(),
-            value: editingNode.value?.trim() || undefined,
+            label: editLabel.trim(),
+            value: editValue.trim() || undefined,
           };
         }
         if (n.children && n.children.length > 0) {
@@ -167,9 +192,14 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
     };
 
     onChange?.(recurse(tree));
-    setEditingNode(null);
+    setEditingNodeId(null);
   };
 
+  const handleCancelEdit = () => {
+    setEditingNodeId(null);
+  };
+
+  // Tugunni o'chirish
   const handleDeleteNode = (id: string) => {
     const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
       return nodes
@@ -179,7 +209,6 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
           children: n.children ? recurse(n.children) : [],
         }));
     };
-
     onChange?.(recurse(tree));
     setNodeToDelete(null);
   };
@@ -189,25 +218,25 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
   };
 
   return (
-    <div className="space-y-2.5">
-      {/* Sarlavha & Boshqaruv paneli */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-2">
+    <div className="space-y-2">
+      {/* Sarlavha & Yordamchi panel */}
+      <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
-            <ShieldAlert className="h-4 w-4" />
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400">
+            <ShieldAlert className="h-3.5 w-3.5" />
           </div>
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-              Firibgar / Gumonlanuvchi ma'lumotlari daraxti
+              2.1. Firibgar / Gumonlanuvchi ma'lumotlari daraxti
               {totalCount > 0 && (
                 <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono">
-                  {totalCount} ta shoxobcha
+                  {totalCount} ta belgi
                 </Badge>
               )}
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              Telegram, Instagram, Telefon, Username, Bio yoki boshqa istalgan belgilarni chapdan
-              o‘ngga daraxt kabi qo‘shing
+              Chiziqlar bo‘ylab firibgarga tegishli nik, telefon, karta va boshqa ixtiyoriy
+              belgilarni daraxt ko‘rinishida kiriting
             </p>
           </div>
         </div>
@@ -218,263 +247,117 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
             variant="ghost"
             size="sm"
             onClick={handleClearAll}
-            className="h-7 text-[11px] text-muted-foreground hover:text-red-500 gap-1 px-2"
+            className="h-6 text-[11px] text-muted-foreground hover:text-red-500 gap-1 px-2"
           >
             <Trash2 className="h-3 w-3" />
-            Daraxtni tozalash
+            Tozalash
           </Button>
         )}
       </div>
 
-      {/* DARAХТ MAYDONI (Horizontal scrollable diagram) */}
-      <div className="relative rounded-xl border border-border/80 bg-background/50 p-4 overflow-x-auto min-h-[140px] flex items-center">
-        {/* Orqa fon nuqtalari */}
+      {/* DARAХТ CHIZIQLARI MAYDONI (Line-based Decision Tree) */}
+      <div className="relative rounded-lg border border-border/80 bg-card/40 p-3 overflow-x-auto min-h-[110px] flex items-center">
+        {/* Orqa fon juda yengil panjarasi */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06]"
+          className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
           style={{
             backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
-            backgroundSize: '16px 16px',
+            backgroundSize: '14px 14px',
           }}
         />
 
-        <div className="relative flex items-center gap-6 py-2">
-          {/* 1. ILDIZ TUGUN (ROOT NODE) */}
+        <div className="relative flex items-center py-1">
+          {/* 1. ASOSIY ILDIZ (ROOT) */}
           <div className="flex items-center shrink-0">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card border-2 border-red-500/40 text-foreground shadow-sm shadow-red-500/5 hover:border-red-500/70 transition-all">
-              <div className="w-6 h-6 rounded-lg bg-red-500/15 text-red-500 flex items-center justify-center font-bold">
-                <ShieldAlert className="w-3.5 h-3.5" />
-              </div>
-              <div className="text-left">
-                <span className="text-xs font-bold uppercase tracking-wider block text-red-600 dark:text-red-400">
-                  Firibgar / Gumonlanuvchi
-                </span>
-                <span className="text-[10px] text-muted-foreground block">
-                  {tree.length === 0
-                    ? 'Hali maʼlumot qo‘shilmagan'
-                    : `${tree.length} ta asosiy yo‘nalish`}
-                </span>
-              </div>
-
-              {!readOnly && (
-                <Popover
-                  open={activeAddParentId === 'ROOT'}
-                  onOpenChange={(open: boolean) => {
-                    setActiveAddParentId(open ? 'ROOT' : null);
-                    if (open) {
-                      setNewLabel('');
-                      setNewValue('');
-                    }
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="ml-2 h-6 w-6 rounded-lg bg-red-500 text-white hover:bg-red-600 flex items-center justify-center shadow-xs transition-transform active:scale-95 cursor-pointer"
-                      title="Yangi yo‘nalish qo‘shish (Telegram, Instagram, Telefon...)"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-3 z-50 shadow-2xl" align="start">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-foreground">
-                          Yangi tarmoq qo‘shish
-                        </span>
-                        <Badge variant="outline" className="text-[10px]">
-                          1-bosqich
-                        </Badge>
-                      </div>
-
-                      {/* Tezkor tavsiyalar */}
-                      <div className="flex flex-wrap gap-1">
-                        {COMMON_PRESETS_ROOT.map((p) => {
-                          return (
-                            <button
-                              key={p.label}
-                              type="button"
-                              onClick={() => setNewLabel(p.label)}
-                              className={cn(
-                                'text-[11px] px-2 py-0.5 rounded-md border flex items-center gap-1 transition-all hover:scale-105',
-                                newLabel === p.label
-                                  ? 'ring-2 ring-primary border-primary'
-                                  : p.color,
-                              )}
-                            >
-                              {renderNodeIcon(p.label, 'w-2.5 h-2.5')}
-                              {p.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-medium text-muted-foreground">
-                          Kategoriya / Nomi:
-                        </label>
-                        <Input
-                          placeholder="Masalan: Telegram, Instagram..."
-                          value={newLabel}
-                          onChange={(e) => setNewLabel(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddChild('ROOT');
-                            }
-                          }}
-                          className="h-8 text-xs font-semibold"
-                          autoFocus
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-medium text-muted-foreground">
-                          Qiymat (ixtiyoriy):
-                        </label>
-                        <Input
-                          placeholder="Masalan: @firibgar, +99890..."
-                          value={newValue}
-                          onChange={(e) => setNewValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddChild('ROOT');
-                            }
-                          }}
-                          className="h-8 text-xs"
-                        />
-                      </div>
-
-                      <div className="flex justify-end gap-1.5 pt-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setActiveAddParentId(null)}
-                        >
-                          Bekor qilish
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-7 text-xs font-semibold gap-1 bg-red-600 hover:bg-red-700 text-white"
-                          onClick={() => handleAddChild('ROOT')}
-                          disabled={!newLabel.trim()}
-                        >
-                          <Plus className="w-3 h-3" />
-                          Qo‘shish
-                        </Button>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-
-            {/* Rootdan o'ngga chiqadigan asosiy ulash chizig'i */}
-            {tree.length > 0 && <div className="w-6 h-0.5 bg-border shrink-0" />}
-          </div>
-
-          {/* 2. CHEKSIZ REKURSIF DARAXT TUGUNLARI */}
-          {tree.length > 0 ? (
-            <div className="flex flex-col gap-3 shrink-0">
-              {tree.map((node, index) => (
-                <TreeNodeItem
-                  key={node.id}
-                  node={node}
-                  isFirst={index === 0}
-                  isLast={index === tree.length - 1}
-                  totalSiblings={tree.length}
-                  readOnly={readOnly}
-                  activeAddParentId={activeAddParentId}
-                  setActiveAddParentId={setActiveAddParentId}
-                  newLabel={newLabel}
-                  setNewLabel={setNewLabel}
-                  newValue={newValue}
-                  setNewValue={setNewValue}
-                  onAddChild={handleAddChild}
-                  onEditNode={(n) => setEditingNode(n)}
-                  onDeleteNode={(id) => setNodeToDelete(id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground italic pl-2">
-              <span>
-                ← "<strong>+</strong>" tugmasini bosib, firibgarning dastlabki maʼlumotlarini
-                daraxtga kiriting
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 shadow-2xs">
+              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                Firibgar / Gumonlanuvchi
               </span>
             </div>
-          )}
+
+            {/* Ildizdan chiquvchi asosiy gorizontal chiziq */}
+            <div className="w-6 h-[2px] bg-red-400/50 shrink-0" />
+          </div>
+
+          {/* 2. ILDIZ TARMOQLARI (CHILDREN VA QO'SHISH CHIZIG'I) */}
+          <div className="relative flex flex-col justify-center shrink-0">
+            {/* Agar ildizda tugunlar bo'lsa ularni chizamiz */}
+            {tree.map((node, index) => (
+              <TreeLineNodeItem
+                key={node.id}
+                node={node}
+                isFirst={index === 0}
+                isLast={index === tree.length - 1 && activeAddParentId !== 'ROOT'}
+                totalSiblings={tree.length + (activeAddParentId === 'ROOT' ? 1 : 0)}
+                readOnly={readOnly}
+                activeAddParentId={activeAddParentId}
+                addCategory={addCategory}
+                setAddCategory={setAddCategory}
+                customCategory={customCategory}
+                setCustomCategory={setCustomCategory}
+                addValue={addValue}
+                setAddValue={setAddValue}
+                onStartAdd={handleStartAdd}
+                onCommitAdd={handleCommitAdd}
+                onCancelAdd={handleCancelAdd}
+                editingNodeId={editingNodeId}
+                editLabel={editLabel}
+                setEditLabel={setEditLabel}
+                editValue={editValue}
+                setEditValue={setEditValue}
+                onStartEdit={handleStartEdit}
+                onCommitEdit={handleCommitEdit}
+                onCancelEdit={handleCancelEdit}
+                onDeleteNode={(id) => setNodeToDelete(id)}
+              />
+            ))}
+
+            {/* ILDIZGA YANGI MA'LUMOT QO'SHISH CHIZIG'I (----------------------------------+) */}
+            {!readOnly && (
+              <div className="relative flex items-center shrink-0 py-1">
+                {/* Chap tomondagi ulovchi chiziq */}
+                <div className="absolute -left-6 top-1/2 w-6 h-[2px] bg-border/80" />
+
+                {/* Vertikal orqa ulovchi chiziq agar avvalgi tugunlar bo'lsa */}
+                {tree.length > 0 && (
+                  <div className="absolute -left-6 top-0 bottom-1/2 w-[2px] bg-border/80" />
+                )}
+
+                {activeAddParentId === 'ROOT' ? (
+                  /* CHIZIQ INPUTGA AYLANISHI (SEAMLESS INLINE INPUT) */
+                  <InlineLineInput
+                    categories={ROOT_PRESET_CATEGORIES}
+                    category={addCategory}
+                    setCategory={setAddCategory}
+                    customCategory={customCategory}
+                    setCustomCategory={setCustomCategory}
+                    value={addValue}
+                    setValue={setAddValue}
+                    placeholder="Masalan: @nik, +99890..., 8600..."
+                    onCommit={() => handleCommitAdd('ROOT')}
+                    onCancel={handleCancelAdd}
+                  />
+                ) : (
+                  /* ----------------------------------+ CHIZIQLI TUGMA */
+                  <DashedAddLine
+                    label={
+                      tree.length === 0 ? "Yangi ma'lumot kiritish" : 'Yana yo‘nalish qo‘shish'
+                    }
+                    onClick={() => handleStartAdd('ROOT')}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* TAHRIRLASH MODALI */}
-      {editingNode && (
-        <Popover
-          open={!!editingNode}
-          onOpenChange={(open: boolean) => !open && setEditingNode(null)}
-        >
-          <PopoverContent className="w-80 p-3 z-50 shadow-2xl" align="center">
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-foreground block">Tugunni tahrirlash</span>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Nomi / Maydon:
-                </label>
-                <Input
-                  value={editingNode.label}
-                  onChange={(e) => setEditingNode({ ...editingNode, label: e.target.value })}
-                  className="h-8 text-xs font-semibold"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Qiymati (ixtiyoriy):
-                </label>
-                <Input
-                  value={editingNode.value || ''}
-                  onChange={(e) => setEditingNode({ ...editingNode, value: e.target.value })}
-                  placeholder="Masalan: @nik, bio, telefon..."
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-1.5 pt-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setEditingNode(null)}
-                >
-                  Bekor qilish
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-7 text-xs font-semibold gap-1"
-                  onClick={handleUpdateNode}
-                  disabled={!editingNode.label.trim()}
-                >
-                  <Check className="w-3 h-3" />
-                  Saqlash
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-
-      {/* O'CHIRISHNI TASDIQLASH */}
+      {/* O'CHIRISHNI TASDIQLASH DIALOGI */}
       <ConfirmDialog
         open={!!nodeToDelete}
         onOpenChange={(open) => !open && setNodeToDelete(null)}
-        title="Shoxobchani o‘chirish"
+        title="Belgini o‘chirish"
         description="Ushbu maʼlumot va uning barcha ichki tarmoqlarini daraxtdan o‘chirmoqchimisiz?"
         confirmText="Ha, o‘chirilsin"
         cancelText="Bekor qilish"
@@ -488,53 +371,75 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
 }
 
 // ============================================================================
-// REKURSIF DARAXT TUGUNI (TREE NODE ITEM)
+// CHIZIQLI DARAXT TUGUNI (TREE LINE NODE ITEM)
 // ============================================================================
-interface TreeNodeItemProps {
+interface TreeLineNodeItemProps {
   node: SuspectTreeNode;
   isFirst: boolean;
   isLast: boolean;
   totalSiblings: number;
   readOnly: boolean;
   activeAddParentId: string | null | 'ROOT';
-  setActiveAddParentId: (id: string | null | 'ROOT') => void;
-  newLabel: string;
-  setNewLabel: (val: string) => void;
-  newValue: string;
-  setNewValue: (val: string) => void;
-  onAddChild: (parentId: string) => void;
-  onEditNode: (node: { id: string; label: string; value?: string }) => void;
+  addCategory: string;
+  setAddCategory: (val: string) => void;
+  customCategory: string;
+  setCustomCategory: (val: string) => void;
+  addValue: string;
+  setAddValue: (val: string) => void;
+  onStartAdd: (parentId: string, defaultPreset?: string) => void;
+  onCommitAdd: (parentId: string) => void;
+  onCancelAdd: () => void;
+  editingNodeId: string | null;
+  editLabel: string;
+  setEditLabel: (val: string) => void;
+  editValue: string;
+  setEditValue: (val: string) => void;
+  onStartEdit: (node: SuspectTreeNode) => void;
+  onCommitEdit: () => void;
+  onCancelEdit: () => void;
   onDeleteNode: (id: string) => void;
 }
 
-function TreeNodeItem({
+function TreeLineNodeItem({
   node,
   isFirst,
   isLast,
   totalSiblings,
   readOnly,
   activeAddParentId,
-  setActiveAddParentId,
-  newLabel,
-  setNewLabel,
-  newValue,
-  setNewValue,
-  onAddChild,
-  onEditNode,
+  addCategory,
+  setAddCategory,
+  customCategory,
+  setCustomCategory,
+  addValue,
+  setAddValue,
+  onStartAdd,
+  onCommitAdd,
+  onCancelAdd,
+  editingNodeId,
+  editLabel,
+  setEditLabel,
+  editValue,
+  setEditValue,
+  onStartEdit,
+  onCommitEdit,
+  onCancelEdit,
   onDeleteNode,
-}: TreeNodeItemProps) {
+}: TreeLineNodeItemProps) {
   const hasChildren = Boolean(node.children && node.children.length > 0);
+  const isAddingChildHere = activeAddParentId === node.id;
+  const isEditingThis = editingNodeId === node.id;
 
   return (
-    <div className="relative flex items-center gap-6">
-      {/* Chap tomondagi ulovchi chiziq (Parentga ulanish) */}
-      <div className="absolute -left-6 top-1/2 w-6 h-0.5 bg-border/80" />
+    <div className="relative flex items-center shrink-0 py-1">
+      {/* Chap tomondagi ulovchi chiziq (Parentdan keluvchi horizontal connector) */}
+      <div className="absolute -left-6 top-1/2 w-6 h-[2px] bg-border/80" />
 
-      {/* Agar bir nechta tugun bo'lsa vertikal orqa ulovchi chiziq */}
+      {/* Vertikal orqa ulovchi chiziq (Spine) */}
       {totalSiblings > 1 && (
         <div
           className={cn(
-            'absolute -left-6 w-0.5 bg-border/80',
+            'absolute -left-6 w-[2px] bg-border/80',
             isFirst && 'top-1/2 bottom-0',
             isLast && 'top-0 bottom-1/2',
             !isFirst && !isLast && 'top-0 bottom-0',
@@ -542,195 +447,342 @@ function TreeNodeItem({
         />
       )}
 
-      {/* Tugun Karti */}
-      <div
-        className={cn(
-          'group flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-lg border bg-card/90 hover:bg-card shadow-2xs transition-all shrink-0',
-          node.value
-            ? 'border-primary/40 hover:border-primary'
-            : 'border-border/80 hover:border-foreground/40',
-        )}
-      >
-        <div className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          {renderNodeIcon(node.label, 'w-3 h-3')}
-        </div>
-
-        <div className="text-left leading-tight">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-foreground">{node.label}</span>
-            {node.value && (
-              <>
-                <span className="text-muted-foreground text-[10px]">→</span>
-                <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded select-all">
-                  {node.value}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Amallar: + (novda qo'shish), Edit, Delete */}
-        {!readOnly && (
-          <div className="flex items-center gap-0.5 ml-2 pl-1.5 border-l border-border/60">
-            {/* "+" bolalar qo'shish */}
-            <Popover
-              open={activeAddParentId === node.id}
-              onOpenChange={(open: boolean) => {
-                setActiveAddParentId(open ? node.id : null);
-                if (open) {
-                  setNewLabel('');
-                  setNewValue('');
-                }
+      {/* TUGUN ELEMENTI (CHIZIQLI, KARTASIZ) */}
+      <div className="group relative flex items-center shrink-0">
+        {isEditingThis ? (
+          /* INLINE EDIT REJIMI */
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-primary bg-background shadow-xs">
+            <input
+              type="text"
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              className="h-6 text-xs font-semibold bg-transparent border-0 border-b border-primary/50 focus:outline-none w-20 text-foreground"
+              placeholder="Nomi..."
+              autoFocus
+            />
+            <span className="text-muted-foreground text-xs font-bold">:</span>
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onCommitEdit();
+                if (e.key === 'Escape') onCancelEdit();
               }}
-            >
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="h-5 w-5 rounded hover:bg-primary/15 text-primary flex items-center justify-center transition-colors cursor-pointer"
-                  title="Ichki tarmoq qo‘shish"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-3 z-50 shadow-2xl" align="start">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground">
-                      "{node.label}" ga yangi tarmoq
-                    </span>
-                  </div>
-
-                  {/* Tavsiyalar */}
-                  <div className="flex flex-wrap gap-1">
-                    {COMMON_PRESETS_CHILD.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setNewLabel(p)}
-                        className={cn(
-                          'text-[10px] px-1.5 py-0.5 rounded border transition-all hover:bg-muted font-medium',
-                          newLabel === p
-                            ? 'bg-primary/20 border-primary text-primary'
-                            : 'bg-muted/40 text-muted-foreground',
-                        )}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Tarmoq nomi:
-                    </label>
-                    <Input
-                      placeholder="Masalan: username, bio, telefon..."
-                      value={newLabel}
-                      onChange={(e) => setNewLabel(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          onAddChild(node.id);
-                        }
-                      }}
-                      className="h-8 text-xs font-semibold"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Qiymati (ixtiyoriy):
-                    </label>
-                    <Input
-                      placeholder="Masalan: @tilav_web, Boylik sari olg‘a..."
-                      value={newValue}
-                      onChange={(e) => setNewValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          onAddChild(node.id);
-                        }
-                      }}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-1.5 pt-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => setActiveAddParentId(null)}
-                    >
-                      Bekor qilish
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-7 text-xs font-semibold gap-1"
-                      onClick={() => onAddChild(node.id)}
-                      disabled={!newLabel.trim()}
-                    >
-                      <Plus className="w-3 h-3" />
-                      Qo‘shish
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Qalamcha (Tahrirlash) */}
+              className="h-6 text-xs font-mono font-bold bg-transparent border-0 border-b border-primary/50 focus:outline-none min-w-[120px] text-primary"
+              placeholder="Qiymat..."
+            />
             <button
               type="button"
-              onClick={() => onEditNode({ id: node.id, label: node.label, value: node.value })}
-              className="h-5 w-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-              title="Tahrirlash"
+              onClick={onCommitEdit}
+              className="h-5 w-5 rounded bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center cursor-pointer ml-1"
+              title="Saqlash (Enter)"
             >
-              <Edit2 className="w-2.5 h-2.5" />
+              <Check className="w-3 h-3" />
             </button>
-
-            {/* "x" (O'chirish) */}
             <button
               type="button"
-              onClick={() => onDeleteNode(node.id)}
-              className="h-5 w-5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 flex items-center justify-center transition-colors cursor-pointer"
-              title="O‘chirish"
+              onClick={onCancelEdit}
+              className="h-5 w-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer"
+              title="Bekor qilish (Esc)"
             >
               <X className="w-3 h-3" />
             </button>
           </div>
+        ) : (
+          /* ODDY KO'RINISH: Chiziqdagi yorliq va qiymat */
+          <div
+            className={cn(
+              'flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all select-none',
+              node.value
+                ? 'bg-background hover:bg-muted/50 border-border/80 hover:border-primary/50 text-foreground shadow-2xs'
+                : 'bg-muted/40 hover:bg-muted border-border/60 text-foreground',
+            )}
+          >
+            <span className="text-primary shrink-0">{renderNodeIcon(node.label, 'w-3 h-3')}</span>
+            <span className="text-xs font-semibold">{node.label}</span>
+
+            {node.value && (
+              <>
+                <span className="text-muted-foreground text-[10px] font-bold">:</span>
+                <span className="text-xs font-mono font-bold text-primary px-1.5 py-0.2 rounded bg-primary/10 select-all">
+                  {node.value}
+                </span>
+              </>
+            )}
+
+            {!readOnly && (
+              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 pl-1 border-l border-border/60 transition-opacity">
+                <button
+                  type="button"
+                  onClick={() => onStartEdit(node)}
+                  className="h-4 w-4 rounded hover:bg-primary/15 text-muted-foreground hover:text-primary flex items-center justify-center cursor-pointer transition-colors"
+                  title="Tahrirlash"
+                >
+                  <Edit2 className="w-2.5 h-2.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteNode(node.id)}
+                  className="h-4 w-4 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-500 flex items-center justify-center cursor-pointer transition-colors"
+                  title="O‘chirish"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* O'ng tomonga chiquvchi chiziq (Horizontal continuation line) */}
+        {!hasChildren && !isAddingChildHere ? (
+          /* Bolasi yo'q bo'lsa: ----------------------------------+ chizig'i */
+          !readOnly && (
+            <div className="flex items-center">
+              <div className="w-6 h-[2px] bg-border/80" />
+              <button
+                type="button"
+                onClick={() => onStartAdd(node.id)}
+                className="h-4.5 w-4.5 rounded-full border border-dashed border-muted-foreground/60 hover:border-primary hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-all cursor-pointer shadow-2xs"
+                title="Ichki tarmoq qo‘shish"
+              >
+                <Plus className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          )
+        ) : (
+          /* Bolasi bo'lsa yoki qo'shilayotgan bo'lsa: ulovchi chiziq */
+          <div className="w-6 h-[2px] bg-border/80 shrink-0" />
         )}
       </div>
 
-      {/* O'ngga ulovchi chiziq (Agar bolalari bo'lsa) */}
-      {hasChildren && <div className="w-6 h-0.5 bg-border/80 shrink-0" />}
-
-      {/* Bolalar (Children) rekursiyasi */}
-      {hasChildren && (
-        <div className="flex flex-col gap-3 shrink-0">
-          {node.children!.map((child, idx) => (
-            <TreeNodeItem
+      {/* BOLALAR VA YANGI ICHKI TARMOQ CHIZIG'I (RECURSIVE CHILDREN) */}
+      {(hasChildren || isAddingChildHere) && (
+        <div className="relative flex flex-col justify-center shrink-0">
+          {node.children?.map((child, idx) => (
+            <TreeLineNodeItem
               key={child.id}
               node={child}
               isFirst={idx === 0}
-              isLast={idx === node.children!.length - 1}
-              totalSiblings={node.children!.length}
+              isLast={idx === node.children!.length - 1 && !isAddingChildHere}
+              totalSiblings={node.children!.length + (isAddingChildHere ? 1 : 0)}
               readOnly={readOnly}
               activeAddParentId={activeAddParentId}
-              setActiveAddParentId={setActiveAddParentId}
-              newLabel={newLabel}
-              setNewLabel={setNewLabel}
-              newValue={newValue}
-              setNewValue={setNewValue}
-              onAddChild={onAddChild}
-              onEditNode={onEditNode}
+              addCategory={addCategory}
+              setAddCategory={setAddCategory}
+              customCategory={customCategory}
+              setCustomCategory={setCustomCategory}
+              addValue={addValue}
+              setAddValue={setAddValue}
+              onStartAdd={onStartAdd}
+              onCommitAdd={onCommitAdd}
+              onCancelAdd={onCancelAdd}
+              editingNodeId={editingNodeId}
+              editLabel={editLabel}
+              setEditLabel={setEditLabel}
+              editValue={editValue}
+              setEditValue={setEditValue}
+              onStartEdit={onStartEdit}
+              onCommitEdit={onCommitEdit}
+              onCancelEdit={onCancelEdit}
               onDeleteNode={onDeleteNode}
             />
           ))}
+
+          {/* YANGI ICHKI SHОХOBCHA CHIZIG'I (----------------------------------+) */}
+          {!readOnly && (
+            <div className="relative flex items-center shrink-0 py-1">
+              <div className="absolute -left-6 top-1/2 w-6 h-[2px] bg-border/80" />
+              {hasChildren && (
+                <div className="absolute -left-6 top-0 bottom-1/2 w-[2px] bg-border/80" />
+              )}
+
+              {isAddingChildHere ? (
+                <InlineLineInput
+                  categories={CHILD_PRESET_CATEGORIES}
+                  category={addCategory}
+                  setCategory={setAddCategory}
+                  customCategory={customCategory}
+                  setCustomCategory={setCustomCategory}
+                  value={addValue}
+                  setValue={setAddValue}
+                  placeholder="Masalan: username, bio, telefon..."
+                  onCommit={() => onCommitAdd(node.id)}
+                  onCancel={onCancelAdd}
+                />
+              ) : (
+                <DashedAddLine
+                  label="Ichki belgi qo‘shish"
+                  onClick={() => onStartAdd(node.id)}
+                  compact
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// DASHED CHIZIQLI TUGMA: ----------------------------------+
+// ============================================================================
+function DashedAddLine({
+  label,
+  onClick,
+  compact = false,
+}: {
+  label: string;
+  onClick: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group flex items-center gap-1.5 py-1 px-1 transition-all cursor-pointer text-left',
+        compact ? 'min-w-[120px]' : 'min-w-[160px]',
+      )}
+      title="Yozish uchun bosing"
+    >
+      {/* Uzun chiziqchalar ------------------------ */}
+      <div className="flex-1 border-b-2 border-dashed border-border/70 group-hover:border-primary/70 transition-colors w-16" />
+
+      {/* Chiziq oxiridagi [+] belgisi */}
+      <div className="h-5 w-5 rounded-full border border-dashed border-muted-foreground/60 group-hover:border-primary group-hover:bg-primary/10 group-hover:text-primary flex items-center justify-center text-muted-foreground transition-all shrink-0">
+        <Plus className="w-3 h-3" />
+      </div>
+
+      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-primary transition-colors select-none">
+        {label}
+      </span>
+    </button>
+  );
+}
+
+// ============================================================================
+// CHIZIQNING O'ZIGA BIRLASHIB KETGAN INLINE INPUT (SEAMLESS INLINE INPUT)
+// ============================================================================
+function InlineLineInput({
+  categories,
+  category,
+  setCategory,
+  customCategory,
+  setCustomCategory,
+  value,
+  setValue,
+  placeholder,
+  onCommit,
+  onCancel,
+}: {
+  categories: string[];
+  category: string;
+  setCategory: (val: string) => void;
+  customCategory: string;
+  setCustomCategory: (val: string) => void;
+  value: string;
+  setValue: (val: string) => void;
+  placeholder: string;
+  onCommit: () => void;
+  onCancel: () => void;
+}) {
+  const isCustom = category === 'CUSTOM';
+  const effectiveLabel = isCustom ? customCategory : category;
+  const canCommit = effectiveLabel.trim().length > 0;
+
+  return (
+    <div className="flex flex-col gap-1 py-1 px-1 bg-background/90 rounded border border-primary/40 shadow-xs animate-in fade-in slide-in-from-left-2 duration-150">
+      {/* 1. Asosiy Chiziqli Qator: [ Kategoriya ▼ ] : [ Qiymat ------------------ ] [✓] [✕] */}
+      <div className="flex items-center gap-1.5">
+        {/* Kategoriya selektori */}
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="h-6 text-xs font-semibold px-1.5 rounded bg-primary/10 text-primary border-0 focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+          <option value="CUSTOM">+ Boshqa...</option>
+        </select>
+
+        {isCustom && (
+          <input
+            type="text"
+            placeholder="Nomi..."
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+            className="h-6 text-xs font-semibold bg-transparent border-0 border-b-2 border-primary focus:outline-none px-1 w-24 text-foreground"
+            autoFocus
+          />
+        )}
+
+        <span className="text-muted-foreground text-xs font-bold">:</span>
+
+        {/* Chiziqqa to'liq birlashgan qiymat kiritish maydoni */}
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (canCommit) onCommit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+          className="h-6 text-xs font-mono font-medium bg-transparent border-0 border-b-2 border-primary focus:outline-none px-1 w-44 md:w-56 text-foreground placeholder:text-muted-foreground/60 placeholder:font-sans"
+          autoFocus={!isCustom}
+        />
+
+        {/* Saqlash va Bekor qilish tugmalari */}
+        <button
+          type="button"
+          onClick={onCommit}
+          disabled={!canCommit}
+          className="h-5.5 px-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50 shrink-0"
+          title="Saqlash (Enter)"
+        >
+          <Check className="w-3 h-3" />
+          <span>Saqlash</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="h-5.5 w-5.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors shrink-0"
+          title="Bekor qilish (Esc)"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* 2. Tezkor tavsiya toifalari (Chiplar) */}
+      <div className="flex items-center gap-1 flex-wrap pt-0.5">
+        <span className="text-[10px] text-muted-foreground font-medium">Tezkor:</span>
+        {categories.slice(0, 7).map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setCategory(c)}
+            className={cn(
+              'text-[10px] px-1.5 py-0.2 rounded border transition-all cursor-pointer',
+              category === c
+                ? 'bg-primary text-primary-foreground border-primary font-bold'
+                : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60',
+            )}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
