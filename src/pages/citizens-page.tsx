@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/table';
 import { citizensApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { formatUzbekName } from '@/lib/formatters';
 import type { Citizen } from '@/types/models';
 
 export function CitizensPage() {
@@ -57,8 +58,16 @@ export function CitizensPage() {
   }, [data, page, limit, search, queryClient]);
 
   // Mutations
+  const preparePayload = (data: Partial<Citizen>) => ({
+    ...data,
+    first_name: data.first_name ? formatUzbekName(data.first_name) : undefined,
+    last_name: data.last_name ? formatUzbekName(data.last_name) : undefined,
+    middle_name: data.middle_name ? formatUzbekName(data.middle_name) : undefined,
+    passport: data.passport ? data.passport.trim().toUpperCase() : undefined,
+  });
+
   const createMutation = useMutation({
-    mutationFn: () => citizensApi.create(formData),
+    mutationFn: () => citizensApi.create(preparePayload(formData)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['citizens'] });
       closeModal();
@@ -70,7 +79,7 @@ export function CitizensPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => citizensApi.update(targetCitizen!.id, formData),
+    mutationFn: () => citizensApi.update(targetCitizen!.id, preparePayload(formData)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['citizens'] });
       closeModal();
@@ -329,7 +338,7 @@ export function CitizensPage() {
                     placeholder="ISM"
                     value={formData.first_name || ''}
                     onChange={(e) =>
-                      setFormData({ ...formData, first_name: e.target.value.toUpperCase() })
+                      setFormData({ ...formData, first_name: e.target.value })
                     }
                     className="h-10 text-xs sm:text-sm uppercase font-medium"
                   />
@@ -341,7 +350,7 @@ export function CitizensPage() {
                     placeholder="FAMILIYA"
                     value={formData.last_name || ''}
                     onChange={(e) =>
-                      setFormData({ ...formData, last_name: e.target.value.toUpperCase() })
+                      setFormData({ ...formData, last_name: e.target.value })
                     }
                     className="h-10 text-xs sm:text-sm uppercase font-medium"
                   />
@@ -355,7 +364,7 @@ export function CitizensPage() {
                     placeholder="SHARIF"
                     value={formData.middle_name || ''}
                     onChange={(e) =>
-                      setFormData({ ...formData, middle_name: e.target.value.toUpperCase() })
+                      setFormData({ ...formData, middle_name: e.target.value })
                     }
                     className="h-10 text-xs sm:text-sm uppercase font-medium"
                   />

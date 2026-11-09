@@ -106,3 +106,79 @@ export function formatAmountWords(raw?: string | number | null, currency = 'UZS'
   return `${num.toLocaleString('uz-UZ')} ${curr}`;
 }
 
+const LOWERCASE_PARTICLES = new Set([
+  "o'g'li",
+  "o‘g‘li",
+  "oʻgʻli",
+  "o`g`li",
+  "og'li",
+  "ogli",
+  "o'gli",
+  "qizi",
+  "қизи",
+  "кизи",
+  "ўғли",
+  "угли",
+  "ўғли",
+  "уғли",
+]);
+
+/**
+ * Ism, familiya yoki to'liq F.I.SH ni o'zbek tili qonuniyatlariga ko'ra formatlaydi.
+ * Masalan:
+ * "TILOVOV SHAVQIDDIN SAYFIDDIN O'G'LI" -> "Tilovov Shavqiddin Sayfiddin o'g'li"
+ */
+export function formatUzbekName(str?: string | null): string {
+  if (!str || typeof str !== 'string') return '';
+  const trimmed = str.trim();
+  if (!trimmed) return '';
+
+  return trimmed
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) return '';
+
+      const normalizedForCheck = word
+        .toLowerCase()
+        .replace(/[\u2018\u2019\u02BB\u02BC\x60]/g, "'");
+
+      if (
+        LOWERCASE_PARTICLES.has(normalizedForCheck) ||
+        LOWERCASE_PARTICLES.has(word.toLowerCase())
+      ) {
+        return word.toLowerCase();
+      }
+
+      if (word.includes('-')) {
+        return word
+          .split('-')
+          .map((sub) => {
+            if (!sub) return '';
+            return sub.charAt(0).toUpperCase() + sub.slice(1).toLowerCase();
+          })
+          .join('-');
+      }
+
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
+/**
+ * Title case formatlash (masalan banklar, jinoyat turlari uchun).
+ */
+export function formatTitleCase(str?: string | null): string {
+  if (!str || typeof str !== 'string') return '';
+  const trimmed = str.trim();
+  if (!trimmed) return '';
+
+  return trimmed
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) return '';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
+

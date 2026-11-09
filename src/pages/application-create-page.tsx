@@ -53,6 +53,8 @@ import {
   formatAmountInput,
   formatAmountWords,
   formatCardNumberDisplay,
+  formatTitleCase,
+  formatUzbekName,
 } from '@/lib/formatters';
 import {
   applicationsApi,
@@ -904,9 +906,9 @@ export function ApplicationCreatePage() {
 
       // 1. Fuqaro
       const citizenDataObj: Record<string, unknown> = {
-        first_name: citizenForm.first_name || undefined,
-        last_name: citizenForm.last_name || undefined,
-        middle_name: citizenForm.middle_name || undefined,
+        first_name: citizenForm.first_name ? formatUzbekName(citizenForm.first_name) : undefined,
+        last_name: citizenForm.last_name ? formatUzbekName(citizenForm.last_name) : undefined,
+        middle_name: citizenForm.middle_name ? formatUzbekName(citizenForm.middle_name) : undefined,
         passport:
           citizenForm.passport && citizenForm.passport.trim() !== ''
             ? citizenForm.passport.trim().toUpperCase()
@@ -973,8 +975,8 @@ export function ApplicationCreatePage() {
         if (primary.victimCardNumber || primary.victimCardFullName || primary.victimBankName) {
           payload.card_data = {
             card_number: primary.victimCardNumber.replace(/\D/g, ''),
-            full_name: primary.victimCardFullName || undefined,
-            bank_name: primary.victimBankName || undefined,
+            full_name: primary.victimCardFullName ? formatUzbekName(primary.victimCardFullName) : undefined,
+            bank_name: primary.victimBankName ? formatTitleCase(primary.victimBankName) : undefined,
           };
         }
 
@@ -994,13 +996,13 @@ export function ApplicationCreatePage() {
             payment_provider_id: primary.providerId || undefined,
             payment_provider_name: primary.providerId
               ? undefined
-              : primary.providerName || undefined,
+              : primary.providerName ? formatTitleCase(primary.providerName) : undefined,
             receiver_card_id: primary.receiverCardId || undefined,
             receiver_card_number: primary.receiverCardId
               ? undefined
               : primary.receiverCardNumber.replace(/\D/g, ''),
-            receiver_card_full_name: primary.receiverCardFullName || undefined,
-            receiver_bank_name: primary.receiverBankName || undefined,
+            receiver_card_full_name: primary.receiverCardFullName ? formatUzbekName(primary.receiverCardFullName) : undefined,
+            receiver_bank_name: primary.receiverBankName ? formatTitleCase(primary.receiverBankName) : undefined,
             transfer_date: primary.transferDate || undefined,
             transfer_time: primary.transferTime || undefined,
           };
@@ -1019,20 +1021,20 @@ export function ApplicationCreatePage() {
             transfer_id: entry.transferId || undefined,
             inline_card: {
               card_number: entry.victimCardNumber ? entry.victimCardNumber.replace(/\D/g, '') : '',
-              full_name: entry.victimCardFullName || undefined,
-              bank_name: entry.victimBankName || undefined,
+              full_name: entry.victimCardFullName ? formatUzbekName(entry.victimCardFullName) : undefined,
+              bank_name: entry.victimBankName ? formatTitleCase(entry.victimBankName) : undefined,
             },
             inline_transfer: {
               amount: entry.amount ? Number(String(entry.amount).replace(/\s/g, '')) : '',
               currency: entry.currency || 'UZS',
               payment_provider_id: entry.providerId || undefined,
-              payment_provider_name: entry.providerId ? undefined : entry.providerName || undefined,
+              payment_provider_name: entry.providerId ? undefined : entry.providerName ? formatTitleCase(entry.providerName) : undefined,
               receiver_card_id: entry.receiverCardId || undefined,
               receiver_card_number: entry.receiverCardId
                 ? undefined
                 : entry.receiverCardNumber.replace(/\D/g, ''),
-              receiver_card_full_name: entry.receiverCardFullName || undefined,
-              receiver_bank_name: entry.receiverBankName || undefined,
+              receiver_card_full_name: entry.receiverCardFullName ? formatUzbekName(entry.receiverCardFullName) : undefined,
+              receiver_bank_name: entry.receiverBankName ? formatTitleCase(entry.receiverBankName) : undefined,
               transfer_date: entry.transferDate || undefined,
               transfer_time: entry.transferTime || undefined,
             },
@@ -1270,7 +1272,7 @@ export function ApplicationCreatePage() {
                   value={citizenForm.first_name}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, first_name: e.target.value.toUpperCase() });
+                    setCitizenForm({ ...citizenForm, first_name: e.target.value });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
@@ -1285,7 +1287,7 @@ export function ApplicationCreatePage() {
                   value={citizenForm.last_name}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, last_name: e.target.value.toUpperCase() });
+                    setCitizenForm({ ...citizenForm, last_name: e.target.value });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
@@ -1302,7 +1304,7 @@ export function ApplicationCreatePage() {
                   value={citizenForm.middle_name}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, middle_name: e.target.value.toUpperCase() });
+                    setCitizenForm({ ...citizenForm, middle_name: e.target.value });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
@@ -1706,9 +1708,9 @@ export function ApplicationCreatePage() {
             <textarea
               rows={4}
               value={description}
-              onChange={(e) => setDescription(e.target.value.toUpperCase())}
-              placeholder="HODISA QANDAY SODIR BO‘LGANI, JABRLANUVCHINING MUROJAATI VA HOLAT TAFSILOTLARI..."
-              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed uppercase"
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Hodisa qanday sodir bo‘lgani, jabrlanuvchining murojaati va holat tafsilotlari..."
+              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
             />
           </div>
 
@@ -1722,9 +1724,9 @@ export function ApplicationCreatePage() {
             <textarea
               rows={4}
               value={officerNotes}
-              onChange={(e) => setOfficerNotes(e.target.value.toUpperCase())}
-              placeholder="SURISHTIRUVCHI / XODIM TOMONIDAN ANIQLANGAN HOLATLAR, MA'LUMOTLAR VA QAYDLAR..."
-              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed uppercase"
+              onChange={(e) => setOfficerNotes(e.target.value)}
+              placeholder="Surishtiruvchi / xodim tomonidan aniqlangan holatlar, ma'lumotlar va qaydlar..."
+              className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
             />
           </div>
         </div>
