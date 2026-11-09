@@ -304,11 +304,11 @@ export function ApplicationsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Hudud & Jinoyat Turi</TableHead>
               <TableHead>Ariza Raqami</TableHead>
               <TableHead>Tafsilot & Xodim Qaydlari</TableHead>
               <TableHead>Holati</TableHead>
               <TableHead>Asosiy Arizachi</TableHead>
-              <TableHead>Hudud & Jinoyat Turi</TableHead>
               <TableHead>Bog‘liqliklar</TableHead>
               <TableHead>Sana</TableHead>
               <TableHead className="text-right">Amallar</TableHead>
@@ -328,6 +328,24 @@ export function ApplicationsPage() {
                   className="cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => navigate(`/applications/${app.id}`)}
                 >
+                  <TableCell>
+                    <div className="space-y-0.5 text-xs">
+                      {app.district && (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <MapPin className="h-3 w-3 text-primary" />
+                          <span className="font-medium text-foreground">{app.district.name}</span>
+                        </div>
+                      )}
+                      {app.crime && (
+                        <span className="text-[11px] font-semibold text-primary block truncate max-w-[160px]">
+                          {app.crime.article || app.crime.title}
+                        </span>
+                      )}
+                      {!app.district && !app.crime && (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-mono font-bold text-primary">
                     {app.application_number || '—'}
                   </TableCell>
@@ -354,24 +372,6 @@ export function ApplicationsPage() {
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5 text-xs">
-                      {app.district && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <MapPin className="h-3 w-3 text-primary" />
-                          <span>{app.district.name}</span>
-                        </div>
-                      )}
-                      {app.crime && (
-                        <span className="text-[11px] font-semibold text-primary block truncate max-w-[160px]">
-                          {app.crime.article || app.crime.title}
-                        </span>
-                      )}
-                      {!app.district && !app.crime && (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
-                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {app.relations_summary && app.relations_summary.total > 0 ? (
                       <Button
@@ -383,8 +383,8 @@ export function ApplicationsPage() {
                           app.relations_summary.has_fraud_card_link
                             ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
                             : app.relations_summary.cards > 0
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
-                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 shadow-2xs'
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
+                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 shadow-2xs'
                         }`}
                         title={`Bog'liqliklarni ko'rish: ${app.relations_summary.cards} ta karta, ${app.relations_summary.citizens} ta fuqaro`}
                       >
@@ -398,7 +398,10 @@ export function ApplicationsPage() {
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {app.date ? new Date(app.date).toLocaleDateString() : '—'}
                   </TableCell>
-                  <TableCell className="text-right space-x-1 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <TableCell
+                    className="text-right space-x-1 whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {/* WORD BELGISI / TUGMASI (ONLYOFFICE DA TEZDA OCHISH YOKI YANGI BIRIKTIRISH) */}
                     {app.documents && app.documents.length > 0 ? (
                       <DropdownMenu>
@@ -413,7 +416,9 @@ export function ApplicationsPage() {
                             <div className="flex h-4 w-4 items-center justify-center rounded bg-[#185abd] text-white text-[10px] font-bold font-serif leading-none shadow-2xs">
                               W
                             </div>
-                            <span className="text-[11px] font-semibold">Word ({app.documents.length})</span>
+                            <span className="text-[11px] font-semibold">
+                              Word ({app.documents.length})
+                            </span>
                             <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
                           </Button>
                         </DropdownMenuTrigger>

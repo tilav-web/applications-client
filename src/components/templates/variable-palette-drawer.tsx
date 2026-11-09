@@ -58,7 +58,7 @@ export function VariablePaletteDrawer({
 }: VariablePaletteDrawerProps) {
   const [search, setSearch] = useState('');
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
-  
+
   // Standart holatda barcha accordionlar YOPILGAN (closed by default)
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
@@ -85,11 +85,9 @@ export function VariablePaletteDrawer({
 
   const handleInsert = async (tag: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    await handleCopy(tag, e);
     if (onInsertTag) {
       onInsertTag(tag);
-      toast.success(`Hujjatga kiritildi: ${tag}`);
-    } else {
-      await handleCopy(tag, e);
     }
   };
 

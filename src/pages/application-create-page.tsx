@@ -50,13 +50,6 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
-  formatAmountInput,
-  formatAmountWords,
-  formatCardNumberDisplay,
-  formatTitleCase,
-  formatUzbekName,
-} from '@/lib/formatters';
-import {
   applicationsApi,
   applicationStatusesApi,
   banksApi,
@@ -73,10 +66,16 @@ import {
   type UploadedFile,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import {
+  formatAmountInput,
+  formatAmountWords,
+  formatCardNumberDisplay,
+  formatTitleCase,
+  formatUzbekName,
+} from '@/lib/formatters';
 import type {
   ApplicationStatus,
   Citizen,
-  Crime,
   CrimeGravity,
   CustomFieldType,
   TransferCustomField,
@@ -270,6 +269,7 @@ export function ApplicationCreatePage() {
   // Fuqaroning yashash tumani va mahallasi
   const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(null);
   const [citizenMahallaId, setCitizenMahallaId] = useState<string | null>(null);
+  const [showUnlinkCitizenConfirm, setShowUnlinkCitizenConfirm] = useState(false);
 
   // ==========================================================================
   // 3. HODISA HUDUDI VA JINOYAT MODDASI
@@ -285,8 +285,6 @@ export function ApplicationCreatePage() {
   }>({
     article: '',
   });
-  const [showCrimePopover, setShowCrimePopover] = useState(false);
-  const crimePopoverRef = useRef<HTMLDivElement>(null);
 
   // ==========================================================================
   // 4. MOLIYAVIY ZARAR VA TRANZAKSIYA SHAKLLARI
@@ -428,10 +426,10 @@ export function ApplicationCreatePage() {
     isExplicitEditRoute ||
     Boolean(
       initialApp &&
-        ((initialApp.application_number && initialApp.application_number.trim() !== '') ||
-          initialApp.citizen_id ||
-          initialApp.citizen ||
-          (initialApp.status && initialApp.status !== 'YANGI')),
+      ((initialApp.application_number && initialApp.application_number.trim() !== '') ||
+        initialApp.citizen_id ||
+        initialApp.citizen ||
+        (initialApp.status && initialApp.status !== 'YANGI')),
     );
 
   // 500ms (0.5 soniya) kechiktirish (debounce) - yozish to'xtagandan keyin so'rov ketadi
@@ -491,6 +489,27 @@ export function ApplicationCreatePage() {
     queryFn: () => crimesApi.getAll({ limit: 100 }),
   });
   const allCrimes = crimesData?.items || [];
+
+  const sortedCrimes = useMemo(() => {
+    const priorityList = [
+      'фирибгарлик',
+      'ўғрилик',
+      'ҳақорат қилиш',
+      'расм тарқатиш',
+      'бошқа',
+      'адашиб ташлаган',
+    ];
+    return [...allCrimes].sort((a, b) => {
+      const aText = (a.article || a.title || '').trim().toLowerCase();
+      const bText = (b.article || b.title || '').trim().toLowerCase();
+      const aIdx = priorityList.indexOf(aText);
+      const bIdx = priorityList.indexOf(bText);
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+      return aText.localeCompare(bText);
+    });
+  }, [allCrimes]);
 
   const { data: cardsData } = useQuery({
     queryKey: ['cards-autocomplete'],
@@ -733,9 +752,6 @@ export function ApplicationCreatePage() {
       if (citizenPopoverRef.current && !citizenPopoverRef.current.contains(target)) {
         setShowCitizenPopover(false);
       }
-      if (crimePopoverRef.current && !crimePopoverRef.current.contains(target)) {
-        setShowCrimePopover(false);
-      }
       if (transferContainerRef.current && !transferContainerRef.current.contains(target)) {
         setActiveTransferPopover(null);
       }
@@ -747,12 +763,6 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // AUTOCOMPLETE FILTERLASH
   // ==========================================================================
-  const filteredCrimes = allCrimes.filter((c) => {
-    const q = crimeForm.article.trim().toLowerCase();
-    if (!q) return false;
-    return (c.article || '').toLowerCase().includes(q) || (c.title || '').toLowerCase().includes(q);
-  });
-
   const currentActiveTransfer =
     activeTransferPopover !== null ? financialTransfers[activeTransferPopover.index] : null;
 
@@ -816,33 +826,25 @@ export function ApplicationCreatePage() {
   };
 
   const handleUnlinkCitizen = () => {
-    const msg = isEditMode
-      ? 'Ushbu fuqaroni arizadan ajratib, boshqa fuqaroni tanlamoqchimisiz yoki yangi kiritmoqchimisiz?'
-      : 'Tanlangan fuqaroni bekor qilib, boshqa fuqaro tanlamoqchimisiz?';
-    if (window.confirm(msg)) {
-      setSelectedCitizenId(null);
-      setCitizenForm({
-        first_name: '',
-        last_name: '',
-        middle_name: '',
-        passport: '',
-        phone_number: '',
-        pinfl: '',
-        address: '',
-        birth_date: '',
-        gender: '',
-      });
-      setCitizenDistrictId(null);
-      setCitizenMahallaId(null);
-    }
+    setShowUnlinkCitizenConfirm(true);
   };
 
-  const handleSelectCrime = (c: Crime) => {
-    setSelectedCrimeId(c.id);
-    setCrimeForm({
-      article: c.article || c.title || '',
+  const confirmUnlinkCitizen = () => {
+    setSelectedCitizenId(null);
+    setCitizenForm({
+      first_name: '',
+      last_name: '',
+      middle_name: '',
+      passport: '',
+      phone_number: '',
+      pinfl: '',
+      address: '',
+      birth_date: '',
+      gender: '',
     });
-    setShowCrimePopover(false);
+    setCitizenDistrictId(null);
+    setCitizenMahallaId(null);
+    setShowUnlinkCitizenConfirm(false);
   };
 
   // ==========================================================================
@@ -1009,7 +1011,9 @@ export function ApplicationCreatePage() {
         if (primary.victimCardNumber || primary.victimCardFullName || primary.victimBankName) {
           payload.card_data = {
             card_number: primary.victimCardNumber.replace(/\D/g, ''),
-            full_name: primary.victimCardFullName ? formatUzbekName(primary.victimCardFullName) : undefined,
+            full_name: primary.victimCardFullName
+              ? formatUzbekName(primary.victimCardFullName)
+              : undefined,
             bank_name: primary.victimBankName ? formatTitleCase(primary.victimBankName) : undefined,
           };
         }
@@ -1030,13 +1034,19 @@ export function ApplicationCreatePage() {
             payment_provider_id: primary.providerId || undefined,
             payment_provider_name: primary.providerId
               ? undefined
-              : primary.providerName ? formatTitleCase(primary.providerName) : undefined,
+              : primary.providerName
+                ? formatTitleCase(primary.providerName)
+                : undefined,
             receiver_card_id: primary.receiverCardId || undefined,
             receiver_card_number: primary.receiverCardId
               ? undefined
               : primary.receiverCardNumber.replace(/\D/g, ''),
-            receiver_card_full_name: primary.receiverCardFullName ? formatUzbekName(primary.receiverCardFullName) : undefined,
-            receiver_bank_name: primary.receiverBankName ? formatTitleCase(primary.receiverBankName) : undefined,
+            receiver_card_full_name: primary.receiverCardFullName
+              ? formatUzbekName(primary.receiverCardFullName)
+              : undefined,
+            receiver_bank_name: primary.receiverBankName
+              ? formatTitleCase(primary.receiverBankName)
+              : undefined,
             transfer_date: primary.transferDate || undefined,
             transfer_time: primary.transferTime || undefined,
           };
@@ -1055,20 +1065,30 @@ export function ApplicationCreatePage() {
             transfer_id: entry.transferId || undefined,
             inline_card: {
               card_number: entry.victimCardNumber ? entry.victimCardNumber.replace(/\D/g, '') : '',
-              full_name: entry.victimCardFullName ? formatUzbekName(entry.victimCardFullName) : undefined,
+              full_name: entry.victimCardFullName
+                ? formatUzbekName(entry.victimCardFullName)
+                : undefined,
               bank_name: entry.victimBankName ? formatTitleCase(entry.victimBankName) : undefined,
             },
             inline_transfer: {
               amount: entry.amount ? Number(String(entry.amount).replace(/\s/g, '')) : '',
               currency: entry.currency || 'UZS',
               payment_provider_id: entry.providerId || undefined,
-              payment_provider_name: entry.providerId ? undefined : entry.providerName ? formatTitleCase(entry.providerName) : undefined,
+              payment_provider_name: entry.providerId
+                ? undefined
+                : entry.providerName
+                  ? formatTitleCase(entry.providerName)
+                  : undefined,
               receiver_card_id: entry.receiverCardId || undefined,
               receiver_card_number: entry.receiverCardId
                 ? undefined
                 : entry.receiverCardNumber.replace(/\D/g, ''),
-              receiver_card_full_name: entry.receiverCardFullName ? formatUzbekName(entry.receiverCardFullName) : undefined,
-              receiver_bank_name: entry.receiverBankName ? formatTitleCase(entry.receiverBankName) : undefined,
+              receiver_card_full_name: entry.receiverCardFullName
+                ? formatUzbekName(entry.receiverCardFullName)
+                : undefined,
+              receiver_bank_name: entry.receiverBankName
+                ? formatTitleCase(entry.receiverBankName)
+                : undefined,
               transfer_date: entry.transferDate || undefined,
               transfer_time: entry.transferTime || undefined,
             },
@@ -1308,7 +1328,10 @@ export function ApplicationCreatePage() {
                 </button>
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-[11px] text-muted-foreground shrink-0 border-dashed">
+              <Badge
+                variant="outline"
+                className="text-[11px] text-muted-foreground shrink-0 border-dashed"
+              >
                 Yangi fuqaro sifatida qayd etiladi
               </Badge>
             )}
@@ -1541,7 +1564,9 @@ export function ApplicationCreatePage() {
                     setCitizenMahallaId(mId || null);
                   }}
                   className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
-                    !citizenDistrictId ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground' : ''
+                    !citizenDistrictId
+                      ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground'
+                      : ''
                   }`}
                 >
                   <option value="">
@@ -1695,17 +1720,17 @@ export function ApplicationCreatePage() {
               </select>
             </div>
 
-            {/* Jinoyat moddasi */}
-            <div ref={crimePopoverRef} className="relative space-y-1.5">
+            {/* Jinoyat turi */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
-                  Jinoyat turi
+                  Jinoyat turi *
                 </label>
-                {selectedCrimeId ? (
+                {selectedCrimeId && (
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                     <CheckCircle2 className="h-3 w-3" />
-                    Jinoyat turi biriktirildi
+                    Tanlandi
                     <button
                       type="button"
                       onClick={() => {
@@ -1713,46 +1738,36 @@ export function ApplicationCreatePage() {
                         setCrimeForm({ article: '' });
                       }}
                       className="ml-1 hover:text-foreground"
-                      title="Bog‘lanishni bekor qilish"
+                      title="Bekor qilish"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
-                ) : crimeForm.article ? (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                    Yangi jinoyat turi
-                  </Badge>
-                ) : null}
+                )}
               </div>
 
-              <Input
-                placeholder="JINOYAT TURINI TANLANG YOKI YOZING (MASALAN: FIRIBGARLIK)..."
-                value={crimeForm.article}
-                onFocus={() => setShowCrimePopover(true)}
+              <select
+                value={selectedCrimeId || ''}
                 onChange={(e) => {
-                  setCrimeForm({ article: e.target.value.toUpperCase() });
-                  setSelectedCrimeId(null);
-                  setShowCrimePopover(true);
+                  const cId = e.target.value;
+                  setSelectedCrimeId(cId || null);
+                  const found = allCrimes.find((c) => c.id === cId);
+                  setCrimeForm({ article: found?.article || found?.title || '' });
                 }}
-                className="h-10 text-xs uppercase font-medium"
-              />
-
-              {showCrimePopover && filteredCrimes.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
-                  <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
-                    Bazada mavjud jinoyat turlari:
-                  </div>
-                  {filteredCrimes.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => handleSelectCrime(c)}
-                      className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                    >
-                      <span className="font-medium text-foreground">{c.article || c.title}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">-- JINOYAT TURINI TANLANG --</option>
+                {sortedCrimes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {(c.article || c.title || '').toUpperCase()}
+                  </option>
+                ))}
+                {selectedCrimeId && !sortedCrimes.some((c) => c.id === selectedCrimeId) && (
+                  <option value={selectedCrimeId}>
+                    {crimeForm.article?.toUpperCase() || 'BIRIKTIRILGAN JINOYAT TURI'}
+                  </option>
+                )}
+              </select>
             </div>
           </div>
 
@@ -1942,7 +1957,9 @@ export function ApplicationCreatePage() {
                                   onClick={() => {
                                     handleUpdateTransferEntry(index, {
                                       victimCardId: c.id,
-                                      victimCardNumber: formatCardNumberDisplay(c.card_number || ''),
+                                      victimCardNumber: formatCardNumberDisplay(
+                                        c.card_number || '',
+                                      ),
                                       victimCardFullName: c.full_name || '',
                                       victimBankName: c.bank?.name || '',
                                     });
@@ -2226,7 +2243,9 @@ export function ApplicationCreatePage() {
                                   onClick={() => {
                                     handleUpdateTransferEntry(index, {
                                       receiverCardId: c.id,
-                                      receiverCardNumber: formatCardNumberDisplay(c.card_number || ''),
+                                      receiverCardNumber: formatCardNumberDisplay(
+                                        c.card_number || '',
+                                      ),
                                       receiverCardFullName: c.full_name || '',
                                       receiverBankName: c.bank?.name || '',
                                     });
@@ -2489,7 +2508,8 @@ export function ApplicationCreatePage() {
                     Rasmiy Word Hujjatlari ({appDocuments.length} ta hujjat)
                   </span>
                   <p className="text-[11px] text-muted-foreground">
-                    Tergov hujjati yoki blank. Kompyuterdan Word yuklash yoki yangi Word yaratib tizimda ONLYOFFICE orqali tahrirlash
+                    Tergov hujjati yoki blank. Kompyuterdan Word yuklash yoki yangi Word yaratib
+                    tizimda ONLYOFFICE orqali tahrirlash
                   </p>
                 </div>
               </div>
@@ -2618,7 +2638,9 @@ export function ApplicationCreatePage() {
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() => setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })}
+                        onClick={() =>
+                          setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })
+                        }
                         className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
                         title="O‘chirish"
                       >
@@ -2634,7 +2656,8 @@ export function ApplicationCreatePage() {
                   Hozircha biriktirilgan Word hujjati yo‘q
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Yuqoridagi tugmalar orqali kompyuterdan Word faylni yuklashingiz yoki yangi bo‘sh Word yaratib OnlyOffice'da to‘ldirishingiz mumkin.
+                  Yuqoridagi tugmalar orqali kompyuterdan Word faylni yuklashingiz yoki yangi bo‘sh
+                  Word yaratib OnlyOffice'da to‘ldirishingiz mumkin.
                 </p>
               </div>
             )}
@@ -3193,6 +3216,22 @@ export function ApplicationCreatePage() {
         </DialogContent>
       </Dialog>
 
+      {/* FUQARONI ARIZADAN AJRATISH CONFIRM DIALOGI */}
+      <ConfirmDialog
+        open={showUnlinkCitizenConfirm}
+        onOpenChange={setShowUnlinkCitizenConfirm}
+        title="Fuqaroni arizadan ajratish"
+        description={
+          isEditMode
+            ? 'Ushbu fuqaroni arizadan ajratib, boshqa fuqaroni tanlamoqchimisiz yoki yangi kiritmoqchimisiz? Mavjud fuqaro profili bazada saqlanib qoladi.'
+            : 'Tanlangan fuqaroni bekor qilib, boshqa fuqaro tanlamoqchimisiz yoki yangi kiritmoqchimisiz?'
+        }
+        confirmText="Ha, ajratilsin"
+        cancelText="Bekor qilish"
+        variant="default"
+        onConfirm={confirmUnlinkCitizen}
+      />
+
       {/* WORD HUJJATINI O'CHIRISH DIALOGI */}
       <ConfirmDialog
         open={!!docToDelete}
@@ -3201,9 +3240,13 @@ export function ApplicationCreatePage() {
         description={
           docToDelete ? (
             <span>
-              Haqiqatan ham <strong className="text-foreground font-semibold">"{docToDelete.title}"</strong> nomli rasmiy Word hujjatini tizimdan o‘chirmoqchimisiz?
+              Haqiqatan ham{' '}
+              <strong className="text-foreground font-semibold">"{docToDelete.title}"</strong> nomli
+              rasmiy Word hujjatini tizimdan o‘chirmoqchimisiz?
             </span>
-          ) : ''
+          ) : (
+            ''
+          )
         }
         confirmText="Ha, o‘chirilsin"
         cancelText="Bekor qilish"

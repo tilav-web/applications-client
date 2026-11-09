@@ -1,24 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Edit3,
-  Eye,
-  FileCode2,
-  FileText,
-  Loader2,
-  Plus,
-  Search,
-  Tag,
-  Trash2,
-} from 'lucide-react';
+import { Edit3, Eye, FileCode2, FileText, Loader2, Plus, Search, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { CreateTemplateDialog } from '@/components/templates/create-template-dialog';
 import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
-import { templatesApi, type DocumentTemplateRecord } from '@/lib/api';
+import { type DocumentTemplateRecord, templatesApi } from '@/lib/api';
 
 export function TemplatesPage() {
   const queryClient = useQueryClient();
@@ -29,12 +20,12 @@ export function TemplatesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [testingTemplateId, setTestingTemplateId] = useState<string | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<{ id: string; title: string } | null>(
+    null,
+  );
 
   // 1. Fetch Templates
-  const {
-    data: templates = [],
-    isLoading,
-  } = useQuery({
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates', script, search],
     queryFn: () =>
       templatesApi.getAll({
@@ -56,9 +47,7 @@ export function TemplatesPage() {
   });
 
   const handleDelete = (id: string, title: string) => {
-    if (window.confirm(`Rostdan ham "${title}" shablonini o‘chirmoqchimisiz?`)) {
-      deleteMutation.mutate(id);
-    }
+    setTemplateToDelete({ id, title });
   };
 
   const handleTestGenerate = async (tpl: DocumentTemplateRecord) => {
@@ -91,7 +80,8 @@ export function TemplatesPage() {
             Hujjat Shablonlari Boshqaruvi
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Dinamik Word shablonlarini boshqarish, yangi shablonlar kiritish va OnlyOffice da tahrirlash
+            Dinamik Word shablonlarini boshqarish, yangi shablonlar kiritish va OnlyOffice da
+            tahrirlash
           </p>
         </div>
 
@@ -120,11 +110,7 @@ export function TemplatesPage() {
             </button>
           </div>
 
-          <Button
-            size="sm"
-            onClick={() => setIsCreateOpen(true)}
-            className="gap-1.5 shadow-sm"
-          >
+          <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 shadow-sm">
             <Plus className="w-4 h-4" />
             Yangi Shablon
           </Button>
@@ -156,9 +142,12 @@ export function TemplatesPage() {
       ) : templates.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center bg-card/50">
           <FileText className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-          <h3 className="text-base font-semibold text-foreground">Hozircha shablonlar mavjud emas</h3>
+          <h3 className="text-base font-semibold text-foreground">
+            Hozircha shablonlar mavjud emas
+          </h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1 mb-4">
-            Yangi shablon yaratish yoki .docx formatidagi namunaviy faylni yuklash orqali tizimni to‘ldirishingiz mumkin.
+            Yangi shablon yaratish yoki .docx formatidagi namunaviy faylni yuklash orqali tizimni
+            to‘ldirishingiz mumkin.
           </p>
           <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5">
             <Plus className="w-4 h-4" />
@@ -168,7 +157,8 @@ export function TemplatesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map((tpl) => {
-            const displayTitle = script === 'krill' && tpl.title_krill ? tpl.title_krill : tpl.title;
+            const displayTitle =
+              script === 'krill' && tpl.title_krill ? tpl.title_krill : tpl.title;
             const tagsCount = Array.isArray(tpl.available_tags) ? tpl.available_tags.length : 0;
             const isTesting = testingTemplateId === tpl.id;
 
@@ -281,6 +271,35 @@ export function TemplatesPage() {
         onClose={() => setEditingTemplateId(null)}
         onSaved={() => {
           queryClient.invalidateQueries({ queryKey: ['templates'] });
+        }}
+      />
+
+      {/* Shablonni o'chirish tasdiqlash dialogi */}
+      <ConfirmDialog
+        open={!!templateToDelete}
+        onOpenChange={(open) => !open && setTemplateToDelete(null)}
+        title="Shablonni o‘chirish"
+        description={
+          templateToDelete ? (
+            <span>
+              Haqiqatan ham{' '}
+              <strong className="text-foreground font-semibold">"{templateToDelete.title}"</strong>{' '}
+              nomli shablonni tizimdan o‘chirmoqchimisiz?
+            </span>
+          ) : (
+            ''
+          )
+        }
+        confirmText="Ha, o‘chirilsin"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (templateToDelete) {
+            deleteMutation.mutate(templateToDelete.id, {
+              onSettled: () => setTemplateToDelete(null),
+            });
+          }
         }}
       />
     </div>
