@@ -48,6 +48,29 @@ function renderNodeIcon(label: string, className = 'w-3 h-3') {
   return <Hash className={className} />;
 }
 
+// Vertikal ulovchi chiziq (Spine segment)
+function SpineSegment({
+  isFirst,
+  isLast,
+  singleItem,
+}: {
+  isFirst: boolean;
+  isLast: boolean;
+  singleItem: boolean;
+}) {
+  if (singleItem) return null;
+  return (
+    <div
+      className={cn(
+        'absolute left-0 w-[2px] bg-border/80 pointer-events-none',
+        isFirst && 'top-1/2 bottom-0',
+        isLast && 'top-0 bottom-1/2',
+        !isFirst && !isLast && 'top-0 bottom-0',
+      )}
+    />
+  );
+}
+
 export function SuspectTreeBuilder({ value, onChange, readOnly = false }: SuspectTreeBuilderProps) {
   const tree: SuspectTreeNode[] = useMemo(() => value || [], [value]);
 
@@ -180,6 +203,9 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
     onChange?.([]);
   };
 
+  // Asosiy ildizdagi barcha elementlar soni (daraxt elementlari + add line)
+  const totalRootItems = tree.length + (readOnly ? 0 : 1);
+
   return (
     <div className="space-y-2">
       {/* Sarlavha & Yordamchi panel */}
@@ -218,8 +244,8 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
         )}
       </div>
 
-      {/* DARAХТ CHIZIQLARI MAYDONI */}
-      <div className="relative rounded-lg border border-border/80 bg-card/30 p-3 overflow-x-auto min-h-[90px] flex items-center">
+      {/* DARAХТ CHIZIQLARI MAYDONI (Qizil boksiz, to'liq toza chiziqli) */}
+      <div className="relative rounded-lg border border-border/80 bg-card/30 p-4 overflow-x-auto min-h-[90px] flex items-center">
         {/* Yengil panjara foni */}
         <div
           className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -229,29 +255,16 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
           }}
         />
 
-        <div className="relative flex items-center py-1">
-          {/* 1. ASOSIY ILDIZ (ROOT) */}
-          <div className="flex items-center shrink-0">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 shadow-2xs">
-              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                Firibgar / Gumonlanuvchi
-              </span>
-            </div>
-
-            {/* Ildizdan chiquvchi qizil ulovchi chiziq */}
-            <div className="w-6 h-[2px] bg-red-400/50 shrink-0" />
-          </div>
-
-          {/* 2. TARMOQLAR (CHILDREN VA QO'SHISH CHIZIG'I) */}
+        <div className="relative flex items-center py-2">
+          {/* ASOSIY DARAХТ TARMOG'I (ROOT LEVEL) */}
           <div className="relative flex flex-col justify-center shrink-0">
             {tree.map((node, index) => (
               <SimpleTreeLineNode
                 key={node.id}
                 node={node}
                 isFirst={index === 0}
-                isLast={index === tree.length - 1 && activeAddParentId !== 'ROOT'}
-                totalSiblings={tree.length + (activeAddParentId === 'ROOT' ? 1 : 0)}
+                isLast={readOnly && index === tree.length - 1}
+                singleItem={totalRootItems === 1}
                 readOnly={readOnly}
                 activeAddParentId={activeAddParentId}
                 inputText={inputText}
@@ -269,17 +282,20 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
               />
             ))}
 
-            {/* ILDIZGA YANGI SHОХOBCHA QO'SHISH CHIZIG'I (----------------------------------+) */}
+            {/* ILDIZGA YANGI ASOSIY TARMOQ QO'SHISH (----------------------------------+) */}
             {!readOnly && (
-              <div className="relative flex items-center shrink-0 py-1">
-                <div className="absolute -left-6 top-1/2 w-6 h-[2px] bg-border/80" />
+              <div className="relative flex items-center shrink-0 py-1.5 pl-6">
+                {/* Chap tomondagi ulovchi gorizontal chiziq */}
+                <div className="absolute left-0 top-1/2 w-6 h-[2px] bg-border/80 pointer-events-none" />
 
-                {tree.length > 0 && (
-                  <div className="absolute -left-6 top-0 bottom-1/2 w-[2px] bg-border/80" />
-                )}
+                {/* Vertikal ulovchi orqa chiziq segmenti */}
+                <SpineSegment
+                  isFirst={tree.length === 0}
+                  isLast={true}
+                  singleItem={totalRootItems === 1}
+                />
 
                 {activeAddParentId === 'ROOT' ? (
-                  /* TO'G'RIDAN-TO'G'RI CHIZIQDAGI ODDIY INPUT */
                   <SimpleLineInput
                     value={inputText}
                     setValue={setInputText}
@@ -288,7 +304,6 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
                     onCancel={handleCancelAdd}
                   />
                 ) : (
-                  /* ----------------------------------+ */
                   <SimpleDashedAddLine
                     label={tree.length === 0 ? 'Yozish uchun bosing' : 'Yangi tarmoq'}
                     onClick={() => handleStartAdd('ROOT')}
@@ -324,7 +339,7 @@ interface SimpleTreeLineNodeProps {
   node: SuspectTreeNode;
   isFirst: boolean;
   isLast: boolean;
-  totalSiblings: number;
+  singleItem: boolean;
   readOnly: boolean;
   activeAddParentId: string | null | 'ROOT';
   inputText: string;
@@ -345,7 +360,7 @@ function SimpleTreeLineNode({
   node,
   isFirst,
   isLast,
-  totalSiblings,
+  singleItem,
   readOnly,
   activeAddParentId,
   inputText,
@@ -365,22 +380,16 @@ function SimpleTreeLineNode({
   const isAddingChildHere = activeAddParentId === node.id;
   const isEditingThis = editingNodeId === node.id;
 
-  return (
-    <div className="relative flex items-center shrink-0 py-1">
-      {/* Chap tomondagi gorizontal ulovchi chiziq */}
-      <div className="absolute -left-6 top-1/2 w-6 h-[2px] bg-border/80" />
+  // Bolalar soni (mavjud bolalar + qo'shish qatori)
+  const totalChildItems = (node.children?.length || 0) + (readOnly ? 0 : 1);
 
-      {/* Vertikal ulovchi orqa chiziq */}
-      {totalSiblings > 1 && (
-        <div
-          className={cn(
-            'absolute -left-6 w-[2px] bg-border/80',
-            isFirst && 'top-1/2 bottom-0',
-            isLast && 'top-0 bottom-1/2',
-            !isFirst && !isLast && 'top-0 bottom-0',
-          )}
-        />
-      )}
+  return (
+    <div className="relative flex items-center shrink-0 py-1.5 pl-6">
+      {/* Chap tomondagi gorizontal ulovchi chiziq (Spinedan tugun pillga keladi) */}
+      <div className="absolute left-0 top-1/2 w-6 h-[2px] bg-border/80 pointer-events-none" />
+
+      {/* Vertikal ulovchi orqa chiziq segmenti */}
+      <SpineSegment isFirst={isFirst} isLast={isLast} singleItem={singleItem} />
 
       {/* TUGUN YOZUVI (CHIZIQDA) */}
       <div className="group relative flex items-center shrink-0">
@@ -417,7 +426,7 @@ function SimpleTreeLineNode({
           </div>
         ) : (
           /* ODDIY CHIZIQDAGI MATN */
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/80 hover:border-primary/50 bg-background hover:bg-muted/50 text-foreground transition-all shadow-2xs select-none">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/80 hover:border-primary/50 bg-background hover:bg-muted/50 text-foreground transition-all shadow-2xs select-none">
             <span className="text-primary/70 shrink-0">
               {renderNodeIcon(node.label, 'w-3 h-3')}
             </span>
@@ -452,9 +461,9 @@ function SimpleTreeLineNode({
           </div>
         )}
 
-        {/* O'ngga chiquvchi chiziq */}
+        {/* O'ngga chiquvchi gorizontal chiziq */}
         {!hasChildren && !isAddingChildHere ? (
-          /* Bolasi yo'q bo'lsa: ----------------------------------+ */
+          /* Bolasi yo'q bo'lsa: o'ng tomonga chiziq va [+] tugmasi */
           !readOnly && (
             <div className="flex items-center">
               <div className="w-6 h-[2px] bg-border/80" />
@@ -469,12 +478,12 @@ function SimpleTreeLineNode({
             </div>
           )
         ) : (
-          /* Bolasi bo'lsa: ulovchi chiziq */
+          /* Bolasi bo'lsa: bolalar konteyneriga ulovchi bitta toza chiziq */
           <div className="w-6 h-[2px] bg-border/80 shrink-0" />
         )}
       </div>
 
-      {/* BOLALAR (RECURSION) */}
+      {/* BOLALAR TARMOQLARI (RECURSION) */}
       {(hasChildren || isAddingChildHere) && (
         <div className="relative flex flex-col justify-center shrink-0">
           {node.children?.map((child, idx) => (
@@ -482,8 +491,8 @@ function SimpleTreeLineNode({
               key={child.id}
               node={child}
               isFirst={idx === 0}
-              isLast={idx === node.children!.length - 1 && !isAddingChildHere}
-              totalSiblings={node.children!.length + (isAddingChildHere ? 1 : 0)}
+              isLast={readOnly && idx === node.children!.length - 1}
+              singleItem={totalChildItems === 1}
               readOnly={readOnly}
               activeAddParentId={activeAddParentId}
               inputText={inputText}
@@ -503,11 +512,16 @@ function SimpleTreeLineNode({
 
           {/* YANGI ICHKI SHОХOBCHA QO'SHISH (----------------------------------+) */}
           {!readOnly && (
-            <div className="relative flex items-center shrink-0 py-1">
-              <div className="absolute -left-6 top-1/2 w-6 h-[2px] bg-border/80" />
-              {hasChildren && (
-                <div className="absolute -left-6 top-0 bottom-1/2 w-[2px] bg-border/80" />
-              )}
+            <div className="relative flex items-center shrink-0 py-1.5 pl-6">
+              {/* Chap tomondagi ulovchi gorizontal chiziq */}
+              <div className="absolute left-0 top-1/2 w-6 h-[2px] bg-border/80 pointer-events-none" />
+
+              {/* Vertikal ulovchi orqa chiziq segmenti */}
+              <SpineSegment
+                isFirst={(node.children?.length || 0) === 0}
+                isLast={true}
+                singleItem={totalChildItems === 1}
+              />
 
               {isAddingChildHere ? (
                 <SimpleLineInput
