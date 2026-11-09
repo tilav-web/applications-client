@@ -612,23 +612,27 @@ function TreeLevelBranch({
                       <Plus className="w-3 h-3 stroke-[2.5]" />
                     </button>
                   )}
-
-                  {/* HOVER QILGANDA O'NGIDAN CHIQADIGAN TO'RTBURCHAK '+' TUGMASI (CHILD) agar bolasi bo'lmasa */}
-                  {!readOnly && !hasChildren && !isAddingChildHere && (
-                    <button
-                      type="button"
-                      onClick={() => onStartAddChild(node.id, parentId)}
-                      className="absolute -right-2.5 top-1/2 -translate-y-1/2 z-20 h-5 w-5 rounded-[4px] bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center justify-center opacity-0 -translate-x-1 group-hover/node:opacity-100 group-hover/node:translate-x-0 scale-90 group-hover/node:scale-100 transition-all duration-150 cursor-pointer"
-                      title="Ichki tarmoq (bola) qo‘shish (+)"
-                    >
-                      <Plus className="w-3 h-3 stroke-[2.5]" />
-                    </button>
-                  )}
                 </div>
               )}
 
-              {/* O'NGGA CHIZIQ (Agar bolalari bo'lsa yoki bola qo'shilayotgan bo'lsa) */}
-              {(hasChildren || isAddingChildHere) && (
+              {/* O'NGGA CHIZIQ (-----+ ko'rinishida) */}
+              {!hasChildren && !isAddingChildHere ? (
+                /* Bolasi yo'q bo'lsa: o'ng tomonga chiziq va [+] tugmasi */
+                !readOnly && (
+                  <div className="flex items-center">
+                    <div className="w-6 h-[2px] bg-border/80" />
+                    <button
+                      type="button"
+                      onClick={() => onStartAddChild(node.id, parentId)}
+                      className="h-4.5 w-4.5 rounded-full border border-dashed border-muted-foreground/60 hover:border-primary hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-all cursor-pointer shadow-2xs"
+                      title="Ichki tarmoq qo‘shish (+)"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                )
+              ) : (
+                /* Bolasi bo'lsa: bolalar konteyneriga ulovchi bitta toza chiziq */
                 <div className="w-6 h-[2px] bg-border/80 shrink-0 pointer-events-none" />
               )}
             </div>
