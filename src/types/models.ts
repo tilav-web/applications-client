@@ -85,7 +85,6 @@ export interface Crime {
   id: string;
   article: string | null;
   title: string | null;
-  part: string | null;
   category: string | null;
   gravity: CrimeGravity | null;
   description: string | null;

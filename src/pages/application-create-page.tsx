@@ -117,7 +117,6 @@ export interface AppCustomFieldState {
   inline_crime?: {
     article: string;
     title?: string;
-    part?: string;
     clause?: string;
     gravity?: CrimeGravity;
   };
@@ -675,7 +674,6 @@ export function ApplicationCreatePage() {
                 ? {
                     article: cf.crime.article || '',
                     title: cf.crime.title || '',
-                    part: cf.crime.part || '',
                     clause: '',
                   }
                 : undefined,

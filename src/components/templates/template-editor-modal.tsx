@@ -14,6 +14,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
 import { templatesApi } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 
 import { VariablePaletteDrawer } from './variable-palette-drawer';
 
@@ -122,7 +123,7 @@ export function TemplateEditorModal({
     }
   };
 
-  const handleInsertTag = (tag: string) => {
+  const handleInsertTag = async (tag: string) => {
     if (connectorRef.current) {
       try {
         connectorRef.current.executeMethod('PasteText', [tag]);
@@ -132,7 +133,7 @@ export function TemplateEditorModal({
         console.warn('executeMethod PasteText error:', e);
       }
     }
-    navigator.clipboard.writeText(tag);
+    await copyTextToClipboard(tag);
     setIsModified(true);
   };
 

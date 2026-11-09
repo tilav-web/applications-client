@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import type { TemplateCategoryConfig } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 
 interface VariablePaletteDrawerProps {
   categories: TemplateCategoryConfig[];
@@ -57,32 +58,38 @@ export function VariablePaletteDrawer({
 }: VariablePaletteDrawerProps) {
   const [search, setSearch] = useState('');
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  
+  // Standart holatda barcha accordionlar YOPILGAN (closed by default)
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
   const toggleCategory = (catId: string) => {
-    setCollapsedCategories((prev) => ({
+    setOpenCategories((prev) => ({
       ...prev,
       [catId]: !prev[catId],
     }));
   };
 
-  const handleCopy = (tag: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(tag);
-    setCopiedTag(tag);
-    toast.success(`Nusxalandi: "${tag}"`);
-    setTimeout(() => {
-      setCopiedTag((prev) => (prev === tag ? null : prev));
-    }, 1800);
+  const handleCopy = async (tag: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const ok = await copyTextToClipboard(tag);
+    if (ok) {
+      setCopiedTag(tag);
+      toast.success(`Nusxalandi: "${tag}"`);
+      setTimeout(() => {
+        setCopiedTag((prev) => (prev === tag ? null : prev));
+      }, 1800);
+    } else {
+      toast.error(`Nusxalab bo‘lmadi: "${tag}"`);
+    }
   };
 
-  const handleInsert = (tag: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleInsert = async (tag: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onInsertTag) {
       onInsertTag(tag);
-      toast.success(`Hujjatga joylandi: ${tag}`);
+      toast.success(`Hujjatga kiritildi: ${tag}`);
     } else {
-      handleCopy(tag, e);
+      await handleCopy(tag, e);
     }
   };
 
@@ -111,6 +118,8 @@ export function VariablePaletteDrawer({
 
   if (!isOpen) return null;
 
+  const isSearching = Boolean(search.trim());
+
   return (
     <aside className="w-80 md:w-96 flex flex-col border-l border-border bg-card/95 backdrop-blur-md shadow-2xl z-30 transition-all duration-200 h-full flex-shrink-0">
       {/* Header */}
@@ -138,19 +147,19 @@ export function VariablePaletteDrawer({
           )}
         </div>
 
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        {/* Search */}
+        <div className="relative mt-2">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Model yoki o‘zgaruvchi qidirish..."
-            className="pl-8 h-8 text-xs bg-background/80"
+            className="pl-8 h-8 text-xs bg-background"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
             >
               ×
             </button>
@@ -167,7 +176,7 @@ export function VariablePaletteDrawer({
       </div>
 
       {/* Categories & Variables List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {filteredCategories.length === 0 ? (
           <div className="text-center py-10 px-4 text-muted-foreground">
             <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -177,17 +186,21 @@ export function VariablePaletteDrawer({
         ) : (
           filteredCategories.map((cat) => {
             const Icon = CATEGORY_ICONS[cat.id] || FileText;
-            const isCollapsed = Boolean(collapsedCategories[cat.id]);
+            // Qidiruv ketayotganda avtomatik ochiladi, odatiy holatda barchasi YOPILGAN bo'ladi
+            const isCatOpen = isSearching ? true : Boolean(openCategories[cat.id]);
 
             return (
               <div
                 key={cat.id}
-                className="rounded-lg border border-border/80 bg-background/50 overflow-hidden"
+                className="rounded-lg border border-border/80 bg-background/50 overflow-hidden transition-all duration-150"
               >
-                {/* Category Header */}
+                {/* Category Header (Accordion trigger) */}
                 <button
+                  type="button"
                   onClick={() => toggleCategory(cat.id)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                  className={`w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left ${
+                    isCatOpen ? 'bg-muted/60 font-medium' : 'bg-muted/20 hover:bg-muted/40'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <Icon className="w-4 h-4 text-primary" />
@@ -196,29 +209,33 @@ export function VariablePaletteDrawer({
                       {cat.items.length}
                     </span>
                   </div>
-                  {isCollapsed ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                  ) : (
+                  {isCatOpen ? (
                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
                 </button>
 
-                {/* Items */}
-                {!isCollapsed && (
-                  <div className="divide-y divide-border/50">
+                {/* Items list inside accordion */}
+                {isCatOpen && (
+                  <div className="divide-y divide-border/50 bg-background">
                     {cat.items.map((item) => {
                       const isCopied = copiedTag === item.tag;
 
                       return (
                         <div
                           key={item.tag}
-                          className="p-2.5 hover:bg-muted/40 transition-colors group"
+                          className="p-2.5 hover:bg-muted/30 transition-colors group cursor-pointer"
+                          onClick={(e) => handleInsert(item.tag, e)}
                         >
                           <div className="flex items-start justify-between gap-1.5 mb-1">
                             <span className="text-xs font-medium text-foreground leading-tight">
                               {item.label}
                             </span>
-                            <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity">
+                            <div
+                              className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {onInsertTag && (
                                 <Button
                                   variant="ghost"
@@ -234,21 +251,25 @@ export function VariablePaletteDrawer({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
                                 onClick={(e) => handleCopy(item.tag, e)}
                                 title="Nusxalash"
                               >
                                 {isCopied ? (
-                                  <Check className="w-3 h-3 text-emerald-500" />
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
                                 ) : (
-                                  <Copy className="w-3 h-3" />
+                                  <Copy className="w-3.5 h-3.5" />
                                 )}
                               </Button>
                             </div>
                           </div>
 
                           <div className="flex items-center justify-between gap-1 mt-1">
-                            <code className="text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded font-semibold select-all break-all">
+                            <code
+                              className="text-[11px] font-mono text-primary bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded font-semibold select-all break-all transition-colors"
+                              title="Bosib nusxalash"
+                              onClick={(e) => handleCopy(item.tag, e)}
+                            >
                               {item.tag}
                             </code>
                           </div>

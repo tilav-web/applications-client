@@ -66,7 +66,6 @@ interface ReferenceFormData {
   is_default?: boolean | null;
   sort_order?: number | null;
   article?: string | null;
-  part?: string | null;
   mfo?: string | null;
   gravity?: CrimeGravity | null;
   district_id?: string | null;
