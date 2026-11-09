@@ -8,6 +8,17 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --text-2xs: 0.775rem;
+  --text-xs: 0.9rem;
+  --text-xs--line-height: 1.4rem;
+  --text-sm: 0.975rem;
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1.075rem;
+  --text-base--line-height: 1.65rem;
+  --text-lg: 1.225rem;
+  --text-lg--line-height: 1.8rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.95rem;
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -150,7 +161,20 @@
       'cv03' 1,
       'cv04' 1,
       'cv11' 1;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.01em;
+  }
+  .text-\[10px\] {
+    font-size: 0.775rem !important;
+    line-height: 1.15rem !important;
+  }
+  .text-\[11px\] {
+    font-size: 0.825rem !important;
+    line-height: 1.25rem !important;
+  }
+  input,
+  select,
+  textarea {
+    font-size: var(--text-xs);
   }
   button,
   [role="button"],
