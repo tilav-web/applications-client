@@ -21,15 +21,6 @@ interface CreateTemplateDialogProps {
   onSuccess: (template: DocumentTemplateRecord) => void;
 }
 
-const CATEGORIES = [
-  'Tushuntirish xati',
-  'Bayonnoma',
-  'Sanksiya',
-  'Qaror',
-  'So‘rovnoma',
-  'Boshqa',
-];
-
 export function CreateTemplateDialog({
   isOpen,
   onClose,
@@ -38,7 +29,6 @@ export function CreateTemplateDialog({
   const [activeTab, setActiveTab] = useState<'blank' | 'upload'>('blank');
   const [title, setTitle] = useState('');
   const [titleKrill, setTitleKrill] = useState('');
-  const [category, setCategory] = useState('Tushuntirish xati');
   const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,7 +36,6 @@ export function CreateTemplateDialog({
   const resetForm = () => {
     setTitle('');
     setTitleKrill('');
-    setCategory('Tushuntirish xati');
     setDescription('');
     setSelectedFile(null);
     setIsSubmitting(false);
@@ -84,7 +73,6 @@ export function CreateTemplateDialog({
         const res = await templatesApi.createBlank({
           title: title.trim(),
           title_krill: titleKrill.trim() || undefined,
-          category,
           description: description.trim() || undefined,
         });
         toast.success('Yangi bo‘sh shablon yaratildi!');
@@ -101,7 +89,6 @@ export function CreateTemplateDialog({
         formData.append('file', selectedFile);
         formData.append('title', title.trim());
         if (titleKrill.trim()) formData.append('title_krill', titleKrill.trim());
-        formData.append('category', category);
         if (description.trim()) formData.append('description', description.trim());
 
         const res = await templatesApi.upload(formData);
@@ -212,21 +199,6 @@ export function CreateTemplateDialog({
                 className="text-xs h-9"
               />
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Kategoriya *</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="space-y-1">

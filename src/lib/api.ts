@@ -658,7 +658,8 @@ export interface TemplateVariableItem {
   tag: string;
   rawKey: string;
   label: string;
-  category: string;
+  modelName?: string;
+  category?: string;
   description?: string;
   sampleValue: string;
 }
@@ -676,7 +677,7 @@ export interface DocumentTemplateRecord {
   title_krill?: string | null;
   displayTitle?: string;
   description?: string | null;
-  category: string;
+  category?: string | null;
   file_key: string;
   file_key_krill?: string | null;
   file_name: string;
@@ -690,7 +691,7 @@ export interface DocumentTemplateRecord {
 }
 
 export const templatesApi = {
-  getAll: async (params?: { script?: 'lotin' | 'krill'; category?: string; search?: string }) => {
+  getAll: async (params?: { script?: 'lotin' | 'krill'; search?: string; category?: string }) => {
     const res = await apiClient.get<DocumentTemplateRecord[]>('/templates', { params });
     return res.data;
   },

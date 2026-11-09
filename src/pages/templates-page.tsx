@@ -14,27 +14,15 @@ import { useState } from 'react';
 
 import { CreateTemplateDialog } from '@/components/templates/create-template-dialog';
 import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { templatesApi, type DocumentTemplateRecord } from '@/lib/api';
 
-const CATEGORIES = [
-  'all',
-  'Tushuntirish xati',
-  'Bayonnoma',
-  'Sanksiya',
-  'Qaror',
-  'So‘rovnoma',
-  'Boshqa',
-];
-
 export function TemplatesPage() {
   const queryClient = useQueryClient();
   const [script, setScript] = useState<'lotin' | 'krill'>('lotin');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
 
   // Modals state
@@ -47,11 +35,10 @@ export function TemplatesPage() {
     data: templates = [],
     isLoading,
   } = useQuery({
-    queryKey: ['templates', script, selectedCategory, search],
+    queryKey: ['templates', script, search],
     queryFn: () =>
       templatesApi.getAll({
         script,
-        category: selectedCategory === 'all' ? undefined : selectedCategory,
         search: search.trim() || undefined,
       }),
   });
@@ -144,33 +131,20 @@ export function TemplatesPage() {
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Categories Badges */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-          {CATEGORIES.map((cat) => (
-            <Button
-              key={cat}
-              variant={selectedCategory === cat ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(cat)}
-              className="text-xs h-8 capitalize whitespace-nowrap"
-            >
-              {cat === 'all' ? 'Barcha shablonlar' : cat}
-            </Button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="relative w-full md:w-72">
+      {/* Search Bar */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative w-full md:w-96">
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Shablon nomi yoki tavsifini qidirish..."
-            className="pl-8 h-8 text-xs bg-background"
+            className="pl-8 h-9 text-xs bg-background"
           />
         </div>
+        <p className="text-xs text-muted-foreground hidden sm:block">
+          Jami: <span className="font-semibold text-foreground">{templates.length}</span> ta shablon
+        </p>
       </div>
 
       {/* Templates Grid */}
@@ -204,10 +178,11 @@ export function TemplatesPage() {
                 className="hover:shadow-md transition-all duration-200 border-border/80 flex flex-col justify-between"
               >
                 <CardHeader className="p-4 pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <Badge variant="secondary" className="text-[11px] font-medium px-2 py-0.5">
-                      {tpl.category}
-                    </Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Shablon</span>
+                    </div>
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Tag className="w-3 h-3 text-primary" />
                       <span>{tagsCount} ta teg</span>

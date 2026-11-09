@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BadgeCheck,
+  Building2,
   Calendar,
   Check,
   ChevronDown,
@@ -9,6 +10,7 @@ import {
   CreditCard,
   FileText,
   Plus,
+  Scale,
   Search,
   ShieldAlert,
   Sparkles,
@@ -33,7 +35,10 @@ interface VariablePaletteDrawerProps {
 
 const CATEGORY_ICONS: Record<string, any> = {
   citizen: User,
+  application: FileText,
   app: FileText,
+  crime: Scale,
+  district: Building2,
   victim_card: CreditCard,
   fraud_card: ShieldAlert,
   transfers: ArrowLeftRight,
