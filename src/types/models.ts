@@ -92,6 +92,18 @@ export interface Crime {
   updated_at?: string;
 }
 
+export interface CrimeMethod {
+  id: string;
+  name: string;
+  group_name: string;
+  code?: string | null;
+  description?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Citizen {
   id: string;
   first_name: string | null;
@@ -222,6 +234,8 @@ export interface ApplicationCustomField {
   card?: Card | null;
   crime_id?: string | null;
   crime?: Crime | null;
+  crime_method_id?: string | null;
+  crime_method?: CrimeMethod | null;
   district_id?: string | null;
   district?: District | null;
   transfer_id?: string | null;
@@ -249,6 +263,8 @@ export interface Application {
   district?: District | null;
   crime_id?: string | null;
   crime?: Crime | null;
+  crime_method_id?: string | null;
+  crime_method?: CrimeMethod | null;
   card_id?: string | null;
   card?: Card | null;
   transfer_id?: string | null;

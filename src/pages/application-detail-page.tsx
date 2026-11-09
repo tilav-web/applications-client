@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { toast } from '@/components/ui/sonner';
 import {
   applicationsApi,
@@ -717,12 +718,12 @@ export function ApplicationDetailPage() {
                   </span>
                   <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
                     {app.citizen.gender === 'male' ? (
-                      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 text-[11px] py-0 px-2 font-semibold">
-                        👨 Erkak
+                      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 text-[11px] py-0 px-2 font-semibold gap-1">
+                        <MaleIcon className="h-3 w-3" /> Erkak
                       </Badge>
                     ) : app.citizen.gender === 'female' ? (
-                      <Badge className="bg-pink-500/10 text-pink-500 border-pink-500/30 text-[11px] py-0 px-2 font-semibold">
-                        👩 Ayol
+                      <Badge className="bg-pink-500/10 text-pink-500 border-pink-500/30 text-[11px] py-0 px-2 font-semibold gap-1">
+                        <FemaleIcon className="h-3 w-3" /> Ayol
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground">—</span>
@@ -824,6 +825,15 @@ export function ApplicationDetailPage() {
                   <span>{app.district?.name || '—'}</span>
                 </p>
               </div>
+
+              {app.crime_method && (
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Jinoyat Sodir Etish Usuli ({app.crime_method.group_name || 'Modus operandi'}):
+                  </span>
+                  <p className="font-semibold text-xs text-foreground">{app.crime_method.name}</p>
+                </div>
+              )}
             </div>
 
             {/* Murojaat mazmuni va bayoni */}

@@ -7,7 +7,6 @@ import {
   Filter,
   Link2,
   Loader2,
-  MapPin,
   Plus,
   RefreshCw,
   Search,
@@ -303,18 +302,18 @@ export function ApplicationsPage() {
       <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Hudud & Jinoyat Turi</TableHead>
-              <TableHead>Ariza Raqami</TableHead>
-              <TableHead>Tafsilot & Xodim Qaydlari</TableHead>
-              <TableHead>Holati</TableHead>
-              <TableHead>Asosiy Arizachi</TableHead>
-              <TableHead>Bog‘liqliklar</TableHead>
-              <TableHead>Sana</TableHead>
-              <TableHead className="text-right">Amallar</TableHead>
+            <TableRow className="border-b border-border">
+              <TableHead className="whitespace-nowrap">Hudud & Jinoyat Turi</TableHead>
+              <TableHead className="whitespace-nowrap">Ariza Raqami</TableHead>
+              <TableHead className="whitespace-nowrap">Tafsilot & Xodim Qaydlari</TableHead>
+              <TableHead className="whitespace-nowrap">Holati</TableHead>
+              <TableHead className="whitespace-nowrap">Asosiy Arizachi</TableHead>
+              <TableHead className="whitespace-nowrap">Bog‘liqliklar</TableHead>
+              <TableHead className="whitespace-nowrap">Sana</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Amallar</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="divide-y divide-border">
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
@@ -325,16 +324,13 @@ export function ApplicationsPage() {
               data.items.map((app: Application) => (
                 <TableRow
                   key={app.id}
-                  className="cursor-pointer hover:bg-muted/40 transition-colors"
+                  className="cursor-pointer hover:bg-muted/40 transition-colors border-b border-border"
                   onClick={() => navigate(`/applications/${app.id}`)}
                 >
                   <TableCell>
                     <div className="space-y-0.5 text-xs">
                       {app.district && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <MapPin className="h-3 w-3 text-primary" />
-                          <span className="font-medium text-foreground">{app.district.name}</span>
-                        </div>
+                        <div className="font-medium text-foreground">{app.district.name}</div>
                       )}
                       {app.crime && (
                         <span className="text-[11px] font-semibold text-primary block truncate max-w-[160px]">

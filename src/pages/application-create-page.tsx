@@ -14,6 +14,7 @@ import {
   File as FileIcon,
   FileText,
   FileUp,
+  Layers,
   Loader2,
   MapPin,
   Paperclip,
@@ -46,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from '@/components/ui/sonner';
@@ -56,6 +58,7 @@ import {
   banksApi,
   cardsApi,
   citizensApi,
+  crimeMethodsApi,
   crimesApi,
   districtsApi,
   documentsApi,
@@ -78,6 +81,7 @@ import type {
   ApplicationStatus,
   Citizen,
   CrimeGravity,
+  CrimeMethod,
   CustomFieldType,
   TransferCustomField,
 } from '@/types/models';
@@ -282,6 +286,7 @@ export function ApplicationCreatePage() {
   });
 
   const [selectedCrimeId, setSelectedCrimeId] = useState<string | null>(null);
+  const [selectedCrimeMethodId, setSelectedCrimeMethodId] = useState<string | null>(null);
   const [crimeForm, setCrimeForm] = useState<{
     article: string;
   }>({
@@ -299,7 +304,7 @@ export function ApplicationCreatePage() {
 
   const [activeTransferPopover, setActiveTransferPopover] = useState<{
     index: number;
-    type: 'victimCard' | 'victimBank' | 'provider' | 'receiverCard' | 'receiverBank';
+    type: 'victimCard' | 'receiverCard';
   } | null>(null);
   const transferContainerRef = useRef<HTMLDivElement>(null);
 
@@ -513,6 +518,22 @@ export function ApplicationCreatePage() {
     });
   }, [allCrimes]);
 
+  const { data: crimeMethodsData } = useQuery({
+    queryKey: ['crime-methods-active'],
+    queryFn: () => crimeMethodsApi.getAllActive(),
+  });
+  const allCrimeMethods = crimeMethodsData || [];
+
+  const groupedCrimeMethods = useMemo(() => {
+    const groups: Record<string, CrimeMethod[]> = {};
+    for (const method of allCrimeMethods) {
+      const g = method.group_name || 'Бошқа';
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(method);
+    }
+    return groups;
+  }, [allCrimeMethods]);
+
   const { data: cardsData } = useQuery({
     queryKey: ['cards-autocomplete'],
     queryFn: () => cardsApi.getAll({ limit: 100 }),
@@ -589,6 +610,10 @@ export function ApplicationCreatePage() {
         setCrimeForm({
           article: initialApp.crime.article || initialApp.crime.title || '',
         });
+      }
+
+      if (initialApp.crime_method_id || initialApp.crime_method) {
+        setSelectedCrimeMethodId(initialApp.crime_method_id || initialApp.crime_method?.id || null);
       }
 
       const hasPrimaryFinancial = Boolean(
@@ -772,10 +797,7 @@ export function ApplicationCreatePage() {
     activeTransferPopover !== null ? financialTransfers[activeTransferPopover.index] : null;
 
   const activeVictimCardNumber = currentActiveTransfer?.victimCardNumber || '';
-  const activeVictimBankName = currentActiveTransfer?.victimBankName || '';
-  const activeProviderName = currentActiveTransfer?.providerName || '';
   const activeReceiverCardNumber = currentActiveTransfer?.receiverCardNumber || '';
-  const activeReceiverBankName = currentActiveTransfer?.receiverBankName || '';
 
   const filteredVictimCards = useMemo(() => {
     const q = activeVictimCardNumber.replace(/\D/g, '');
@@ -783,31 +805,11 @@ export function ApplicationCreatePage() {
     return allCards.filter((c) => (c.card_number || '').replace(/\D/g, '').includes(q));
   }, [allCards, activeVictimCardNumber]);
 
-  const filteredVictimBanks = useMemo(() => {
-    const q = activeVictimBankName.trim().toLowerCase();
-    if (!q) return [];
-    return allBanks.filter((b) => (b.name || '').toLowerCase().includes(q));
-  }, [allBanks, activeVictimBankName]);
-
-  const filteredEntryProviders = useMemo(() => {
-    const q = activeProviderName.trim().toLowerCase();
-    if (!q) return [];
-    return allProviders.filter(
-      (p) => (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q),
-    );
-  }, [allProviders, activeProviderName]);
-
   const filteredReceiverCards = useMemo(() => {
     const q = activeReceiverCardNumber.replace(/\D/g, '');
     if (!q) return [];
     return allCards.filter((c) => (c.card_number || '').replace(/\D/g, '').includes(q));
   }, [allCards, activeReceiverCardNumber]);
-
-  const filteredReceiverBanks = useMemo(() => {
-    const q = activeReceiverBankName.trim().toLowerCase();
-    if (!q) return [];
-    return allBanks.filter((b) => (b.name || '').toLowerCase().includes(q));
-  }, [allBanks, activeReceiverBankName]);
 
   // ==========================================================================
   // SELECTION HANDLERS
@@ -1003,6 +1005,7 @@ export function ApplicationCreatePage() {
           title: crimeForm.article.trim(),
         };
       }
+      payload.crime_method_id = selectedCrimeMethodId || null;
 
       // 4. Moliyaviy Zarar / Karta va O'tkazmalar
       const allCustomFields = [...customFields];
@@ -1434,7 +1437,7 @@ export function ApplicationCreatePage() {
                         : 'bg-background hover:bg-muted text-foreground border-input'
                     }`}
                   >
-                    <span>👨</span> Erkak
+                    <MaleIcon className="h-3.5 w-3.5" /> Erkak
                   </button>
                   <button
                     type="button"
@@ -1450,7 +1453,7 @@ export function ApplicationCreatePage() {
                         : 'bg-background hover:bg-muted text-foreground border-input'
                     }`}
                   >
-                    <span>👩</span> Ayol
+                    <FemaleIcon className="h-3.5 w-3.5" /> Ayol
                   </button>
                 </div>
               </div>
@@ -1775,6 +1778,47 @@ export function ApplicationCreatePage() {
                 )}
               </select>
             </div>
+
+            {/* Jinoyat sodir etish usuli (Grouped Select) */}
+            <div className="space-y-1.5 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-primary" />
+                  Jinoyat sodir etish usuli
+                </label>
+                {selectedCrimeMethodId && (
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Tanlandi
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCrimeMethodId(null)}
+                      className="ml-1 hover:text-foreground cursor-pointer"
+                      title="Bekor qilish"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+
+              <select
+                value={selectedCrimeMethodId || ''}
+                onChange={(e) => setSelectedCrimeMethodId(e.target.value || null)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">-- JINOYAT SODIR ETISH USULINI TANLANG (IXTIYORIY) --</option>
+                {Object.entries(groupedCrimeMethods).map(([groupName, methods]) => (
+                  <optgroup key={groupName} label={groupName} className="font-bold text-foreground">
+                    {methods.map((m) => (
+                      <option key={m.id} value={m.id} className="font-normal py-1">
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -2016,42 +2060,36 @@ export function ApplicationCreatePage() {
                         />
                       </div>
 
-                      <div className="relative space-y-1">
+                      <div className="space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           Xizmat ko‘rsatuvchi bank
                         </label>
-                        <Input
-                          placeholder="KAPITALBANK, XALQ BANKI, AGROBANK..."
-                          value={entry.victimBankName}
-                          onFocus={() => setActiveTransferPopover({ index, type: 'victimBank' })}
-                          onChange={(e) => {
+                        <select
+                          value={entry.victimBankName || ''}
+                          onChange={(e) =>
                             handleUpdateTransferEntry(index, {
-                              victimBankName: e.target.value.toUpperCase(),
-                            });
-                            setActiveTransferPopover({ index, type: 'victimBank' });
-                          }}
-                          className="h-9 text-xs uppercase"
-                        />
-                        {activeTransferPopover?.index === index &&
-                          activeTransferPopover.type === 'victimBank' &&
-                          filteredVictimBanks.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                              {filteredVictimBanks.map((b) => (
-                                <div
-                                  key={b.id}
-                                  onClick={() => {
-                                    handleUpdateTransferEntry(index, {
-                                      victimBankName: b.name || '',
-                                    });
-                                    setActiveTransferPopover(null);
-                                  }}
-                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                                >
-                                  <span className="font-medium text-foreground">{b.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                              victimBankName: e.target.value,
+                            })
+                          }
+                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        >
+                          <option value="">-- BANKNI TANLANG --</option>
+                          {allBanks.map((b) => (
+                            <option key={b.id} value={b.name || ''}>
+                              {b.name?.toUpperCase()}
+                            </option>
+                          ))}
+                          {entry.victimBankName &&
+                            !allBanks.some(
+                              (b) =>
+                                b.name?.trim().toUpperCase() ===
+                                entry.victimBankName?.trim().toUpperCase(),
+                            ) && (
+                              <option value={entry.victimBankName}>
+                                {entry.victimBankName.toUpperCase()}
+                              </option>
+                            )}
+                        </select>
                       </div>
                     </div>
 
@@ -2115,44 +2153,41 @@ export function ApplicationCreatePage() {
                         </div>
                       </div>
 
-                      <div className="relative space-y-1">
+                      <div className="space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           To‘lov Provayderi / Ilova Nomi
                         </label>
-                        <Input
-                          placeholder="PAYME, CLICK, UZUM, ANORBANK..."
-                          value={entry.providerName}
-                          onFocus={() => setActiveTransferPopover({ index, type: 'provider' })}
+                        <select
+                          value={entry.providerName || ''}
                           onChange={(e) => {
+                            const pName = e.target.value;
+                            const found = allProviders.find(
+                              (p) => p.name?.toUpperCase() === pName.toUpperCase(),
+                            );
                             handleUpdateTransferEntry(index, {
-                              providerName: e.target.value.toUpperCase(),
-                              providerId: null,
+                              providerName: pName,
+                              providerId: found?.id || null,
                             });
-                            setActiveTransferPopover({ index, type: 'provider' });
                           }}
-                          className="h-9 text-xs bg-background uppercase"
-                        />
-                        {activeTransferPopover?.index === index &&
-                          activeTransferPopover.type === 'provider' &&
-                          filteredEntryProviders.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                              {filteredEntryProviders.map((p) => (
-                                <div
-                                  key={p.id}
-                                  onClick={() => {
-                                    handleUpdateTransferEntry(index, {
-                                      providerId: p.id,
-                                      providerName: p.name || '',
-                                    });
-                                    setActiveTransferPopover(null);
-                                  }}
-                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                                >
-                                  <span className="font-medium text-foreground">{p.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        >
+                          <option value="">-- PROVAYDERNI TANLANG --</option>
+                          {allProviders.map((p) => (
+                            <option key={p.id} value={p.name || ''}>
+                              {p.name?.toUpperCase()}
+                            </option>
+                          ))}
+                          {entry.providerName &&
+                            !allProviders.some(
+                              (p) =>
+                                p.name?.trim().toUpperCase() ===
+                                entry.providerName?.trim().toUpperCase(),
+                            ) && (
+                              <option value={entry.providerName}>
+                                {entry.providerName.toUpperCase()}
+                              </option>
+                            )}
+                        </select>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
@@ -2292,42 +2327,36 @@ export function ApplicationCreatePage() {
                         />
                       </div>
 
-                      <div className="relative space-y-1">
+                      <div className="space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground">
                           Firibgar kartasi banki
                         </label>
-                        <Input
-                          placeholder="KAPITALBANK, IPAK YO‘LI, TBC..."
-                          value={entry.receiverBankName}
-                          onFocus={() => setActiveTransferPopover({ index, type: 'receiverBank' })}
-                          onChange={(e) => {
+                        <select
+                          value={entry.receiverBankName || ''}
+                          onChange={(e) =>
                             handleUpdateTransferEntry(index, {
-                              receiverBankName: e.target.value.toUpperCase(),
-                            });
-                            setActiveTransferPopover({ index, type: 'receiverBank' });
-                          }}
-                          className="h-9 text-xs uppercase"
-                        />
-                        {activeTransferPopover?.index === index &&
-                          activeTransferPopover.type === 'receiverBank' &&
-                          filteredReceiverBanks.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                              {filteredReceiverBanks.map((b) => (
-                                <div
-                                  key={b.id}
-                                  onClick={() => {
-                                    handleUpdateTransferEntry(index, {
-                                      receiverBankName: b.name || '',
-                                    });
-                                    setActiveTransferPopover(null);
-                                  }}
-                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                                >
-                                  <span className="font-medium text-foreground">{b.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                              receiverBankName: e.target.value,
+                            })
+                          }
+                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        >
+                          <option value="">-- BANKNI TANLANG --</option>
+                          {allBanks.map((b) => (
+                            <option key={b.id} value={b.name || ''}>
+                              {b.name?.toUpperCase()}
+                            </option>
+                          ))}
+                          {entry.receiverBankName &&
+                            !allBanks.some(
+                              (b) =>
+                                b.name?.trim().toUpperCase() ===
+                                entry.receiverBankName?.trim().toUpperCase(),
+                            ) && (
+                              <option value={entry.receiverBankName}>
+                                {entry.receiverBankName.toUpperCase()}
+                              </option>
+                            )}
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -2876,7 +2905,7 @@ export function ApplicationCreatePage() {
                                       : 'bg-background hover:bg-muted text-foreground border-input'
                                   }`}
                                 >
-                                  <span>👨</span> Erkak
+                                  <MaleIcon className="h-3.5 w-3.5" /> Erkak
                                 </button>
                                 <button
                                   type="button"
@@ -2902,7 +2931,7 @@ export function ApplicationCreatePage() {
                                       : 'bg-background hover:bg-muted text-foreground border-input'
                                   }`}
                                 >
-                                  <span>👩</span> Ayol
+                                  <FemaleIcon className="h-3.5 w-3.5" /> Ayol
                                 </button>
                               </div>
                             </div>

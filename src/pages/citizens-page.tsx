@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
@@ -213,7 +214,15 @@ export function CitizensPage() {
                                 : 'border-pink-500/40 text-pink-500 bg-pink-500/5'
                             }`}
                           >
-                            {citizen.gender === 'male' ? 'Erkak' : 'Ayol'}
+                            {citizen.gender === 'male' ? (
+                              <span className="flex items-center gap-1">
+                                <MaleIcon className="h-3 w-3" /> Erkak
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <FemaleIcon className="h-3 w-3" /> Ayol
+                              </span>
+                            )}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground text-[11px]">—</span>
@@ -399,7 +408,7 @@ export function CitizensPage() {
                           : 'bg-background hover:bg-muted text-foreground border-input'
                       }`}
                     >
-                      <span>👨</span> Erkak
+                      <MaleIcon className="h-3.5 w-3.5" /> Erkak
                     </button>
                     <button
                       type="button"
@@ -415,7 +424,7 @@ export function CitizensPage() {
                           : 'bg-background hover:bg-muted text-foreground border-input'
                       }`}
                     >
-                      <span>👩</span> Ayol
+                      <FemaleIcon className="h-3.5 w-3.5" /> Ayol
                     </button>
                   </div>
                 </div>

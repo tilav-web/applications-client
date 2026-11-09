@@ -6,6 +6,7 @@ import type {
   Card,
   Citizen,
   Crime,
+  CrimeMethod,
   District,
   IGraphData,
   Mahalla,
@@ -359,6 +360,43 @@ export const crimesApi = {
   },
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/crimes/${id}`);
+    return res.data;
+  },
+};
+
+// 6.1. Crime Methods API
+export const crimeMethodsApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    group_name?: string;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<CrimeMethod>>('/crime-methods', {
+      params,
+    });
+    return res.data;
+  },
+  getAllActive: async () => {
+    const res = await apiClient.get<CrimeMethod[]>('/crime-methods/active');
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<CrimeMethod>(`/crime-methods/${id}`);
+    return res.data;
+  },
+  create: async (data: Partial<CrimeMethod>) => {
+    const res = await apiClient.post<CrimeMethod>('/crime-methods', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<CrimeMethod>) => {
+    const res = await apiClient.patch<CrimeMethod>(`/crime-methods/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/crime-methods/${id}`,
+    );
     return res.data;
   },
 };

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   CreditCard,
   Edit2,
+  Layers,
   MapPin,
   Plus,
   Search,
@@ -40,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   applicationStatusesApi,
   banksApi,
+  crimeMethodsApi,
   crimesApi,
   districtsApi,
   mahallasApi,
@@ -52,6 +54,7 @@ import type {
   Bank,
   Crime,
   CrimeGravity,
+  CrimeMethod,
   District,
   Mahalla,
   PaymentProvider,
@@ -59,7 +62,14 @@ import type {
 } from '@/types/models';
 
 type ReferenceItem =
-  District | Mahalla | Crime | Bank | PaymentProvider | ApplicationStatusItem | SuspectFieldConfig;
+  | District
+  | Mahalla
+  | Crime
+  | CrimeMethod
+  | Bank
+  | PaymentProvider
+  | ApplicationStatusItem
+  | SuspectFieldConfig;
 
 interface ReferenceFormData {
   name?: string | null;
@@ -73,6 +83,7 @@ interface ReferenceFormData {
   mfo?: string | null;
   gravity?: CrimeGravity | null;
   district_id?: string | null;
+  group_name?: string | null;
   key?: string | null;
   label?: string | null;
   category?: string | null;
@@ -83,7 +94,14 @@ interface ReferenceFormData {
 export function ReferencesPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<
-    'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers' | 'statuses' | 'suspect_fields'
+    | 'districts'
+    | 'mahallas'
+    | 'crimes'
+    | 'crime_methods'
+    | 'banks'
+    | 'providers'
+    | 'statuses'
+    | 'suspect_fields'
   >('districts');
 
   // Search and page state for each tab
@@ -95,6 +113,9 @@ export function ReferencesPage() {
 
   const [crimeSearch, setCrimeSearch] = useState('');
   const [crimePage, setCrimePage] = useState(1);
+
+  const [crimeMethodSearch, setCrimeMethodSearch] = useState('');
+  const [crimeMethodPage, setCrimeMethodPage] = useState(1);
 
   const [bankSearch, setBankSearch] = useState('');
   const [bankPage, setBankPage] = useState(1);
@@ -140,6 +161,14 @@ export function ReferencesPage() {
     queryKey: ['crimes', { page: crimePage, search: crimeSearch }],
     queryFn: () => crimesApi.getAll({ page: crimePage, limit: 10, search: crimeSearch }),
     enabled: activeTab === 'crimes',
+  });
+
+  // 2.1. Crime Methods Query
+  const { data: crimeMethodsData, isLoading: isCrimeMethodsLoading } = useQuery({
+    queryKey: ['crime-methods', { page: crimeMethodPage, search: crimeMethodSearch }],
+    queryFn: () =>
+      crimeMethodsApi.getAll({ page: crimeMethodPage, limit: 10, search: crimeMethodSearch }),
+    enabled: activeTab === 'crime_methods',
   });
 
   // 3. Banks Query
@@ -191,6 +220,13 @@ export function ReferencesPage() {
           article: formData.name || formData.title || formData.article || '',
           title: formData.name || formData.title || formData.article || '',
         });
+      if (activeTab === 'crime_methods')
+        return crimeMethodsApi.create({
+          name: formData.name || '',
+          group_name: (formData.group_name as string) || 'Бошқа',
+          sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
+          description: (formData.description as string) || undefined,
+        });
       if (activeTab === 'banks') return banksApi.create(formData);
       if (activeTab === 'providers') return paymentProvidersApi.create(formData);
       if (activeTab === 'statuses')
@@ -221,9 +257,14 @@ export function ReferencesPage() {
               ? 'application-statuses'
               : activeTab === 'suspect_fields'
                 ? 'suspect-field-configs'
-                : activeTab,
+                : activeTab === 'crime_methods'
+                  ? 'crime-methods'
+                  : activeTab,
         ],
       });
+      if (activeTab === 'crime_methods') {
+        queryClient.invalidateQueries({ queryKey: ['crime-methods-active'] });
+      }
       if (activeTab === 'statuses') {
         queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
         queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
@@ -252,6 +293,13 @@ export function ReferencesPage() {
         return crimesApi.update(targetItem.id, {
           article: formData.name || formData.title || formData.article || undefined,
           title: formData.name || formData.title || formData.article || undefined,
+        });
+      if (activeTab === 'crime_methods')
+        return crimeMethodsApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          group_name: (formData.group_name as string) || undefined,
+          sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+          description: (formData.description as string) || undefined,
         });
       if (activeTab === 'banks') return banksApi.update(targetItem.id, formData);
       if (activeTab === 'providers') return paymentProvidersApi.update(targetItem.id, formData);
@@ -285,9 +333,14 @@ export function ReferencesPage() {
               ? 'application-statuses'
               : activeTab === 'suspect_fields'
                 ? 'suspect-field-configs'
-                : activeTab,
+                : activeTab === 'crime_methods'
+                  ? 'crime-methods'
+                  : activeTab,
         ],
       });
+      if (activeTab === 'crime_methods') {
+        queryClient.invalidateQueries({ queryKey: ['crime-methods-active'] });
+      }
       if (activeTab === 'statuses') {
         queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
         queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
@@ -309,6 +362,7 @@ export function ReferencesPage() {
       if (activeTab === 'districts') return districtsApi.delete(targetItem.id);
       if (activeTab === 'mahallas') return mahallasApi.delete(targetItem.id);
       if (activeTab === 'crimes') return crimesApi.delete(targetItem.id);
+      if (activeTab === 'crime_methods') return crimeMethodsApi.delete(targetItem.id);
       if (activeTab === 'banks') return banksApi.delete(targetItem.id);
       if (activeTab === 'providers') return paymentProvidersApi.delete(targetItem.id);
       if (activeTab === 'statuses') return applicationStatusesApi.delete(targetItem.id);
@@ -323,9 +377,14 @@ export function ReferencesPage() {
               ? 'application-statuses'
               : activeTab === 'suspect_fields'
                 ? 'suspect-field-configs'
-                : activeTab,
+                : activeTab === 'crime_methods'
+                  ? 'crime-methods'
+                  : activeTab,
         ],
       });
+      if (activeTab === 'crime_methods') {
+        queryClient.invalidateQueries({ queryKey: ['crime-methods-active'] });
+      }
       if (activeTab === 'statuses') {
         queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
         queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
@@ -391,6 +450,7 @@ export function ReferencesPage() {
               | 'districts'
               | 'mahallas'
               | 'crimes'
+              | 'crime_methods'
               | 'banks'
               | 'providers'
               | 'statuses'
@@ -399,7 +459,7 @@ export function ReferencesPage() {
         }
         className="w-full space-y-4"
       >
-        <TabsList className="grid grid-cols-2 sm:grid-cols-7 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 w-full p-1 bg-muted/50 border border-border/60">
           <TabsTrigger value="districts" className="gap-2 text-xs">
             <MapPin className="h-3.5 w-3.5 text-primary" />
             Tumanlar
@@ -411,6 +471,10 @@ export function ReferencesPage() {
           <TabsTrigger value="crimes" className="gap-2 text-xs">
             <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
             Jinoyat Turlari
+          </TabsTrigger>
+          <TabsTrigger value="crime_methods" className="gap-2 text-xs">
+            <Layers className="h-3.5 w-3.5 text-primary" />
+            Jinoyat Usullari
           </TabsTrigger>
           <TabsTrigger value="banks" className="gap-2 text-xs">
             <Building2 className="h-3.5 w-3.5 text-primary" />
@@ -686,6 +750,112 @@ export function ReferencesPage() {
                 hasPreviousPage={crimesData.meta.hasPreviousPage}
                 onPageChange={(p) => setCrimePage(p)}
                 isLoading={isCrimesLoading}
+              />
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* 2.1. CRIME METHODS TAB */}
+        <TabsContent value="crime_methods" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="relative max-w-md lg:max-w-lg">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Jinoyat usuli yoki guruhi bo'yicha qidiruv..."
+                  value={crimeMethodSearch}
+                  onChange={(e) => {
+                    setCrimeMethodSearch(e.target.value);
+                    setCrimeMethodPage(1);
+                  }}
+                  className="pl-9 bg-background/50"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border">
+                  <TableHead className="whitespace-nowrap">Usul nomi</TableHead>
+                  <TableHead className="whitespace-nowrap">Guruhi</TableHead>
+                  <TableHead className="whitespace-nowrap text-center">Tartib</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-border">
+                {isCrimeMethodsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : crimeMethodsData?.items?.length ? (
+                  crimeMethodsData.items.map((method: CrimeMethod) => (
+                    <TableRow key={method.id} className="border-b border-border">
+                      <TableCell className="font-semibold text-foreground max-w-lg">
+                        {method.name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-primary/5 text-primary border-primary/20"
+                        >
+                          {method.group_name || 'Бошқа'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                        {method.sort_order ?? 0}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            openEditModal({
+                              ...method,
+                              name: method.name,
+                              group_name: method.group_name,
+                              sort_order: method.sort_order,
+                              description: method.description,
+                            })
+                          }
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteModal(method)}
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Hech qanday jinoyat usuli topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+
+            {crimeMethodsData?.meta && (
+              <PaginationBar
+                page={crimeMethodsData.meta.page}
+                totalPages={crimeMethodsData.meta.totalPages}
+                total={crimeMethodsData.meta.total}
+                limit={crimeMethodsData.meta.limit}
+                hasNextPage={crimeMethodsData.meta.hasNextPage}
+                hasPreviousPage={crimeMethodsData.meta.hasPreviousPage}
+                onPageChange={(p) => setCrimeMethodPage(p)}
+                isLoading={isCrimeMethodsLoading}
               />
             )}
           </Card>
@@ -1218,6 +1388,48 @@ export function ReferencesPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {/* Jinoyat usuli qo'shimcha maydonlari */}
+            {activeTab === 'crime_methods' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Guruhi / Kategoriyasi *
+                  </label>
+                  <Input
+                    placeholder="Masalan: Фишинг ва қурилма/карта бошқаруви"
+                    value={(formData.group_name as string) || ''}
+                    onChange={(e) => setFormData({ ...formData, group_name: e.target.value })}
+                    className="h-10 text-xs sm:text-sm font-medium"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Tartib raqami (Sort order)
+                    </label>
+                    <Input
+                      type="number"
+                      value={formData.sort_order ?? 0}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
+                      }
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">Qo'shimcha izoh</label>
+                    <Input
+                      placeholder="Qisqacha izoh..."
+                      value={(formData.description as string) || ''}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="h-10 text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
