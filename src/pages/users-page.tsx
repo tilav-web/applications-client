@@ -425,72 +425,72 @@ export function UsersPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl md:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="h-4 w-4 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <ShieldCheck className="h-5 w-5 text-primary" />
               <span>
                 {editingUser ? 'Foydalanuvchini tahrirlash' : 'Yangi foydalanuvchi qo‘shish'}
               </span>
             </DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               {editingUser
                 ? 'Foydalanuvchi ma’lumotlarini yangilash uchun maydonlarni to‘ldiring'
                 : 'Tizimga kirish huquqiga ega yangi xodim akkauntini yarating'}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-3 py-2 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Ism</label>
+          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Ism *</label>
                 <Input
                   placeholder="Ali"
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  className="h-8 text-xs"
+                  className="h-10 text-xs sm:text-sm font-medium"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Familiya</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Familiya *</label>
                 <Input
                   placeholder="Valiyev"
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  className="h-8 text-xs"
+                  className="h-10 text-xs sm:text-sm font-medium"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Login (Username) *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Login (Username) *</label>
                 <Input
                   placeholder="ali_operator"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
-                  className="h-8 text-xs font-mono"
+                  className="h-10 text-xs sm:text-sm font-mono font-medium"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Telefon raqami</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Telefon raqami</label>
                 <Input
                   placeholder="+998901234567"
                   value={formData.phone_number}
                   onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                  className="h-8 text-xs font-mono"
+                  className="h-10 text-xs sm:text-sm font-mono font-medium"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
                   Parol {editingUser ? '(O‘zgartirilmasa bo‘sh qoldiring)' : '*'}
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -498,17 +498,17 @@ export function UsersPage() {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required={!editingUser}
                     minLength={6}
-                    className="h-8 pl-8 text-xs"
+                    className="h-10 pl-9 text-xs sm:text-sm"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Tizimdagi Roli *</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Tizimdagi Roli *</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="OPERATOR">Operator</option>
                   <option value="INSPECTOR">Inspektor</option>
@@ -519,29 +519,30 @@ export function UsersPage() {
               </div>
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={() => {
                   setIsCreateOpen(false);
                   setEditingUser(null);
                   resetForm();
                 }}
+                className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
               >
                 Bekor qilish
               </Button>
               <Button
                 type="submit"
-                size="sm"
+                size="default"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="gap-1.5"
+                className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer gap-2"
               >
                 {(createMutation.isPending || updateMutation.isPending) && (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 )}
-                <span>{editingUser ? 'Saqlash' : 'Yaratish'}</span>
+                <span>{editingUser ? 'O‘zgarishlarni Saqlash' : 'Akkauntni Yaratish'}</span>
               </Button>
             </DialogFooter>
           </form>
@@ -550,35 +551,36 @@ export function UsersPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteTargetId} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2 text-base">
-              <Trash2 className="h-4 w-4" />
+            <DialogTitle className="text-destructive flex items-center gap-2 text-lg font-bold">
+              <Trash2 className="h-5 w-5" />
               <span>Foydalanuvchini o‘chirish</span>
             </DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               Ushbu foydalanuvchini tizimdan o‘chirishni tasdiqlaysizmi? Bu amalni ortga qaytarib
               bo‘lmaydi.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter>
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => setDeleteTargetId(null)}
               disabled={deleteMutation.isPending}
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
             >
               Bekor qilish
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="default"
               onClick={() => deleteTargetId && deleteMutation.mutate(deleteTargetId)}
               disabled={deleteMutation.isPending}
-              className="gap-1.5"
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20 gap-2"
             >
-              {deleteMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              <span>O‘chirish</span>
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>Ha, o‘chirish</span>
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -274,86 +274,114 @@ export function CardsPage() {
 
       {/* CREATE / EDIT DIALOG */}
       <Dialog open={modalType === 'create' || modalType === 'edit'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
-              {modalType === 'create' ? 'Yangi Plastik Karta Qo‘shish' : 'Kartani Tahrirlash'}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Karta raqami, amal qilish muddati, bank va fuqaroni belgilang
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {modalType === 'create'
+                    ? 'Yangi Plastik Karta Qo‘shish'
+                    : 'Kartani Tahrirlash'}
+                </DialogTitle>
+                <DialogDescription>
+                  Karta raqami, amal qilish muddati, bank va karta egasi fuqaroni belgilang
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Karta Raqami (16 talik)</label>
-              <Input
-                placeholder="8600 1234 5678 9012"
-                maxLength={19}
-                value={formData.card_number || ''}
-                onChange={(e) => setFormData({ ...formData, card_number: e.target.value })}
-                className="h-9 text-xs font-mono"
-              />
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Karta Raqami (16 talik) *
+                </label>
+                <Input
+                  placeholder="8600 1234 5678 9012"
+                  maxLength={19}
+                  value={formData.card_number || ''}
+                  onChange={(e) => setFormData({ ...formData, card_number: e.target.value })}
+                  className="h-10 text-xs sm:text-sm font-mono font-bold tracking-wider"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Amal Qilish Muddati (MM/YY)
+                </label>
+                <Input
+                  placeholder="12/28"
+                  maxLength={5}
+                  value={formData.expire_date || ''}
+                  onChange={(e) => setFormData({ ...formData, expire_date: e.target.value })}
+                  className="h-10 text-xs sm:text-sm font-mono"
+                />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Amal Qilish Muddati (MM/YY)</label>
-              <Input
-                placeholder="12/28"
-                maxLength={5}
-                value={formData.expire_date || ''}
-                onChange={(e) => setFormData({ ...formData, expire_date: e.target.value })}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Karta Egasi (Fuqaro)
+                </label>
+                <select
+                  value={formData.citizen_id || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, citizen_id: e.target.value || null })
+                  }
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Fuqaroni tanlang (ixtiyoriy)...</option>
+                  {citizensData?.items?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {[c.last_name, c.first_name].filter(Boolean).join(' ')} (
+                      {c.passport || 'Pasportsiz'})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Karta Egasi (Fuqaro)</label>
-              <select
-                value={formData.citizen_id || ''}
-                onChange={(e) => setFormData({ ...formData, citizen_id: e.target.value || null })}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Fuqaroni tanlang (ixtiyoriy)...</option>
-                {citizensData?.items?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {[c.last_name, c.first_name].filter(Boolean).join(' ')} (
-                    {c.passport || 'Pasportsiz'})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Emitent Bank</label>
-              <select
-                value={formData.bank_id || ''}
-                onChange={(e) => setFormData({ ...formData, bank_id: e.target.value || null })}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Bankni tanlang (ixtiyoriy)...</option>
-                {banksData?.items?.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.code})
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Emitent Bank</label>
+                <select
+                  value={formData.bank_id || ''}
+                  onChange={(e) => setFormData({ ...formData, bank_id: e.target.value || null })}
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Bankni tanlang (ixtiyoriy)...</option>
+                  {banksData?.items?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
-              size="sm"
+              size="default"
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="text-xs shadow-md shadow-primary/25"
+              className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
-              {createMutation.isPending || updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+              {createMutation.isPending || updateMutation.isPending
+                ? 'Saqlanmoqda...'
+                : 'Kartani Saqlash'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -361,23 +389,28 @@ export function CardsPage() {
 
       {/* DELETE DIALOG */}
       <Dialog open={modalType === 'delete'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Kartani o‘chirish</DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               Ushbu kartani bazadan o‘chirmoqchimisiz?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="default"
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="text-xs"
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20"
             >
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}
             </Button>

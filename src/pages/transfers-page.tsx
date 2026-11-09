@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, CreditCard, Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, CreditCard, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -296,117 +296,132 @@ export function TransfersPage() {
 
       {/* CREATE / EDIT DIALOG */}
       <Dialog open={modalType === 'create' || modalType === 'edit'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
-              {modalType === 'create'
-                ? 'Yangi To‘lov O‘tkazmasi Qo‘shish'
-                : 'O‘tkazmani Tahrirlash'}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Tranzaksiya ma‘lumotlari, summa, kartalar va provayderni kiriting
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <ArrowLeftRight className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {modalType === 'create'
+                    ? 'Yangi To‘lov O‘tkazmasi Qo‘shish'
+                    : 'O‘tkazmani Tahrirlash'}
+                </DialogTitle>
+                <DialogDescription>
+                  Tranzaksiya ma‘lumotlari, summa, kartalar va provayderni kiriting
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Tranzaksiya ID (Kodi)</label>
-              <Input
-                placeholder="TRX-9981248"
-                value={formData.transaction_id || ''}
-                onChange={(e) => setFormData({ ...formData, transaction_id: e.target.value })}
-                className="h-9 text-xs font-mono"
-              />
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Tranzaksiya ID (Kodi)
+                </label>
+                <Input
+                  placeholder="TRX-9981248"
+                  value={formData.transaction_id || ''}
+                  onChange={(e) => setFormData({ ...formData, transaction_id: e.target.value })}
+                  className="h-10 text-xs sm:text-sm font-mono uppercase font-medium"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Holati</label>
+                <select
+                  value={formData.status || 'KUTILMOQDA'}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value as TransferStatus })
+                  }
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="KUTILMOQDA">KUTILMOQDA</option>
+                  <option value="MUVAFFAQIYATLI">MUVAFFAQIYATLI</option>
+                  <option value="BEKOR_QILINDI">BEKOR_QILINDI</option>
+                </select>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">O‘tkazma Miqdori</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  O‘tkazma Miqdori (Summa) *
+                </label>
                 <Input
                   type="number"
                   placeholder="5000000"
                   value={formData.amount ?? ''}
                   onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  className="h-9 text-xs"
+                  className="h-10 text-xs sm:text-sm font-mono font-bold"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Valyuta</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Valyuta</label>
                 <Input
                   placeholder="UZS"
                   value={formData.currency || 'UZS'}
                   onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="h-9 text-xs font-mono"
+                  className="h-10 text-xs sm:text-sm font-mono uppercase"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Holati</label>
-              <select
-                value={formData.status || 'KUTILMOQDA'}
-                onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value as TransferStatus })
-                }
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="KUTILMOQDA">KUTILMOQDA</option>
-                <option value="MUVAFFAQIYATLI">MUVAFFAQIYATLI</option>
-                <option value="BEKOR_QILINDI">BEKOR_QILINDI</option>
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Yuboruvchi Karta (Pul yechilgan)
+                </label>
+                <select
+                  value={formData.sender_card_id || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sender_card_id: e.target.value || null })
+                  }
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Kartani tanlang (ixtiyoriy)...</option>
+                  {cardsData?.items?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.masked_number || c.card_number}{' '}
+                      {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Qabul Qiluvchi Karta (Pul tushgan)
+                </label>
+                <select
+                  value={formData.receiver_card_id || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, receiver_card_id: e.target.value || null })
+                  }
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Kartani tanlang (ixtiyoriy)...</option>
+                  {cardsData?.items?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.masked_number || c.card_number}{' '}
+                      {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">
-                Yuboruvchi Karta (Pul yechilgan)
-              </label>
-              <select
-                value={formData.sender_card_id || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, sender_card_id: e.target.value || null })
-                }
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Kartani tanlang (ixtiyoriy)...</option>
-                {cardsData?.items?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.masked_number || c.card_number}{' '}
-                    {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">
-                Qabul Qiluvchi Karta (Pul tushgan)
-              </label>
-              <select
-                value={formData.receiver_card_id || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, receiver_card_id: e.target.value || null })
-                }
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Kartani tanlang (ixtiyoriy)...</option>
-                {cardsData?.items?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.masked_number || c.card_number}{' '}
-                    {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">To‘lov Provayderi</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">To‘lov Provayderi</label>
               <select
                 value={formData.payment_provider_id || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, payment_provider_id: e.target.value || null })
                 }
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">Provayderni tanlang (ixtiyoriy)...</option>
                 {providersData?.items?.map((p) => (
@@ -419,18 +434,25 @@ export function TransfersPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
-              size="sm"
+              size="default"
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="text-xs shadow-md shadow-primary/25"
+              className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
-              {createMutation.isPending || updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+              {createMutation.isPending || updateMutation.isPending
+                ? 'Saqlanmoqda...'
+                : 'O‘tkazmani Saqlash'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -438,23 +460,28 @@ export function TransfersPage() {
 
       {/* DELETE DIALOG */}
       <Dialog open={modalType === 'delete'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O‘tkazmani o‘chirish</DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               Ushbu pul o‘tkazmasini bazadan o‘chirmoqchimisiz?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="default"
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="text-xs"
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20"
             >
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}
             </Button>

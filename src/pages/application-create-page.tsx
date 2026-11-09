@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  Download,
+  Edit2,
   ExternalLink,
   File as FileIcon,
   FileText,
@@ -29,8 +31,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { CreateWordDialog } from '@/components/documents/create-word-dialog';
+import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
+import { TemplateGeneratorModal } from '@/components/documents/template-generator-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -40,8 +46,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
+import {
+  formatAmountInput,
+  formatAmountWords,
+  formatCardNumberDisplay,
+} from '@/lib/formatters';
 import {
   applicationsApi,
   applicationStatusesApi,
@@ -50,7 +62,10 @@ import {
   citizensApi,
   crimesApi,
   districtsApi,
+  documentsApi,
   filesApi,
+  getFileDownloadUrl,
+  getFileViewUrl,
   mahallasApi,
   paymentProvidersApi,
   type UploadedFile,
@@ -62,8 +77,6 @@ import type {
   Crime,
   CrimeGravity,
   CustomFieldType,
-  District,
-  Mahalla,
   TransferCustomField,
 } from '@/types/models';
 
@@ -86,6 +99,8 @@ export interface AppCustomFieldState {
     passport: string;
     phone_number: string;
     pinfl?: string;
+    birth_date?: string;
+    gender?: 'male' | 'female' | '';
     address?: string;
     district_id?: string | null;
     district_name?: string;
@@ -172,6 +187,48 @@ const createDefaultTransferEntry = (): FinancialTransferEntry => ({
   receiverBankName: '',
 });
 
+function CustomCitizenMahallaSelect({
+  districtId,
+  mahallaId,
+  onSelect,
+}: {
+  districtId: string | null;
+  mahallaId: string | null;
+  onSelect: (id: string | null, name: string) => void;
+}) {
+  const { data: mahallasData } = useQuery({
+    queryKey: ['custom-citizen-mahallas-select', districtId],
+    queryFn: () => mahallasApi.getAll({ district_id: districtId!, limit: 200 }),
+    enabled: Boolean(districtId),
+  });
+
+  const items = mahallasData?.items || [];
+
+  return (
+    <select
+      value={mahallaId || ''}
+      disabled={!districtId}
+      onChange={(e) => {
+        const val = e.target.value;
+        const found = items.find((m) => m.id === val);
+        onSelect(val || null, found?.name || '');
+      }}
+      className={`h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
+        !districtId ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground' : ''
+      }`}
+    >
+      <option value="">
+        {districtId ? '-- MAHALLANI TANLANG --' : 'AVVAL TUMANNI TANLANG...'}
+      </option>
+      {items.map((m) => (
+        <option key={m.id} value={m.id}>
+          {m.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function ApplicationCreatePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -202,20 +259,15 @@ export function ApplicationCreatePage() {
     phone_number: '',
     pinfl: '',
     address: '',
+    birth_date: '',
+    gender: '' as 'male' | 'female' | '',
   });
   const [showCitizenPopover, setShowCitizenPopover] = useState(false);
   const citizenPopoverRef = useRef<HTMLDivElement>(null);
 
   // Fuqaroning yashash tumani va mahallasi
   const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(null);
-  const [citizenDistrictName, setCitizenDistrictName] = useState('');
-  const [showCitizenDistrictPopover, setShowCitizenDistrictPopover] = useState(false);
-  const citizenDistrictPopoverRef = useRef<HTMLDivElement>(null);
-
   const [citizenMahallaId, setCitizenMahallaId] = useState<string | null>(null);
-  const [citizenMahallaName, setCitizenMahallaName] = useState('');
-  const [showCitizenMahallaPopover, setShowCitizenMahallaPopover] = useState(false);
-  const citizenMahallaPopoverRef = useRef<HTMLDivElement>(null);
 
   // ==========================================================================
   // 3. HODISA HUDUDI VA JINOYAT MODDASI
@@ -224,8 +276,6 @@ export function ApplicationCreatePage() {
   const [districtForm, setDistrictForm] = useState({
     name: '',
   });
-  const [showDistrictPopover, setShowDistrictPopover] = useState(false);
-  const districtPopoverRef = useRef<HTMLDivElement>(null);
 
   const [selectedCrimeId, setSelectedCrimeId] = useState<string | null>(null);
   const [crimeForm, setCrimeForm] = useState<{
@@ -290,11 +340,77 @@ export function ApplicationCreatePage() {
   // 6. QO'SHIMCHA SUBYEKTLAR (APPLICATION CUSTOM FIELDS)
   // ==========================================================================
   const [customFields, setCustomFields] = useState<AppCustomFieldState[]>([]);
-  const [activeCitizenPopover, setActiveCitizenPopover] = useState<{
-    clientId: string;
-    field: 'district' | 'mahalla';
-  } | null>(null);
-  const citizenCustomContainerRef = useRef<HTMLDivElement>(null);
+
+  // ==========================================================================
+  // WORD HUJJATLARI (.DOCX / ONLYOFFICE)
+  // ==========================================================================
+  const [activeEditingDocId, setActiveEditingDocId] = useState<string | null>(null);
+  const [docToDelete, setDocToDelete] = useState<{ id: string; title: string } | null>(null);
+  const wordFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [wordDialogState, setWordDialogState] = useState<{
+    isOpen: boolean;
+    mode: 'create' | 'upload';
+    file: File | null;
+  }>({
+    isOpen: false,
+    mode: 'create',
+    file: null,
+  });
+
+  const [templateModalState, setTemplateModalState] = useState<{
+    isOpen: boolean;
+    initialTemplateId?: string;
+  }>({
+    isOpen: false,
+    initialTemplateId: 'tushuntirish-telegram',
+  });
+
+  const { data: appDocuments = [], refetch: refetchDocuments } = useQuery({
+    queryKey: ['application-documents', id],
+    queryFn: () => (id ? documentsApi.getByApplication(id) : []),
+    enabled: !!id,
+  });
+
+  const createBlankDocMutation = useMutation({
+    mutationFn: (title?: string) => documentsApi.createBlank(id as string, title),
+    onSuccess: (newDoc) => {
+      toast.success('Yangi Word rasmiy hujjati yaratildi');
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+      setActiveEditingDocId(newDoc.id);
+    },
+    onError: (err) => {
+      toast.error(`Hujjat yaratishda xatolik: ${getErrorMessage(err)}`);
+    },
+  });
+
+  const uploadWordMutation = useMutation({
+    mutationFn: async ({ file, title }: { file: File; title?: string }) => {
+      if (!id) return;
+      return documentsApi.upload(id, file, title);
+    },
+    onSuccess: (newDoc) => {
+      toast.success('Word hujjati muvaffaqiyatli yuklandi');
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+      if (newDoc?.id) {
+        setActiveEditingDocId(newDoc.id);
+      }
+    },
+    onError: (err) => {
+      toast.error(`Word faylini yuklashda xatolik: ${getErrorMessage(err)}`);
+    },
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) => documentsApi.delete(docId),
+    onSuccess: () => {
+      toast.success('Hujjat o‘chirildi');
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+    },
+    onError: (err) => {
+      toast.error(`Hujjatni o‘chirishda xatolik: ${getErrorMessage(err)}`);
+    },
+  });
 
   // ==========================================================================
   // QUERY & DATA FETCHING
@@ -350,40 +466,12 @@ export function ApplicationCreatePage() {
   });
   const allDistricts = districtsData?.items || [];
 
-  const { data: citizenMahallasData, isLoading: isLoadingCitizenMahallas } = useQuery({
+  const { data: citizenMahallasData } = useQuery({
     queryKey: ['citizen-mahallas', citizenDistrictId],
     queryFn: () => mahallasApi.getAll({ district_id: citizenDistrictId!, limit: 200 }),
     enabled: Boolean(citizenDistrictId),
   });
   const allCitizenMahallas = citizenMahallasData?.items || [];
-
-  const activeCustomCitizen = customFields.find(
-    (cf) => cf.clientId === activeCitizenPopover?.clientId,
-  );
-  const activeCustomCitDistrictId = activeCustomCitizen?.inline_citizen?.district_id || null;
-
-  const { data: customCitizenMahallasData } = useQuery({
-    queryKey: ['custom-citizen-mahallas', activeCustomCitDistrictId],
-    queryFn: () => mahallasApi.getAll({ district_id: activeCustomCitDistrictId!, limit: 200 }),
-    enabled: Boolean(activeCustomCitDistrictId),
-  });
-  const customCitizenMahallas: Mahalla[] = customCitizenMahallasData?.items || [];
-
-  const createCitizenMahallaMutation = useMutation({
-    mutationFn: async ({ name, district_id }: { name: string; district_id: string }) => {
-      return mahallasApi.create({ name, district_id });
-    },
-    onSuccess: (newM) => {
-      queryClient.invalidateQueries({ queryKey: ['citizen-mahallas', citizenDistrictId] });
-      setCitizenMahallaId(newM.id);
-      setCitizenMahallaName(newM.name || '');
-      setShowCitizenMahallaPopover(false);
-      toast.success('Yangi mahalla qo‘shildi va biriktirildi');
-    },
-    onError: (err) => {
-      toast.error('Mahallani saqlashda xatolik', { description: getErrorMessage(err) });
-    },
-  });
 
   const { data: crimesData } = useQuery({
     queryKey: ['crimes-autocomplete'],
@@ -434,11 +522,9 @@ export function ApplicationCreatePage() {
         setCitizenDistrictId(
           initialApp.citizen.district_id || initialApp.citizen.district?.id || null,
         );
-        setCitizenDistrictName(initialApp.citizen.district?.name || '');
         setCitizenMahallaId(
           initialApp.citizen.mahalla_id || initialApp.citizen.mahalla?.id || null,
         );
-        setCitizenMahallaName(initialApp.citizen.mahalla?.name || '');
         setCitizenForm({
           first_name: initialApp.citizen.first_name || '',
           last_name: initialApp.citizen.last_name || '',
@@ -447,6 +533,10 @@ export function ApplicationCreatePage() {
           phone_number: initialApp.citizen.phone_number || '',
           pinfl: initialApp.citizen.pinfl || '',
           address: initialApp.citizen.address || '',
+          birth_date: initialApp.citizen.birth_date
+            ? String(initialApp.citizen.birth_date).substring(0, 10)
+            : '',
+          gender: (initialApp.citizen.gender as 'male' | 'female') || '',
         });
       }
 
@@ -562,6 +652,10 @@ export function ApplicationCreatePage() {
                     passport: cf.citizen.passport || '',
                     phone_number: cf.citizen.phone_number || '',
                     pinfl: cf.citizen.pinfl || '',
+                    birth_date: cf.citizen.birth_date
+                      ? String(cf.citizen.birth_date).substring(0, 10)
+                      : '',
+                    gender: (cf.citizen.gender as 'male' | 'female') || '',
                     address: cf.citizen.address || '',
                     district_id: cf.citizen.district_id || cf.citizen.district?.id || null,
                     district_name: cf.citizen.district?.name || '',
@@ -627,29 +721,11 @@ export function ApplicationCreatePage() {
       if (citizenPopoverRef.current && !citizenPopoverRef.current.contains(target)) {
         setShowCitizenPopover(false);
       }
-      if (
-        citizenDistrictPopoverRef.current &&
-        !citizenDistrictPopoverRef.current.contains(target)
-      ) {
-        setShowCitizenDistrictPopover(false);
-      }
-      if (citizenMahallaPopoverRef.current && !citizenMahallaPopoverRef.current.contains(target)) {
-        setShowCitizenMahallaPopover(false);
-      }
-      if (districtPopoverRef.current && !districtPopoverRef.current.contains(target)) {
-        setShowDistrictPopover(false);
-      }
       if (crimePopoverRef.current && !crimePopoverRef.current.contains(target)) {
         setShowCrimePopover(false);
       }
       if (transferContainerRef.current && !transferContainerRef.current.contains(target)) {
         setActiveTransferPopover(null);
-      }
-      if (
-        citizenCustomContainerRef.current &&
-        !citizenCustomContainerRef.current.contains(target)
-      ) {
-        setActiveCitizenPopover(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -659,24 +735,6 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // AUTOCOMPLETE FILTERLASH
   // ==========================================================================
-  const filteredDistricts = allDistricts.filter((d) => {
-    const q = districtForm.name.trim().toLowerCase();
-    if (!q) return false;
-    return (d.name || '').toLowerCase().includes(q);
-  });
-
-  const filteredCitizenDistricts = allDistricts.filter((d) => {
-    const q = citizenDistrictName.trim().toLowerCase();
-    if (!q) return true;
-    return (d.name || '').toLowerCase().includes(q);
-  });
-
-  const filteredCitizenMahallas = allCitizenMahallas.filter((m) => {
-    const q = citizenMahallaName.trim().toLowerCase();
-    if (!q) return true;
-    return (m.name || '').toLowerCase().includes(q);
-  });
-
   const filteredCrimes = allCrimes.filter((c) => {
     const q = crimeForm.article.trim().toLowerCase();
     if (!q) return false;
@@ -730,9 +788,7 @@ export function ApplicationCreatePage() {
   const handleSelectCitizen = (c: Citizen) => {
     setSelectedCitizenId(c.id);
     setCitizenDistrictId(c.district_id || c.district?.id || null);
-    setCitizenDistrictName(c.district?.name || '');
     setCitizenMahallaId(c.mahalla_id || c.mahalla?.id || null);
-    setCitizenMahallaName(c.mahalla?.name || '');
     setCitizenForm({
       first_name: c.first_name || '',
       last_name: c.last_name || '',
@@ -741,16 +797,10 @@ export function ApplicationCreatePage() {
       phone_number: c.phone_number || '',
       pinfl: c.pinfl || '',
       address: c.address || '',
+      birth_date: c.birth_date ? String(c.birth_date).substring(0, 10) : '',
+      gender: (c.gender as 'male' | 'female') || '',
     });
     setShowCitizenPopover(false);
-  };
-
-  const handleSelectDistrict = (d: District) => {
-    setSelectedDistrictId(d.id);
-    setDistrictForm({
-      name: d.name || '',
-    });
-    setShowDistrictPopover(false);
   };
 
   const handleSelectCrime = (c: Crime) => {
@@ -868,6 +918,8 @@ export function ApplicationCreatePage() {
           citizenForm.pinfl && citizenForm.pinfl.trim() !== ''
             ? citizenForm.pinfl.trim()
             : undefined,
+        birth_date: citizenForm.birth_date || undefined,
+        gender: citizenForm.gender || undefined,
         address: citizenForm.address || undefined,
         district_id: citizenDistrictId || undefined,
         mahalla_id: citizenMahallaId || undefined,
@@ -882,6 +934,8 @@ export function ApplicationCreatePage() {
         citizenForm.phone_number ||
         citizenForm.passport ||
         citizenForm.pinfl ||
+        citizenForm.birth_date ||
+        citizenForm.gender ||
         citizenDistrictId ||
         citizenMahallaId ||
         citizenForm.address
@@ -937,7 +991,7 @@ export function ApplicationCreatePage() {
           primary.transferDate
         ) {
           payload.transfer_data = {
-            amount: primary.amount ? Number(primary.amount) : undefined,
+            amount: primary.amount ? Number(String(primary.amount).replace(/\s/g, '')) : undefined,
             currency: primary.currency || 'UZS',
             payment_provider_id: primary.providerId || undefined,
             payment_provider_name: primary.providerId
@@ -971,7 +1025,7 @@ export function ApplicationCreatePage() {
               bank_name: entry.victimBankName || undefined,
             },
             inline_transfer: {
-              amount: entry.amount ? Number(entry.amount) : '',
+              amount: entry.amount ? Number(String(entry.amount).replace(/\s/g, '')) : '',
               currency: entry.currency || 'UZS',
               payment_provider_id: entry.providerId || undefined,
               payment_provider_name: entry.providerId ? undefined : entry.providerName || undefined,
@@ -1259,23 +1313,85 @@ export function ApplicationCreatePage() {
               </div>
             </div>
 
-            {/* 2-Qator: Telefon raqami, Pasport ma'lumotlari, JSHSHIR (PINFL) */}
+            {/* 2-Qator: Tug‘ilgan sana, Jinsi, Telefon raqami */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Telefon Raqami</label>
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Tug‘ilgan Sana</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">Ixtiyoriy</span>
+                </label>
                 <Input
-                  placeholder="+998 90 123 45 67"
-                  value={citizenForm.phone_number}
+                  type="date"
+                  value={citizenForm.birth_date}
                   onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, phone_number: e.target.value.toUpperCase() });
+                    setCitizenForm({ ...citizenForm, birth_date: e.target.value });
                     setSelectedCitizenId(null);
                     setShowCitizenPopover(true);
                   }}
-                  className="h-10 text-xs font-mono uppercase"
+                  className="h-10 text-xs font-medium cursor-pointer"
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Jinsi</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">Ixtiyoriy</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2 h-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCitizenForm({
+                        ...citizenForm,
+                        gender: citizenForm.gender === 'male' ? '' : 'male',
+                      });
+                      setSelectedCitizenId(null);
+                    }}
+                    className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
+                      citizenForm.gender === 'male'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-background hover:bg-muted text-foreground border-input'
+                    }`}
+                  >
+                    <span>👨</span> Erkak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCitizenForm({
+                        ...citizenForm,
+                        gender: citizenForm.gender === 'female' ? '' : 'female',
+                      });
+                      setSelectedCitizenId(null);
+                    }}
+                    className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
+                      citizenForm.gender === 'female'
+                        ? 'bg-pink-600 text-white border-pink-600 shadow-xs'
+                        : 'bg-background hover:bg-muted text-foreground border-input'
+                    }`}
+                  >
+                    <span>👩</span> Ayol
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Telefon Raqami</label>
+                <PhoneInput
+                  value={citizenForm.phone_number}
+                  onFocus={() => setShowCitizenPopover(true)}
+                  onChange={(val) => {
+                    setCitizenForm({ ...citizenForm, phone_number: val });
+                    setSelectedCitizenId(null);
+                    setShowCitizenPopover(true);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 3-Qator: Pasport ma'lumotlari, JSHSHIR (PINFL) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center justify-between">
                   <span>Pasport Seriya & Raqam (Qidiruv)</span>
@@ -1319,173 +1435,71 @@ export function ApplicationCreatePage() {
             {/* 3-Qator: Tuman va Mahalla (Fuqaro yashaydigan hududi) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Yashash Tumani */}
-              <div ref={citizenDistrictPopoverRef} className="relative space-y-1.5">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5 text-primary" />
                     Yashash Tumani
                   </label>
-                  {citizenDistrictId ? (
+                  {citizenDistrictId && (
                     <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                       <CheckCircle2 className="h-3 w-3" />
-                      Tuman tanlandi
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCitizenDistrictId(null);
-                          setCitizenDistrictName('');
-                          setCitizenMahallaId(null);
-                          setCitizenMahallaName('');
-                        }}
-                        className="ml-1 hover:text-foreground"
-                        title="Tozalash"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      Tanlandi
                     </Badge>
-                  ) : null}
+                  )}
                 </div>
-                <Input
-                  placeholder="TUMANNI TANLANG YOKI QIDIRING..."
-                  value={citizenDistrictName}
-                  onFocus={() => setShowCitizenDistrictPopover(true)}
+                <select
+                  value={citizenDistrictId || ''}
                   onChange={(e) => {
-                    setCitizenDistrictName(e.target.value.toUpperCase());
-                    setCitizenDistrictId(null);
+                    const dId = e.target.value;
+                    setCitizenDistrictId(dId || null);
                     setCitizenMahallaId(null);
-                    setCitizenMahallaName('');
-                    setShowCitizenDistrictPopover(true);
                   }}
-                  className="h-10 text-xs uppercase font-medium"
-                />
-
-                {showCitizenDistrictPopover && filteredCitizenDistricts.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
-                    <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
-                      Mavjud tumanlar:
-                    </div>
-                    {filteredCitizenDistricts.map((d) => (
-                      <div
-                        key={d.id}
-                        onClick={() => {
-                          setCitizenDistrictId(d.id);
-                          setCitizenDistrictName(d.name || '');
-                          setCitizenMahallaId(null);
-                          setCitizenMahallaName('');
-                          setShowCitizenDistrictPopover(false);
-                        }}
-                        className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                      >
-                        <span className="font-medium text-foreground">{d.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">-- TUMANNI TANLANG --</option>
+                  {allDistricts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Yashash Mahallasi */}
-              <div ref={citizenMahallaPopoverRef} className="relative space-y-1.5">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-primary" />
                     Yashash Mahallasi
                   </label>
-                  {citizenMahallaId ? (
+                  {citizenMahallaId && (
                     <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                       <CheckCircle2 className="h-3 w-3" />
-                      Mahalla tanlandi
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCitizenMahallaId(null);
-                          setCitizenMahallaName('');
-                        }}
-                        className="ml-1 hover:text-foreground"
-                        title="Tozalash"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      Tanlandi
                     </Badge>
-                  ) : null}
+                  )}
                 </div>
-                <Input
-                  placeholder={
-                    citizenDistrictId
-                      ? 'MAHALLANI TANLANG YOKI YOZING...'
-                      : 'AVVAL TUMANNI TANLANG (MAHALLA UCHUN)...'
-                  }
-                  value={citizenMahallaName}
+                <select
+                  value={citizenMahallaId || ''}
                   disabled={!citizenDistrictId}
-                  onFocus={() => {
-                    if (citizenDistrictId) setShowCitizenMahallaPopover(true);
-                  }}
                   onChange={(e) => {
-                    setCitizenMahallaName(e.target.value.toUpperCase());
-                    setCitizenMahallaId(null);
-                    setShowCitizenMahallaPopover(true);
+                    const mId = e.target.value;
+                    setCitizenMahallaId(mId || null);
                   }}
-                  className={`h-10 text-xs uppercase font-medium ${
-                    !citizenDistrictId ? 'bg-muted/50 cursor-not-allowed text-muted-foreground' : ''
+                  className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
+                    !citizenDistrictId ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground' : ''
                   }`}
-                />
-
-                {showCitizenMahallaPopover && citizenDistrictId && (
-                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
-                    <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1 flex items-center justify-between">
-                      <span>{citizenDistrictName} tumanidagi mahallalar:</span>
-                      {isLoadingCitizenMahallas && (
-                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                      )}
-                    </div>
-
-                    {filteredCitizenMahallas.length > 0 ? (
-                      filteredCitizenMahallas.map((m) => (
-                        <div
-                          key={m.id}
-                          onClick={() => {
-                            setCitizenMahallaId(m.id);
-                            setCitizenMahallaName(m.name || '');
-                            setShowCitizenMahallaPopover(false);
-                          }}
-                          className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                        >
-                          <span className="font-medium text-foreground">{m.name}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-xs text-muted-foreground">
-                        Ushbu tumanda hozircha mahalla topilmadi.
-                      </div>
-                    )}
-
-                    {citizenMahallaName.trim() &&
-                      !allCitizenMahallas.some(
-                        (m) =>
-                          (m.name || '').toUpperCase() === citizenMahallaName.trim().toUpperCase(),
-                      ) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            createCitizenMahallaMutation.mutate({
-                              name: citizenMahallaName.trim().toUpperCase(),
-                              district_id: citizenDistrictId,
-                            });
-                          }}
-                          disabled={createCitizenMahallaMutation.isPending}
-                          className="w-full mt-1 p-2 text-left rounded bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          {createCitizenMahallaMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Plus className="h-3.5 w-3.5" />
-                          )}
-                          <span>
-                            Yangi mahalla sifatida qo‘shish: &quot;{citizenMahallaName}&quot;
-                          </span>
-                        </button>
-                      )}
-                  </div>
-                )}
+                >
+                  <option value="">
+                    {citizenDistrictId ? '-- MAHALLANI TANLANG --' : 'AVVAL TUMANNI TANLANG...'}
+                  </option>
+                  {allCitizenMahallas.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1527,6 +1541,22 @@ export function ApplicationCreatePage() {
                         <span className="font-bold text-foreground">
                           {c.last_name} {c.first_name} {c.middle_name}
                         </span>
+                        {c.gender ? (
+                          <span
+                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                              c.gender === 'male'
+                                ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                : 'bg-pink-500/10 text-pink-500 border-pink-500/20'
+                            }`}
+                          >
+                            {c.gender === 'male' ? 'Erkak' : 'Ayol'}
+                          </span>
+                        ) : null}
+                        {c.birth_date ? (
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {new Date(c.birth_date).toLocaleDateString('uz-UZ')}
+                          </span>
+                        ) : null}
                         {c.passport ? (
                           <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
                             {c.passport}
@@ -1569,59 +1599,47 @@ export function ApplicationCreatePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Tuman tanlash */}
-            <div ref={districtPopoverRef} className="relative space-y-1.5">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-primary" />
                   Yo‘naltirilgan Tuman / Biriktirilgan Bo‘lim *
                 </label>
-                {selectedDistrictId ? (
+                {selectedDistrictId && (
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                     <CheckCircle2 className="h-3 w-3" />
-                    Biriktirilgan tuman
+                    Biriktirildi
                     <button
                       type="button"
-                      onClick={() => setSelectedDistrictId(null)}
+                      onClick={() => {
+                        setSelectedDistrictId(null);
+                        setDistrictForm({ name: '' });
+                      }}
                       className="ml-1 hover:text-foreground"
-                      title="Bog‘lanishni bekor qilish"
+                      title="Bekor qilish"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
-                ) : districtForm.name ? (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                    Yangi tuman
-                  </Badge>
-                ) : null}
+                )}
               </div>
-              <Input
-                placeholder="CHILONZOR, YUNUSOBOD, MIRZO ULUG‘BEK..."
-                value={districtForm.name}
-                onFocus={() => setShowDistrictPopover(true)}
+              <select
+                value={selectedDistrictId || ''}
                 onChange={(e) => {
-                  setDistrictForm({ name: e.target.value.toUpperCase() });
-                  setSelectedDistrictId(null);
-                  setShowDistrictPopover(true);
+                  const dId = e.target.value;
+                  setSelectedDistrictId(dId || null);
+                  const found = allDistricts.find((d) => d.id === dId);
+                  setDistrictForm({ name: found?.name || '' });
                 }}
-                className="h-10 text-xs uppercase"
-              />
-
-              {showDistrictPopover && filteredDistricts.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-48 overflow-y-auto">
-                  <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
-                    Bazada mavjud tumanlar:
-                  </div>
-                  {filteredDistricts.map((d) => (
-                    <div
-                      key={d.id}
-                      onClick={() => handleSelectDistrict(d)}
-                      className="p-2 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                    >
-                      <span className="font-medium text-foreground">{d.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">-- TUMANNI TANLANG --</option>
+                {allDistricts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Jinoyat moddasi */}
@@ -1845,16 +1863,18 @@ export function ApplicationCreatePage() {
                         </label>
                         <Input
                           placeholder="8600 0000 0000 0000"
-                          value={entry.victimCardNumber}
+                          value={formatCardNumberDisplay(entry.victimCardNumber)}
                           onFocus={() => setActiveTransferPopover({ index, type: 'victimCard' })}
                           onChange={(e) => {
+                            const val = formatCardNumberDisplay(e.target.value);
                             handleUpdateTransferEntry(index, {
-                              victimCardNumber: e.target.value.toUpperCase(),
+                              victimCardNumber: val,
                               victimCardId: null,
                             });
                             setActiveTransferPopover({ index, type: 'victimCard' });
                           }}
-                          className="h-9 text-xs font-mono font-bold uppercase"
+                          className="h-9 text-xs font-mono font-bold tracking-wider"
+                          maxLength={19}
                         />
                         {activeTransferPopover?.index === index &&
                           activeTransferPopover.type === 'victimCard' &&
@@ -1869,7 +1889,7 @@ export function ApplicationCreatePage() {
                                   onClick={() => {
                                     handleUpdateTransferEntry(index, {
                                       victimCardId: c.id,
-                                      victimCardNumber: c.card_number || '',
+                                      victimCardNumber: formatCardNumberDisplay(c.card_number || ''),
                                       victimCardFullName: c.full_name || '',
                                       victimBankName: c.bank?.name || '',
                                     });
@@ -1878,7 +1898,7 @@ export function ApplicationCreatePage() {
                                   className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
                                 >
                                   <span className="font-bold text-foreground">
-                                    {c.masked_number || c.card_number}
+                                    {formatCardNumberDisplay(c.card_number)}
                                   </span>
                                   <span className="text-muted-foreground">
                                     {c.bank?.name || 'Bank'}
@@ -1978,14 +1998,23 @@ export function ApplicationCreatePage() {
                             O‘tkazma Summasi *
                           </label>
                           <Input
-                            type="number"
-                            placeholder="2500000"
-                            value={entry.amount}
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="1 000 000"
+                            value={formatAmountInput(entry.amount)}
                             onChange={(e) =>
-                              handleUpdateTransferEntry(index, { amount: e.target.value })
+                              handleUpdateTransferEntry(index, {
+                                amount: formatAmountInput(e.target.value),
+                              })
                             }
                             className="h-9 text-xs font-mono font-bold text-emerald-400 bg-background"
                           />
+                          {entry.amount && (
+                            <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 pt-0.5">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span>{formatAmountWords(entry.amount, entry.currency)}</span>
+                            </div>
+                          )}
                         </div>
                         <div className="space-y-1">
                           <label className="text-[11px] font-semibold text-muted-foreground">
@@ -2118,16 +2147,18 @@ export function ApplicationCreatePage() {
                         </label>
                         <Input
                           placeholder="9860 0000 0000 0000"
-                          value={entry.receiverCardNumber}
+                          value={formatCardNumberDisplay(entry.receiverCardNumber)}
                           onFocus={() => setActiveTransferPopover({ index, type: 'receiverCard' })}
                           onChange={(e) => {
+                            const val = formatCardNumberDisplay(e.target.value);
                             handleUpdateTransferEntry(index, {
-                              receiverCardNumber: e.target.value.toUpperCase(),
+                              receiverCardNumber: val,
                               receiverCardId: null,
                             });
                             setActiveTransferPopover({ index, type: 'receiverCard' });
                           }}
-                          className="h-9 text-xs font-mono font-bold uppercase"
+                          className="h-9 text-xs font-mono font-bold tracking-wider"
+                          maxLength={19}
                         />
                         {activeTransferPopover?.index === index &&
                           activeTransferPopover.type === 'receiverCard' &&
@@ -2142,7 +2173,7 @@ export function ApplicationCreatePage() {
                                   onClick={() => {
                                     handleUpdateTransferEntry(index, {
                                       receiverCardId: c.id,
-                                      receiverCardNumber: c.card_number || '',
+                                      receiverCardNumber: formatCardNumberDisplay(c.card_number || ''),
                                       receiverCardFullName: c.full_name || '',
                                       receiverBankName: c.bank?.name || '',
                                     });
@@ -2151,7 +2182,7 @@ export function ApplicationCreatePage() {
                                   className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
                                 >
                                   <span className="font-bold text-foreground">
-                                    {c.masked_number || c.card_number}
+                                    {formatCardNumberDisplay(c.card_number)}
                                   </span>
                                   <span className="text-muted-foreground">
                                     {c.bank?.name || 'Bank'}
@@ -2330,11 +2361,13 @@ export function ApplicationCreatePage() {
             {evidenceFiles.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
                 {evidenceFiles.map((f, idx) => {
+                  const previewUrl = getFileViewUrl(f);
+                  const downloadUrl = getFileDownloadUrl(f);
                   const isImg =
                     f.mimetype?.startsWith('image/') ||
                     f.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ||
-                    f.original_name?.match(/\.(jpg|jpeg|png|webp|gif)$/i);
-                  const previewUrl = f.proxy_url || f.url;
+                    f.original_name?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ||
+                    f.key?.match(/\.(jpg|jpeg|png|webp|gif)$/i);
 
                   return (
                     <div
@@ -2367,7 +2400,7 @@ export function ApplicationCreatePage() {
 
                       <div className="flex items-center gap-1 shrink-0">
                         <a
-                          href={previewUrl}
+                          href={downloadUrl || previewUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition"
@@ -2391,8 +2424,171 @@ export function ApplicationCreatePage() {
             )}
           </div>
 
-          {/* B. QO'SHIMCHA FUQAROLAR */}
-          <div ref={citizenCustomContainerRef} className="pt-4 border-t border-border/40 space-y-4">
+          {/* B. RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) */}
+          <div className="pt-4 border-t border-border/40 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 font-serif font-black text-xs">
+                  W
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-foreground">
+                    Rasmiy Word Hujjatlari ({appDocuments.length} ta hujjat)
+                  </span>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tergov hujjati yoki blank. Kompyuterdan Word yuklash yoki yangi Word yaratib tizimda ONLYOFFICE orqali tahrirlash
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <input
+                  ref={wordFileInputRef}
+                  type="file"
+                  accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setWordDialogState({
+                        isOpen: true,
+                        mode: 'upload',
+                        file,
+                      });
+                      e.target.value = '';
+                    }
+                  }}
+                />
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    setTemplateModalState({
+                      isOpen: true,
+                      initialTemplateId: 'tushuntirish-telegram',
+                    })
+                  }
+                  className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+                  title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Shablondan yaratish</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => wordFileInputRef.current?.click()}
+                  disabled={uploadWordMutation.isPending}
+                  className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
+                  title="Kompyuterdan mavjud Word (.docx / .doc) faylini yuklash"
+                >
+                  {uploadWordMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+                  )}
+                  <span>Kompyuterdan yuklash</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    setTemplateModalState({
+                      isOpen: true,
+                      initialTemplateId: 'blank',
+                    })
+                  }
+                  className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
+                  title="Yangi bo‘sh Word blank yaratish va ONLYOFFICE da tahrirlash"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Yangi Word</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* YUKLANGAN WORD HUJJATLARI GRIDI */}
+            {appDocuments.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+                {appDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-3 rounded-xl border border-border/80 bg-card hover:border-blue-400 transition shadow-2xs flex items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#185abd] text-white font-serif font-black text-xs shadow-2xs">
+                        W
+                      </div>
+                      <div className="min-w-0">
+                        <p
+                          className="text-xs font-semibold text-foreground truncate"
+                          title={doc.title || doc.file_name}
+                        >
+                          {doc.title || doc.file_name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {(doc.size / 1024).toFixed(1)} KB &bull; v{doc.version || 1}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setActiveEditingDocId(doc.id)}
+                        className="h-7 px-2 text-[11px] font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer"
+                        title="ONLYOFFICE muharririda ochish va tahrirlash"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Tahrirlash</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          window.open(documentsApi.getFileUrl(doc.id), '_blank');
+                        }}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                        title="Yuklab olish"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
+                        title="O‘chirish"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl border border-dashed border-border/80 bg-muted/10 text-center space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Hozircha biriktirilgan Word hujjati yo‘q
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Yuqoridagi tugmalar orqali kompyuterdan Word faylni yuklashingiz yoki yangi bo‘sh Word yaratib OnlyOffice'da to‘ldirishingiz mumkin.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* C. QO'SHIMCHA FUQAROLAR */}
+          <div className="pt-4 border-t border-border/40 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-foreground">
@@ -2411,26 +2607,8 @@ export function ApplicationCreatePage() {
                 {customFields
                   .filter((cf) => cf.type === 'CITIZEN')
                   .map((cf) => {
-                    const citDistName = cf.inline_citizen?.district_name || '';
-                    const citMahName = cf.inline_citizen?.mahalla_name || '';
                     const citDistId = cf.inline_citizen?.district_id || null;
                     const citMahId = cf.inline_citizen?.mahalla_id || null;
-
-                    const matchingDistricts = citDistName.trim()
-                      ? allDistricts.filter((d) =>
-                          (d.name || '').toLowerCase().includes(citDistName.trim().toLowerCase()),
-                        )
-                      : allDistricts;
-
-                    const matchingMahallas: Mahalla[] = customCitizenMahallas.filter(
-                      (m: Mahalla) => {
-                        if (citDistId && m.district_id !== citDistId) return false;
-                        if (!citMahName.trim()) return true;
-                        return (m.name || '')
-                          .toLowerCase()
-                          .includes(citMahName.trim().toLowerCase());
-                      },
-                    );
 
                     return (
                       <div
@@ -2554,17 +2732,104 @@ export function ApplicationCreatePage() {
                             </div>
                           </div>
 
-                          {/* 2-Qator: Telefon, Pasport, JSHSHIR */}
+                          {/* 2-Qator: Tug'ilgan sana, Jinsi */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Tug‘ilgan Sana
+                              </label>
+                              <Input
+                                type="date"
+                                value={cf.inline_citizen?.birth_date || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                    ...f,
+                                    inline_citizen: {
+                                      ...(f.inline_citizen || {
+                                        first_name: '',
+                                        last_name: '',
+                                        middle_name: '',
+                                        passport: '',
+                                        phone_number: '',
+                                      }),
+                                      birth_date: val,
+                                    },
+                                  }));
+                                }}
+                                className="h-9 text-xs cursor-pointer"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Jinsi
+                              </label>
+                              <div className="grid grid-cols-2 gap-2 h-9">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                      ...f,
+                                      inline_citizen: {
+                                        ...(f.inline_citizen || {
+                                          first_name: '',
+                                          last_name: '',
+                                          middle_name: '',
+                                          passport: '',
+                                          phone_number: '',
+                                        }),
+                                        gender: f.inline_citizen?.gender === 'male' ? '' : 'male',
+                                      },
+                                    }));
+                                  }}
+                                  className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
+                                    cf.inline_citizen?.gender === 'male'
+                                      ? 'bg-blue-600 text-white border-blue-600'
+                                      : 'bg-background hover:bg-muted text-foreground border-input'
+                                  }`}
+                                >
+                                  <span>👨</span> Erkak
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdateCustomFieldItem(cf.clientId, (f) => ({
+                                      ...f,
+                                      inline_citizen: {
+                                        ...(f.inline_citizen || {
+                                          first_name: '',
+                                          last_name: '',
+                                          middle_name: '',
+                                          passport: '',
+                                          phone_number: '',
+                                        }),
+                                        gender:
+                                          f.inline_citizen?.gender === 'female' ? '' : 'female',
+                                      },
+                                    }));
+                                  }}
+                                  className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
+                                    cf.inline_citizen?.gender === 'female'
+                                      ? 'bg-pink-600 text-white border-pink-600'
+                                      : 'bg-background hover:bg-muted text-foreground border-input'
+                                  }`}
+                                >
+                                  <span>👩</span> Ayol
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3-Qator: Telefon, Pasport, JSHSHIR */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div className="space-y-1">
                               <label className="text-[11px] font-semibold text-muted-foreground">
                                 Telefon raqami
                               </label>
-                              <Input
-                                placeholder="998901234567"
-                                value={cf.inline_citizen?.phone_number || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                              <PhoneInput
+                                value={cf.inline_citizen?.phone_number}
+                                onChange={(val) => {
                                   handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                     ...f,
                                     inline_citizen: {
@@ -2579,7 +2844,7 @@ export function ApplicationCreatePage() {
                                     },
                                   }));
                                 }}
-                                className="h-9 text-xs font-mono"
+                                className="h-9"
                               />
                             </div>
 
@@ -2644,7 +2909,7 @@ export function ApplicationCreatePage() {
                           {/* 3-Qator: Yashash Tumani va Yashash Mahallasi */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {/* Yashash Tumani */}
-                            <div className="relative space-y-1">
+                            <div className="space-y-1">
                               <div className="flex items-center justify-between">
                                 <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                                   <MapPin className="h-3 w-3 text-primary" />
@@ -2653,45 +2918,15 @@ export function ApplicationCreatePage() {
                                 {citDistId && (
                                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
                                     <CheckCircle2 className="h-2.5 w-2.5" />
-                                    Biriktirildi
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                          ...f,
-                                          inline_citizen: {
-                                            ...(f.inline_citizen || {
-                                              first_name: '',
-                                              last_name: '',
-                                              passport: '',
-                                              phone_number: '',
-                                            }),
-                                            district_id: null,
-                                            district_name: '',
-                                            mahalla_id: null,
-                                            mahalla_name: '',
-                                          },
-                                        }))
-                                      }
-                                      className="ml-1 hover:text-foreground"
-                                      title="Tozalash"
-                                    >
-                                      <X className="h-2.5 w-2.5" />
-                                    </button>
+                                    Tanlandi
                                   </Badge>
                                 )}
                               </div>
-                              <Input
-                                placeholder="TUMANNI TANLANG YOKI QIDIRING..."
-                                value={citDistName}
-                                onFocus={() =>
-                                  setActiveCitizenPopover({
-                                    clientId: cf.clientId,
-                                    field: 'district',
-                                  })
-                                }
+                              <select
+                                value={citDistId || ''}
                                 onChange={(e) => {
-                                  const val = e.target.value.toUpperCase();
+                                  const dId = e.target.value;
+                                  const found = allDistricts.find((d) => d.id === dId);
                                   handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                     ...f,
                                     inline_citizen: {
@@ -2701,61 +2936,26 @@ export function ApplicationCreatePage() {
                                         passport: '',
                                         phone_number: '',
                                       }),
-                                      district_id: null,
-                                      district_name: val,
+                                      district_id: dId || null,
+                                      district_name: found?.name || '',
                                       mahalla_id: null,
                                       mahalla_name: '',
                                     },
                                   }));
-                                  setActiveCitizenPopover({
-                                    clientId: cf.clientId,
-                                    field: 'district',
-                                  });
                                 }}
-                                className="h-9 text-xs uppercase font-medium"
-                              />
-
-                              {activeCitizenPopover?.clientId === cf.clientId &&
-                                activeCitizenPopover.field === 'district' &&
-                                matchingDistricts.length > 0 && (
-                                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-1.5 max-h-48 overflow-y-auto">
-                                    <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
-                                      Mavjud tumanlar:
-                                    </div>
-                                    {matchingDistricts.map((d) => (
-                                      <div
-                                        key={d.id}
-                                        onClick={() => {
-                                          handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                            ...f,
-                                            inline_citizen: {
-                                              ...(f.inline_citizen || {
-                                                first_name: '',
-                                                last_name: '',
-                                                passport: '',
-                                                phone_number: '',
-                                              }),
-                                              district_id: d.id,
-                                              district_name: d.name || '',
-                                              mahalla_id: null,
-                                              mahalla_name: '',
-                                            },
-                                          }));
-                                          setActiveCitizenPopover(null);
-                                        }}
-                                        className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                                      >
-                                        <span className="font-medium text-foreground">
-                                          {d.name}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                              >
+                                <option value="">-- TUMANNI TANLANG --</option>
+                                {allDistricts.map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.name}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
 
                             {/* Yashash Mahallasi */}
-                            <div className="relative space-y-1">
+                            <div className="space-y-1">
                               <div className="flex items-center justify-between">
                                 <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                                   <Building2 className="h-3 w-3 text-primary" />
@@ -2764,50 +2964,14 @@ export function ApplicationCreatePage() {
                                 {citMahId && (
                                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
                                     <CheckCircle2 className="h-2.5 w-2.5" />
-                                    Biriktirildi
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                          ...f,
-                                          inline_citizen: {
-                                            ...(f.inline_citizen || {
-                                              first_name: '',
-                                              last_name: '',
-                                              passport: '',
-                                              phone_number: '',
-                                            }),
-                                            mahalla_id: null,
-                                            mahalla_name: '',
-                                          },
-                                        }))
-                                      }
-                                      className="ml-1 hover:text-foreground"
-                                      title="Tozalash"
-                                    >
-                                      <X className="h-2.5 w-2.5" />
-                                    </button>
+                                    Tanlandi
                                   </Badge>
                                 )}
                               </div>
-                              <Input
-                                placeholder={
-                                  !citDistName && !citDistId
-                                    ? 'AVVAL TUMANNI TANLANG (MAHALLA UCHUN)...'
-                                    : 'MAHALLANI TANLANG YOKI QIDIRING...'
-                                }
-                                disabled={!citDistName && !citDistId}
-                                value={citMahName}
-                                onFocus={() => {
-                                  if (citDistName || citDistId) {
-                                    setActiveCitizenPopover({
-                                      clientId: cf.clientId,
-                                      field: 'mahalla',
-                                    });
-                                  }
-                                }}
-                                onChange={(e) => {
-                                  const val = e.target.value.toUpperCase();
+                              <CustomCitizenMahallaSelect
+                                districtId={citDistId}
+                                mahallaId={citMahId}
+                                onSelect={(mId, mName) => {
                                   handleUpdateCustomFieldItem(cf.clientId, (f) => ({
                                     ...f,
                                     inline_citizen: {
@@ -2817,53 +2981,12 @@ export function ApplicationCreatePage() {
                                         passport: '',
                                         phone_number: '',
                                       }),
-                                      mahalla_id: null,
-                                      mahalla_name: val,
+                                      mahalla_id: mId,
+                                      mahalla_name: mName,
                                     },
                                   }));
-                                  setActiveCitizenPopover({
-                                    clientId: cf.clientId,
-                                    field: 'mahalla',
-                                  });
                                 }}
-                                className="h-9 text-xs uppercase font-medium disabled:opacity-50"
                               />
-
-                              {activeCitizenPopover?.clientId === cf.clientId &&
-                                activeCitizenPopover.field === 'mahalla' &&
-                                matchingMahallas.length > 0 && (
-                                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-1.5 max-h-48 overflow-y-auto">
-                                    <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
-                                      Mavjud mahallalar:
-                                    </div>
-                                    {matchingMahallas.map((m) => (
-                                      <div
-                                        key={m.id}
-                                        onClick={() => {
-                                          handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                            ...f,
-                                            inline_citizen: {
-                                              ...(f.inline_citizen || {
-                                                first_name: '',
-                                                last_name: '',
-                                                passport: '',
-                                                phone_number: '',
-                                              }),
-                                              mahalla_id: m.id,
-                                              mahalla_name: m.name || '',
-                                            },
-                                          }));
-                                          setActiveCitizenPopover(null);
-                                        }}
-                                        className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between text-xs"
-                                      >
-                                        <span className="font-medium text-foreground">
-                                          {m.name}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
                             </div>
                           </div>
 
@@ -2908,7 +3031,8 @@ export function ApplicationCreatePage() {
               onClick={() => handleAddCustomFieldItem('CITIZEN', '')}
               className="w-full h-11 border-dashed border-2 border-primary/40 hover:border-primary hover:bg-primary/5 text-primary text-xs font-semibold gap-2 shadow-sm rounded-xl transition-all"
             >
-              <UserPlus className="h-4 w-4" />+ Fuqaro qo‘shish
+              <UserPlus className="h-4 w-4" />
+              <span>Fuqaro qo‘shish</span>
             </Button>
           </div>
         </div>
@@ -2980,36 +3104,108 @@ export function ApplicationCreatePage() {
 
       {/* O'CHIRISHNI TASDIQLASH DIALOGI */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ariza loyihasini butunlay o‘chirish</DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              <span>Ariza loyihasini butunlay o‘chirish</span>
+            </DialogTitle>
+            <DialogDescription>
               Ushbu arizani va kiritilgan barcha ma‘lumotlarni bazadan to‘liq o‘chirib
               tashlamoqchimisiz?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => setIsDeleteModalOpen(false)}
-              className="text-xs"
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
             >
               Yo‘q, davom etish
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="default"
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="text-xs gap-1.5"
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20 gap-2"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, butunlay o‘chirish'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* WORD HUJJATINI O'CHIRISH DIALOGI */}
+      <ConfirmDialog
+        open={!!docToDelete}
+        onOpenChange={(open) => !open && setDocToDelete(null)}
+        title="Word hujjatini o‘chirish"
+        description={
+          docToDelete ? (
+            <span>
+              Haqiqatan ham <strong className="text-foreground font-semibold">"{docToDelete.title}"</strong> nomli rasmiy Word hujjatini tizimdan o‘chirmoqchimisiz?
+            </span>
+          ) : ''
+        }
+        confirmText="Ha, o‘chirilsin"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        isLoading={deleteDocMutation.isPending}
+        onConfirm={() => {
+          if (docToDelete) {
+            deleteDocMutation.mutate(docToDelete.id, {
+              onSettled: () => setDocToDelete(null),
+            });
+          }
+        }}
+      />
+
+      {/* WORD HUJJATINI YARATISH YOKI YUKLASHDA NOMINI SO'RASH DIALOGI */}
+      <CreateWordDialog
+        isOpen={wordDialogState.isOpen}
+        fileToUpload={wordDialogState.file}
+        applicationNumber={initialApp?.application_number}
+        isLoading={createBlankDocMutation.isPending || uploadWordMutation.isPending}
+        onClose={() => setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }))}
+        onSubmit={async (title, file) => {
+          if (wordDialogState.mode === 'upload' && file) {
+            await uploadWordMutation.mutateAsync({ file, title });
+            setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }));
+          } else {
+            await createBlankDocMutation.mutateAsync(title);
+            setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }));
+          }
+        }}
+      />
+
+      {/* SHABLON YOKI BO'SH WORD HUJJAT YARATISH MODALI */}
+      {id && (
+        <TemplateGeneratorModal
+          isOpen={templateModalState.isOpen}
+          applicationId={id}
+          applicationNumber={initialApp?.application_number}
+          initialTemplateId={templateModalState.initialTemplateId}
+          onClose={() => setTemplateModalState((prev) => ({ ...prev, isOpen: false }))}
+          onSuccess={(newDocId) => {
+            refetchDocuments();
+            setActiveEditingDocId(newDocId);
+          }}
+        />
+      )}
+
+      {/* ONLYOFFICE WORD MUHARRIRI MODALI */}
+      {initialApp && (
+        <DocumentEditorModal
+          documentId={activeEditingDocId}
+          application={initialApp}
+          isOpen={!!activeEditingDocId}
+          onClose={() => setActiveEditingDocId(null)}
+          onSaved={() => refetchDocuments()}
+        />
+      )}
     </div>
   );
 }

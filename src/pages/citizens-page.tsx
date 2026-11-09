@@ -160,6 +160,7 @@ export function CitizensPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Fuqaro (F.I.O)</TableHead>
+              <TableHead>Jinsi / T.Sana</TableHead>
               <TableHead>Pasport Seriya</TableHead>
               <TableHead>JShShIR (PINFL)</TableHead>
               <TableHead>Telefon Raqam</TableHead>
@@ -171,7 +172,7 @@ export function CitizensPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                   Yuklanmoqda...
                 </TableCell>
               </TableRow>
@@ -190,6 +191,29 @@ export function CitizensPage() {
                           <User className="h-3.5 w-3.5" />
                         </div>
                         <span>{fullName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="space-y-0.5">
+                        {citizen.gender ? (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] py-0 px-1.5 font-semibold ${
+                              citizen.gender === 'male'
+                                ? 'border-blue-500/40 text-blue-500 bg-blue-500/5'
+                                : 'border-pink-500/40 text-pink-500 bg-pink-500/5'
+                            }`}
+                          >
+                            {citizen.gender === 'male' ? 'Erkak' : 'Ayol'}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-[11px]">—</span>
+                        )}
+                        {citizen.birth_date && (
+                          <div className="text-[11px] text-muted-foreground font-mono">
+                            {new Date(citizen.birth_date).toLocaleDateString('uz-UZ')}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="font-mono font-bold text-primary">
@@ -249,7 +273,7 @@ export function CitizensPage() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                   Hech qanday fuqaro topilmadi
                 </TableCell>
               </TableRow>
@@ -273,112 +297,220 @@ export function CitizensPage() {
 
       {/* CREATE / EDIT CITIZEN DIALOG */}
       <Dialog open={modalType === 'create' || modalType === 'edit'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-3xl md:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>
-              {modalType === 'create'
-                ? 'Yangi Fuqaro Qo‘shish'
-                : 'Fuqaro Ma‘lumotlarini Tahrirlash'}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Fuqaroning shaxsiy va aloqa ma‘lumotlarini kiriting
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <User className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {modalType === 'create'
+                    ? 'Yangi Fuqaro Qo‘shish'
+                    : 'Fuqaro Ma‘lumotlarini Tahrirlash'}
+                </DialogTitle>
+                <DialogDescription>
+                  Fuqaroning shaxsiy, pasport, aloqa va yashash ma‘lumotlarini kiriting
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2 text-xs">
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Ism</label>
-              <Input
-                placeholder="Valijon"
-                value={formData.first_name || ''}
-                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                className="h-9 text-xs"
-              />
+          <div className="space-y-5 py-2">
+            {/* 1-Qator: Ism, Familiya, Sharif */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                1. Shaxsiy Rekvizitlar (F.I.SH)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Ism *</label>
+                  <Input
+                    placeholder="ISM"
+                    value={formData.first_name || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, first_name: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs sm:text-sm uppercase font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Familiya *</label>
+                  <Input
+                    placeholder="FAMILIYA"
+                    value={formData.last_name || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, last_name: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs sm:text-sm uppercase font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Sharif (Otasining ismi)
+                  </label>
+                  <Input
+                    placeholder="SHARIF"
+                    value={formData.middle_name || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, middle_name: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs sm:text-sm uppercase font-medium"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Familiya</label>
-              <Input
-                placeholder="Aliyev"
-                value={formData.last_name || ''}
-                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                className="h-9 text-xs"
-              />
+            {/* 2-Qator: Tug‘ilgan Sana, Jinsi, Telefon */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                2. Tug‘ilgan Sana, Jinsi & Aloqa
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Tug‘ilgan Sana</label>
+                  <Input
+                    type="date"
+                    value={
+                      formData.birth_date
+                        ? String(formData.birth_date).substring(0, 10)
+                        : ''
+                    }
+                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                    className="h-10 text-xs sm:text-sm font-medium cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Jinsi</label>
+                  <div className="grid grid-cols-2 gap-2 h-10">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          gender: formData.gender === 'male' ? undefined : 'male',
+                        })
+                      }
+                      className={`h-full flex items-center justify-center gap-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
+                        formData.gender === 'male'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-background hover:bg-muted text-foreground border-input'
+                      }`}
+                    >
+                      <span>👨</span> Erkak
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          gender: formData.gender === 'female' ? undefined : 'female',
+                        })
+                      }
+                      className={`h-full flex items-center justify-center gap-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
+                        formData.gender === 'female'
+                          ? 'bg-pink-600 text-white border-pink-600 shadow-xs'
+                          : 'bg-background hover:bg-muted text-foreground border-input'
+                      }`}
+                    >
+                      <span>👩</span> Ayol
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Telefon Raqam</label>
+                  <Input
+                    placeholder="998901234567"
+                    maxLength={12}
+                    value={formData.phone_number || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phone_number: e.target.value.replace(/\D/g, ''),
+                      })
+                    }
+                    className="h-10 text-xs sm:text-sm font-mono"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Otasining ismi (Sharifi)</label>
-              <Input
-                placeholder="Karimovich"
-                value={formData.middle_name || ''}
-                onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
-                className="h-9 text-xs"
-              />
+            {/* 3-Qator: Pasport va JSHSHIR */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                3. Identifikatsiya Hujjatlari
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Pasport Seriya va Raqam
+                  </label>
+                  <Input
+                    placeholder="AC1234567"
+                    maxLength={9}
+                    value={formData.passport || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, passport: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs sm:text-sm font-mono uppercase font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    JShShIR (PINFL - 14 ta raqam)
+                  </label>
+                  <Input
+                    placeholder="31204951230045"
+                    maxLength={14}
+                    value={formData.pinfl || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, pinfl: e.target.value.replace(/\D/g, '') })
+                    }
+                    className="h-10 text-xs sm:text-sm font-mono"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Telefon Raqam</label>
+            {/* 4-Qator: Doimiy Yashash Manzili */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                4. Doimiy Yashash Manzili
+              </span>
               <Input
-                placeholder="998901234567"
-                maxLength={12}
-                value={formData.phone_number || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone_number: e.target.value.replace(/\D/g, '') })
-                }
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">Pasport Seriya va Raqam</label>
-              <Input
-                placeholder="AC1234567"
-                maxLength={9}
-                value={formData.passport || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, passport: e.target.value.toUpperCase() })
-                }
-                className="h-9 text-xs font-mono uppercase"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">JShShIR (PINFL)</label>
-              <Input
-                placeholder="31204951230045"
-                maxLength={14}
-                value={formData.pinfl || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, pinfl: e.target.value.replace(/\D/g, '') })
-                }
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-
-            <div className="space-y-1 sm:col-span-2">
-              <label className="font-medium text-foreground">Doimiy Yashash Manzili</label>
-              <Input
-                placeholder="Toshkent sh., Yunusobod t., 4-mavze 12-uy"
+                placeholder="Toshkent sh., Yunusobod t., 4-mavze 12-uy..."
                 value={formData.address || ''}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="h-9 text-xs"
+                className="h-10 text-xs sm:text-sm"
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
-              size="sm"
+              size="default"
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="text-xs shadow-md shadow-primary/25"
+              className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
-              {createMutation.isPending || updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+              {createMutation.isPending || updateMutation.isPending
+                ? 'Saqlanmoqda...'
+                : 'Ma‘lumotlarni Saqlash'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -386,23 +518,28 @@ export function CitizensPage() {
 
       {/* DELETE CONFIRMATION */}
       <Dialog open={modalType === 'delete'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Fuqaroni o‘chirish</DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               Ushbu fuqaroni bazadan o‘chirmoqchimisiz?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="default"
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="text-xs"
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20"
             >
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}
             </Button>

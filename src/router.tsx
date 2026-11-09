@@ -5,14 +5,17 @@ import { PublicRoute } from '@/components/auth/public-route';
 import { AppLayout } from '@/components/layout/app-layout';
 import { ApplicationCreatePage } from '@/pages/application-create-page';
 import { ApplicationDetailPage } from '@/pages/application-detail-page';
+import { ApplicationRelationsPage } from '@/pages/application-relations-page';
 import { ApplicationsPage } from '@/pages/applications-page';
 import { CardsPage } from '@/pages/cards-page';
 import { CitizensPage } from '@/pages/citizens-page';
 import { DashboardPage } from '@/pages/dashboard-page';
+import { FinancialFlowPage } from '@/pages/financial-flow-page';
 import { LoginPage } from '@/pages/login-page';
 import { NotFoundPage } from '@/pages/not-found-page';
 import { ProfilePage } from '@/pages/profile-page';
 import { ReferencesPage } from '@/pages/references-page';
+import { TemplatesPage } from '@/pages/templates-page';
 import { TransfersPage } from '@/pages/transfers-page';
 import { UsersPage } from '@/pages/users-page';
 
@@ -49,6 +52,10 @@ export const router = createBrowserRouter([
             element: <ApplicationCreatePage />,
           },
           {
+            path: 'applications/:id/relations',
+            element: <ApplicationRelationsPage />,
+          },
+          {
             path: 'applications/:id',
             element: <ApplicationDetailPage />,
           },
@@ -65,8 +72,16 @@ export const router = createBrowserRouter([
             element: <TransfersPage />,
           },
           {
+            path: 'financial-flow',
+            element: <FinancialFlowPage />,
+          },
+          {
             path: 'references',
             element: <ReferencesPage />,
+          },
+          {
+            path: 'templates',
+            element: <TemplatesPage />,
           },
           // Redirect old routes to unified references page
           {

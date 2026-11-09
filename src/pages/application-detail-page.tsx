@@ -2,41 +2,50 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   ArrowLeft,
-  ArrowLeftRight,
-  Building2,
+  ArrowRight,
+  Calendar,
   CheckCircle2,
-  Clock,
   CreditCard,
   Download,
   Edit2,
   Eye,
-  FileCheck2,
   FileText,
+  Link2,
+  Loader2,
   MapPin,
+  Paperclip,
+  Phone,
+  Plus,
   Printer,
   RefreshCw,
-  Scale,
-  Shield,
   ShieldAlert,
+  Sparkles,
   Trash2,
+  TrendingUp,
+  UploadCloud,
   User,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { CreateWordDialog } from '@/components/documents/create-word-dialog';
+import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
+import { TemplateGeneratorModal } from '@/components/documents/template-generator-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/sonner';
-import { applicationsApi, applicationStatusesApi, type UploadedFile } from '@/lib/api';
+import {
+  applicationsApi,
+  applicationStatusesApi,
+  documentsApi,
+  getFileDownloadUrl,
+  getFileViewUrl,
+  type UploadedFile,
+} from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import type { ApplicationStatus, ApplicationStatusItem } from '@/types/models';
@@ -62,20 +71,13 @@ const formatDate = (dateStr?: string | null) => {
   }
 };
 
-const formatDateTime = (dateStr?: string | null) => {
-  if (!dateStr) return '—';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('uz-UZ', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return dateStr;
+const formatCardNumber = (num?: string | null) => {
+  if (!num) return '—';
+  const clean = num.replace(/\D/g, '');
+  if (clean.length === 16) {
+    return `${clean.slice(0, 4)} ${clean.slice(4, 8)} ${clean.slice(8, 12)} ${clean.slice(12, 16)}`;
   }
+  return num;
 };
 
 export function ApplicationDetailPage() {
@@ -85,6 +87,9 @@ export function ApplicationDetailPage() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [activeEditingDocId, setActiveEditingDocId] = useState<string | null>(null);
+  const [docToDelete, setDocToDelete] = useState<{ id: string; title: string } | null>(null);
+  const wordFileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Fetch Application Detail Query
   const {
@@ -154,6 +159,74 @@ export function ApplicationDetailPage() {
     },
   });
 
+  // 4. Hujjatlar (Word .docx) so'rovi va amallari
+  const { data: appDocuments = [], refetch: refetchDocuments } = useQuery({
+    queryKey: ['application-documents', id],
+    queryFn: () => (id ? documentsApi.getByApplication(id) : []),
+    enabled: !!id,
+  });
+
+  const [wordDialogState, setWordDialogState] = useState<{
+    isOpen: boolean;
+    mode: 'create' | 'upload';
+    file: File | null;
+  }>({
+    isOpen: false,
+    mode: 'create',
+    file: null,
+  });
+
+  const [templateModalState, setTemplateModalState] = useState<{
+    isOpen: boolean;
+    initialTemplateId?: string;
+  }>({
+    isOpen: false,
+    initialTemplateId: 'tushuntirish-telegram',
+  });
+
+  const createBlankDocMutation = useMutation({
+    mutationFn: (title?: string) => documentsApi.createBlank(id as string, title),
+    onSuccess: (newDoc) => {
+      toast.success('Yangi Word rasmiy hujjati yaratildi');
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+      queryClient.invalidateQueries({ queryKey: ['application-detail', id] });
+      setActiveEditingDocId(newDoc.id);
+    },
+    onError: (err) => {
+      toast.error(`Hujjat yaratishda xatolik: ${getErrorMessage(err)}`);
+    },
+  });
+
+  const uploadWordMutation = useMutation({
+    mutationFn: async ({ file, title }: { file: File; title?: string }) => {
+      if (!id) return;
+      return documentsApi.upload(id, file, title);
+    },
+    onSuccess: (newDoc) => {
+      toast.success('Word hujjati muvaffaqiyatli yuklandi');
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+      queryClient.invalidateQueries({ queryKey: ['application-detail', id] });
+      if (newDoc?.id) {
+        setActiveEditingDocId(newDoc.id);
+      }
+    },
+    onError: (err) => {
+      toast.error(`Word faylini yuklashda xatolik: ${getErrorMessage(err)}`);
+    },
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) => documentsApi.delete(docId),
+    onSuccess: () => {
+      toast.success('Hujjat o‘chirildi');
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+      queryClient.invalidateQueries({ queryKey: ['application-detail', id] });
+    },
+    onError: (err) => {
+      toast.error(`Hujjatni o‘chirishda xatolik: ${getErrorMessage(err)}`);
+    },
+  });
+
   const getStatusBadge = (
     status: ApplicationStatus | null | undefined,
     statusItem?: ApplicationStatusItem | null,
@@ -165,7 +238,7 @@ export function ApplicationDetailPage() {
 
     if (color.includes('amber') || color.includes('yellow') || status === 'JARAYONDA') {
       return (
-        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 text-xs py-1 px-3">
+        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 text-xs py-1 px-3 font-semibold">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
           {label}
         </Badge>
@@ -173,7 +246,7 @@ export function ApplicationDetailPage() {
     }
     if (color.includes('emerald') || color.includes('green') || status === 'HAL_QILINDI') {
       return (
-        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs py-1 px-3">
+        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs py-1 px-3 font-semibold">
           <CheckCircle2 className="h-3 w-3" />
           {label}
         </Badge>
@@ -181,7 +254,7 @@ export function ApplicationDetailPage() {
     }
     if (color.includes('red') || color.includes('rose') || status === 'RAD_ETILDI') {
       return (
-        <Badge className="bg-red-500/10 text-red-500 border-red-500/30 gap-1 text-xs py-1 px-3">
+        <Badge className="bg-red-500/10 text-red-500 border-red-500/30 gap-1 text-xs py-1 px-3 font-semibold">
           <X className="h-3 w-3" />
           {label}
         </Badge>
@@ -189,7 +262,7 @@ export function ApplicationDetailPage() {
     }
     if (color.includes('purple')) {
       return (
-        <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/30 gap-1 text-xs py-1 px-3">
+        <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/30 gap-1 text-xs py-1 px-3 font-semibold">
           <span className="h-1.5 w-1.5 rounded-full bg-purple-500 inline-block" />
           {label}
         </Badge>
@@ -197,18 +270,139 @@ export function ApplicationDetailPage() {
     }
 
     return (
-      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs py-1 px-3">
+      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs py-1 px-3 font-semibold">
         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" />
         {label}
       </Badge>
     );
   };
 
+  // Dalillar va fayllarni ajratib olish
+  const evidenceFiles: UploadedFile[] = useMemo(() => {
+    const list: UploadedFile[] = [];
+    if (app?.custom_fields) {
+      app.custom_fields.forEach((cf) => {
+        if (
+          cf.key === 'evidence_attachments' ||
+          cf.label?.toLowerCase().includes('isbot') ||
+          cf.label?.toLowerCase().includes('dalil') ||
+          cf.label?.toLowerCase().includes('hujjat')
+        ) {
+          if (Array.isArray(cf.value)) {
+            cf.value.forEach((v) => {
+              if (typeof v === 'string') {
+                const fname = v.split('/').pop() || 'fayl';
+                list.push({
+                  url: v,
+                  proxy_url: v,
+                  key: fname,
+                  filename: fname,
+                  original_name: fname,
+                  size: 0,
+                  mimetype: 'application/octet-stream',
+                });
+              } else if (v && typeof v === 'object' && 'url' in v) {
+                list.push(v as UploadedFile);
+              }
+            });
+          }
+        }
+      });
+    }
+    return list;
+  }, [app]);
+
+  // Qo'shimcha dinamik maydonlar
+  const otherCustomFields = useMemo(() => {
+    if (!app?.custom_fields) return [];
+    return app.custom_fields.filter(
+      (cf) =>
+        cf.key !== 'evidence_attachments' &&
+        !cf.label?.toLowerCase().includes('isbot') &&
+        !cf.label?.toLowerCase().includes('dalil') &&
+        !cf.label?.toLowerCase().includes('hujjat') &&
+        cf.type !== 'TRANSFER' &&
+        !cf.transfer,
+    );
+  }, [app]);
+
+  // Barcha kartalar va pul o'tkazmalari
+  const allTransfersList = useMemo(() => {
+    const list: Array<{
+      title: string;
+      amount: number | null;
+      currency: string;
+      transferDate: string | null;
+      transferTime: string | null;
+      providerName: string | null;
+      senderCardNumber: string | null;
+      senderFullName: string | null;
+      senderBankName: string | null;
+      receiverCardNumber: string | null;
+      receiverFullName: string | null;
+      receiverBankName: string | null;
+    }> = [];
+
+    if (app?.transfer || app?.card) {
+      list.push({
+        title: 'Asosiy O‘tkazma',
+        amount: app.transfer?.amount ?? null,
+        currency: app.transfer?.currency || 'UZS',
+        transferDate: app.transfer?.transfer_date || null,
+        transferTime: app.transfer?.transfer_time || null,
+        providerName: app.transfer?.payment_provider?.name || null,
+        senderCardNumber: app.transfer?.sender_card?.card_number || app.card?.card_number || null,
+        senderFullName: app.transfer?.sender_card?.full_name || app.card?.full_name || null,
+        senderBankName: app.transfer?.sender_card?.bank?.name || app.card?.bank?.name || null,
+        receiverCardNumber: app.transfer?.receiver_card?.card_number || null,
+        receiverFullName: app.transfer?.receiver_card?.full_name || null,
+        receiverBankName: app.transfer?.receiver_card?.bank?.name || null,
+      });
+    }
+
+    if (app?.custom_fields) {
+      let customIdx = 2;
+      app.custom_fields.forEach((cf) => {
+        if (cf.type === 'TRANSFER' || cf.transfer) {
+          const t = cf.transfer;
+          const sc = cf.card || t?.sender_card;
+          const rc = t?.receiver_card;
+          list.push({
+            title: cf.label || `${customIdx}-O‘tkazma shakli`,
+            amount: t?.amount ?? null,
+            currency: t?.currency || 'UZS',
+            transferDate: t?.transfer_date || null,
+            transferTime: t?.transfer_time || null,
+            providerName: t?.payment_provider?.name || null,
+            senderCardNumber: sc?.card_number || null,
+            senderFullName: sc?.full_name || null,
+            senderBankName: sc?.bank?.name || null,
+            receiverCardNumber: rc?.card_number || null,
+            receiverFullName: rc?.full_name || null,
+            receiverBankName: rc?.bank?.name || null,
+          });
+          customIdx++;
+        }
+      });
+    }
+
+    return list;
+  }, [app]);
+
+  // Jami zarar summasi
+  const totalCalculatedLoss = useMemo(() => {
+    let sum = 0;
+    allTransfersList.forEach((t) => {
+      if (t.amount) sum += Number(t.amount);
+    });
+    return sum;
+  }, [allTransfersList]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-xs text-muted-foreground font-mono">Ariza hujjati yuklanmoqda...</p>
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground animate-pulse">Ariza ma‘lumotlari yuklanmoqda...</p>
       </div>
     );
   }
@@ -220,7 +414,7 @@ export function ApplicationDetailPage() {
           <AlertCircle className="h-7 w-7" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-foreground">Ariza hujjati topilmadi</h2>
+          <h2 className="text-lg font-bold text-foreground">Ariza ma‘lumotlari topilmadi</h2>
           <p className="text-xs text-muted-foreground max-w-sm">
             {getErrorMessage(error, 'Ariza o‘chirilgan yoki tizimda mavjud emas')}
           </p>
@@ -229,7 +423,7 @@ export function ApplicationDetailPage() {
           variant="outline"
           size="sm"
           onClick={() => navigate('/applications')}
-          className="gap-2 text-xs"
+          className="gap-2 text-xs cursor-pointer"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Arizalar ro‘yxatiga qaytish
@@ -238,138 +432,25 @@ export function ApplicationDetailPage() {
     );
   }
 
-  // Dalillar va fayllarni ajratib olish
-  const evidenceFiles: UploadedFile[] = [];
-  const otherCustomFields: typeof app.custom_fields = [];
-
-  if (app.custom_fields) {
-    app.custom_fields.forEach((cf) => {
-      if (
-        cf.key === 'evidence_attachments' ||
-        cf.label?.toLowerCase().includes('isbot') ||
-        cf.label?.toLowerCase().includes('dalil') ||
-        cf.label?.toLowerCase().includes('hujjat')
-      ) {
-        if (Array.isArray(cf.value)) {
-          cf.value.forEach((v) => {
-            if (typeof v === 'string') {
-              const fname = v.split('/').pop() || 'fayl';
-              evidenceFiles.push({
-                url: v,
-                proxy_url: v,
-                key: fname,
-                filename: fname,
-                original_name: fname,
-                size: 0,
-                mimetype: 'application/octet-stream',
-              });
-            } else if (v && typeof v === 'object' && 'url' in v) {
-              evidenceFiles.push(v as UploadedFile);
-            }
-          });
-        }
-      } else if (cf.type === 'TRANSFER' || cf.transfer) {
-        // III-bo'limda aks ettiriladi
-      } else {
-        otherCustomFields.push(cf);
-      }
-    });
-  }
-
-  // Barcha kartalar va pul o'tkazmalari (Asosiy va qo'shimcha shakllar)
-  const allTransfersList: Array<{
-    title: string;
-    amount: number | null;
-    currency: string;
-    transferDate: string | null;
-    transferTime: string | null;
-    providerName: string | null;
-    senderCardNumber: string | null;
-    senderFullName: string | null;
-    senderBankName: string | null;
-    receiverCardNumber: string | null;
-    receiverFullName: string | null;
-    receiverBankName: string | null;
-  }> = [];
-
-  if (app?.transfer || app?.card) {
-    allTransfersList.push({
-      title: '1-O‘tkazma shakli (Asosiy)',
-      amount: app.transfer?.amount ?? null,
-      currency: app.transfer?.currency || 'UZS',
-      transferDate: app.transfer?.transfer_date || null,
-      transferTime: app.transfer?.transfer_time || null,
-      providerName: app.transfer?.payment_provider?.name || null,
-      senderCardNumber: app.transfer?.sender_card?.card_number || app.card?.card_number || null,
-      senderFullName: app.transfer?.sender_card?.full_name || app.card?.full_name || null,
-      senderBankName: app.transfer?.sender_card?.bank?.name || app.card?.bank?.name || null,
-      receiverCardNumber: app.transfer?.receiver_card?.card_number || null,
-      receiverFullName: app.transfer?.receiver_card?.full_name || null,
-      receiverBankName: app.transfer?.receiver_card?.bank?.name || null,
-    });
-  }
-
-  if (app?.custom_fields) {
-    let customIdx = 2;
-    app.custom_fields.forEach((cf) => {
-      if (cf.type === 'TRANSFER' || cf.transfer) {
-        const t = cf.transfer;
-        const sc = cf.card || t?.sender_card;
-        const rc = t?.receiver_card;
-        allTransfersList.push({
-          title: `${customIdx}-O‘tkazma shakli`,
-          amount: t?.amount ?? null,
-          currency: t?.currency || 'UZS',
-          transferDate: t?.transfer_date || null,
-          transferTime: t?.transfer_time || null,
-          providerName: t?.payment_provider?.name || null,
-          senderCardNumber: sc?.card_number || null,
-          senderFullName: sc?.full_name || null,
-          senderBankName: sc?.bank?.name || null,
-          receiverCardNumber: rc?.card_number || null,
-          receiverFullName: rc?.full_name || null,
-          receiverBankName: rc?.bank?.name || null,
-        });
-        customIdx++;
-      }
-    });
-  }
-
   return (
-    <div className="w-full space-y-6 pb-20">
+    <div className="w-full space-y-6 pb-16">
       {/* ===================================================================== */}
-      {/* 1. TOP ACTION TOOLBAR (EKRAN UCHUN, CHOP ETILGANDA KO'RINMAYDI) */}
+      {/* 1. TOP NAVIGATSIYA VA AMALLAR PANELI */}
       {/* ===================================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/applications')}
-            className="h-9 px-3 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Arizalarga qaytish</span>
-          </Button>
-
-          <div className="h-4 w-px bg-border/60" />
-
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm font-bold text-foreground">
-              {app.application_number ? `№ ${app.application_number}` : 'Raqamsiz Ariza'}
-            </span>
-            {getStatusBadge(app.status, app.application_status)}
-            {isFetching && (
-              <span title="Yangilanmoqda">
-                <RefreshCw className="h-3 w-3 animate-spin text-primary" />
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/applications')}
+          className="gap-2 text-muted-foreground hover:text-foreground cursor-pointer -ml-2 self-start"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Arizalar ro‘yxatiga qaytish</span>
+        </Button>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Holatni tezkor o'zgartirish */}
+          {/* Holatni tezkor o'zgartirish dropdown */}
           <select
             value={app.status_id || app.status || 'YANGI'}
             onChange={(e) => {
@@ -385,7 +466,7 @@ export function ApplicationDetailPage() {
               }
             }}
             disabled={updateStatusMutation.isPending}
-            className="h-9 rounded-lg border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+            className="h-9 rounded-lg border border-input bg-card px-3 py-1 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary font-medium cursor-pointer"
           >
             {allApplicationStatuses.length > 0 ? (
               allApplicationStatuses.map((st) => (
@@ -395,55 +476,72 @@ export function ApplicationDetailPage() {
               ))
             ) : (
               <>
-                <option value="YANGI">Yangi</option>
-                <option value="JARAYONDA">Jarayonda</option>
+                <option value="YANGI">Yangi (Qabul qilindi)</option>
+                <option value="JARAYONDA">Jarayonda (Tergovda)</option>
                 <option value="HAL_QILINDI">Hal qilindi</option>
                 <option value="RAD_ETILDI">Rad etildi</option>
               </>
             )}
           </select>
 
+          {/* Bog'liqliklar tugmasi */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/applications/${app.id}/relations`)}
+            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted font-medium cursor-pointer"
+            title="Mazkur arizaning boshqa arizalar bilan bog'liqliklarini ko'rish"
+          >
+            <Link2 className="h-3.5 w-3.5 text-primary" />
+            <span>Bog‘liqliklar</span>
+          </Button>
+
+          {/* Yangilash */}
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted"
+            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted cursor-pointer"
             title="Qayta yuklash"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')} />
             <span className="hidden sm:inline">Yangilash</span>
           </Button>
 
+          {/* Chop etish */}
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => window.print()}
-            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted font-medium"
+            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted font-medium cursor-pointer"
           >
             <Printer className="h-3.5 w-3.5 text-primary" />
-            <span>Chop etish / PDF</span>
+            <span>Chop etish</span>
           </Button>
 
+          {/* Tahrirlash */}
           <Button
             type="button"
             size="sm"
             onClick={() => navigate(`/applications/create/${app.id}`)}
-            className="h-9 px-3.5 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+            className="h-9 px-3.5 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs cursor-pointer"
           >
             <Edit2 className="h-3.5 w-3.5" />
             <span>Tahrirlash</span>
           </Button>
 
+          {/* O'chirish */}
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => setIsDeleteModalOpen(true)}
-            className="h-9 w-9 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            title="O‘chirish"
+            className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+            title="Arizani o‘chirish"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -451,394 +549,661 @@ export function ApplicationDetailPage() {
       </div>
 
       {/* ===================================================================== */}
-      {/* 2. ASOSIY RASMIY HUJJAT / DOSYE (OFFICIAL DOCUMENT DOSSIER) */}
+      {/* 2. SARLAVHA BANNERI */}
       {/* ===================================================================== */}
-      <div className="bg-card border border-border/80 shadow-2xl rounded-2xl p-6 sm:p-10 max-w-5xl mx-auto space-y-8 print:p-0 print:border-none print:shadow-none print:bg-white print:text-black">
-        {/* ================================================================= */}
-        {/* RASMIY BLANK SHAPKA (OFFICIAL EMBLEM & HEADER) */}
-        {/* ================================================================= */}
-        <div className="border-b-2 border-border/80 pb-6 space-y-4 text-center print:border-black">
-          <div className="flex items-center justify-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 print:border-black print:text-black">
-              <Shield className="h-7 w-7" />
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            <span>Murojaat Tafsilotlari & Tergov Dosyesi</span>
           </div>
-
-          <div className="space-y-1">
-            <h3 className="text-xs sm:text-sm font-bold tracking-widest uppercase text-muted-foreground print:text-black">
-              O‘zbekiston Respublikasi Ichki Ishlar Vazirligi
-            </h3>
-            <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-foreground print:text-black">
-              Tezkor-Qidiruv Departamenti Kiberxavfsizlik Xizmati
-            </h2>
-            <h1 className="text-base sm:text-xl font-black uppercase tracking-tight text-primary pt-2 print:text-black">
-              Fuqaro Murojaati va Tergov-Surishtiruv Bayonnomasi
-            </h1>
-          </div>
-
-          {/* Hujjatning rasmiy rekvizitlar chizig'i */}
-          <div className="pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-muted/30 p-3.5 rounded-xl border border-border/60 print:bg-gray-100 print:border-black">
-            <div className="text-left">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Qayd Raqami:
-              </span>
-              <span className="font-mono font-bold text-foreground text-sm">
-                {app.application_number ? `№ ${app.application_number}` : 'Raqamsiz'}
-              </span>
-            </div>
-
-            <div className="text-left">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Qayd Sanasi:
-              </span>
-              <span className="font-mono font-medium text-foreground text-xs">
-                {formatDate(app.date)}
-              </span>
-            </div>
-
-            <div className="text-left">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Murojaat Holati:
-              </span>
-              <span className="inline-block mt-0.5">
-                {getStatusBadge(app.status, app.application_status)}
-              </span>
-            </div>
-
-            <div className="text-left">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Tizim ID Kodi:
-              </span>
-              <span className="font-mono text-[11px] text-muted-foreground truncate block">
-                {app.id}
-              </span>
-            </div>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
+            <span>Ariza</span>
+            <span className="font-mono text-primary text-xl sm:text-2xl font-bold bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20">
+              № {app.application_number || 'Raqamsiz'}
+            </span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Ro‘yxatga olingan sana: <span className="font-semibold text-foreground">{formatDate(app.date)}</span>
+            {app.district && (
+              <>
+                {' '}&bull; Hudud:{' '}
+                <span className="font-semibold text-foreground">{app.district.name}</span>
+              </>
+            )}
+            {app.officer_notes && (
+              <>
+                {' '}&bull; Mas‘ul xodim qaydi:{' '}
+                <span className="italic text-foreground">{app.officer_notes}</span>
+              </>
+            )}
+          </p>
         </div>
 
-        {/* ================================================================= */}
-        {/* I-BO'LIM: ARIZACHI (JABRLANUVCHI FUQARO) SHAXSI */}
-        {/* ================================================================= */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
-            <User className="h-4 w-4" />
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-              I. Arizachi Shaxsiy Ma‘lumotlari
-            </h3>
-          </div>
-
-          {app.citizen ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  To‘liq F.I.SH:
-                </span>
-                <p className="font-bold text-sm text-foreground print:text-black">
-                  {app.citizen.last_name} {app.citizen.first_name} {app.citizen.middle_name || ''}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Pasport Seriya & Raqam:
-                </span>
-                <p className="font-mono font-bold text-foreground text-sm print:text-black">
-                  {app.citizen.passport || '— (Kiritilmagan)'}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  JSHSHIR (PINFL - 14 ta raqam):
-                </span>
-                <p className="font-mono font-bold text-foreground text-sm print:text-black">
-                  {app.citizen.pinfl || '— (Kiritilmagan)'}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Telefon Raqami:
-                </span>
-                <p className="font-mono font-semibold text-foreground text-xs print:text-black">
-                  {app.citizen.phone_number || '— (Kiritilmagan)'}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Yashash Tumani:
-                </span>
-                <p className="text-foreground text-xs font-bold print:text-black">
-                  {app.citizen.district?.name || '— (Kiritilmagan)'}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Yashash Mahallasi:
-                </span>
-                <p className="text-foreground text-xs font-bold print:text-black">
-                  {app.citizen.mahalla?.name || '— (Kiritilmagan)'}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/20 border border-border/50 space-y-1 sm:col-span-3">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                  Doimiy Yashash Aniq Manzili:
-                </span>
-                <p className="text-foreground text-xs font-medium print:text-black">
-                  {app.citizen.address || '— (Kiritilmagan)'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 rounded-xl bg-muted/20 border border-border/50 text-xs text-muted-foreground italic">
-              Ushbu arizaga alohida fuqaro anketasi biriktirilmagan
-            </div>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {getStatusBadge(app.status, app.application_status)}
+          {app.crime && (
+            <Badge variant="outline" className="border-primary/30 text-primary font-semibold text-xs py-1 px-3">
+              {app.crime.article || app.crime.title}
+            </Badge>
           )}
         </div>
+      </div>
 
-        {/* ================================================================= */}
-        {/* II-BO'LIM: SODIR BO'LGAN HODISA TAFSILOTLARI VA MALAKALANISHI */}
-        {/* ================================================================= */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
-            <Scale className="h-4 w-4" />
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-              II. Yo‘naltirilgan Tuman & Jinoyat Turi
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            {/* Hudud */}
-            <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3 text-primary print:text-black" />
-                Ariza Yo‘naltirilgan Tuman / Biriktirilgan Bo‘lim:
+      {/* ===================================================================== */}
+      {/* 3. 4 TA KPI KO'RSATKICHLAR BLOKI */}
+      {/* ===================================================================== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Umumiy Zarar */}
+        <Card className="border-border/80 shadow-2xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 shrink-0">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Aniqlangan Zarar</span>
+              <span className="text-sm sm:text-base font-bold text-red-600 dark:text-red-400 font-mono truncate block">
+                {formatCurrency(totalCalculatedLoss)}
               </span>
-              <p className="font-bold text-foreground text-sm print:text-black">
-                {app.district ? app.district.name : '—'}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Kartalar / O'tkazmalar */}
+        <Card className="border-border/80 shadow-2xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Pul O‘tkazmalari</span>
+              <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
+                {allTransfersList.length > 0 ? `${allTransfersList.length} ta shakl` : 'Mavjud emas'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Word hujjatlari */}
+        <Card className="border-border/80 shadow-2xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shrink-0">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Rasmiy Word Hujjatlari</span>
+              <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
+                {appDocuments.length} ta .docx
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tergov Dalillari */}
+        <Card className="border-border/80 shadow-2xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Tergov Dalillari</span>
+              <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
+                {evidenceFiles.length} ta fayl
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 4. ASOSIY MAZMUN: TARTIBLI KARTALAR LAYOUTI */}
+      {/* ===================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ================================================================= */}
+        {/* KARTA 1: ARIZACHI (JABRLANUVCHI FUQARO) MA'LUMOTLARI */}
+        {/* ================================================================= */}
+        <Card className="border-border/80 shadow-2xs flex flex-col">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <div className="flex items-center gap-2.5 text-primary">
+              <User className="h-5 w-5" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Arizachi (Fuqaro) Shaxsiy Ma‘lumotlari
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              Murojaat qilgan fuqaroning rasmiy identifikatsion rekvizitlari
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 flex-1">
+            {app.citizen ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    To‘liq F.I.SH:
+                  </span>
+                  <p className="font-bold text-base text-foreground">
+                    {app.citizen.last_name} {app.citizen.first_name} {app.citizen.middle_name || ''}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Tug‘ilgan Sana:
+                  </span>
+                  <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 text-primary" />
+                    <span>
+                      {app.citizen.birth_date
+                        ? new Date(app.citizen.birth_date).toLocaleDateString('uz-UZ')
+                        : '—'}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Jinsi:
+                  </span>
+                  <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+                    {app.citizen.gender === 'male' ? (
+                      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 text-[11px] py-0 px-2 font-semibold">
+                        👨 Erkak
+                      </Badge>
+                    ) : app.citizen.gender === 'female' ? (
+                      <Badge className="bg-pink-500/10 text-pink-500 border-pink-500/30 text-[11px] py-0 px-2 font-semibold">
+                        👩 Ayol
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Pasport Seriya & Raqam:
+                  </span>
+                  <p className="font-mono font-bold text-foreground text-sm">
+                    {app.citizen.passport || '—'}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    JSHSHIR (PINFL - 14 ta raqam):
+                  </span>
+                  <p className="font-mono font-bold text-foreground text-sm">
+                    {app.citizen.pinfl || '—'}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Telefon Raqami:
+                  </span>
+                  <p className="font-mono font-semibold text-foreground text-xs flex items-center gap-1.5">
+                    <Phone className="h-3 w-3 text-primary" />
+                    <span>{app.citizen.phone_number || '—'}</span>
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Yashash Tumani & Mahallasi:
+                  </span>
+                  <p className="font-semibold text-foreground text-xs flex items-center gap-1">
+                    <MapPin className="h-3 w-3 text-primary" />
+                    <span>
+                      {app.citizen.district?.name || '—'}
+                      {app.citizen.mahalla?.name ? `, ${app.citizen.mahalla.name} m.` : ''}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    Doimiy Yashash Aniq Manzili:
+                  </span>
+                  <p className="text-foreground text-xs font-medium">
+                    {app.citizen.address || '—'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 rounded-xl bg-muted/20 border border-border/50 text-center text-xs text-muted-foreground italic space-y-1">
+                <User className="h-8 w-8 mx-auto text-muted-foreground/60" />
+                <p>Ushbu arizaga alohida fuqaro anketasi biriktirilmagan</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ================================================================= */}
+        {/* KARTA 2: HODISA TAFSILOTLARI VA JINOYAT MALAKALANISHI */}
+        {/* ================================================================= */}
+        <Card className="border-border/80 shadow-2xs flex flex-col">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <div className="flex items-center gap-2.5 text-primary">
+              <ShieldAlert className="h-5 w-5" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Hodisa Tafsilotlari va Jinoyat Malakalanishi
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              Murojaat mazmuni, hodisa joyi va jinoyat kodeksi moddasi
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 flex-1 space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                  Jinoyat Kodeksi Moddasi:
+                </span>
+                <p className="font-bold text-sm text-primary">
+                  {app.crime ? `${app.crime.article || ''} - ${app.crime.title || ''}` : '—'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                  Hodisa Yuz Bergan Hudud:
+                </span>
+                <p className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-primary" />
+                  <span>{app.district?.name || '—'}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Murojaat mazmuni va bayoni */}
+            <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60 space-y-1.5">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Fuqaroning Murojaat Bayoni (Tavsifi):
+              </span>
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-normal">
+                {app.description || 'Tafsilotlar kiritilmagan'}
               </p>
             </div>
 
-            {/* Jinoyat Turi */}
-            <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
-                <ShieldAlert className="h-3 w-3 text-primary print:text-black" />
-                Jinoyat Turi:
-              </span>
-              {app.crime ? (
-                <div>
-                  <span className="font-bold text-foreground text-sm">
-                    {app.crime.article || app.crime.title || '—'}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">—</p>
-              )}
-            </div>
-          </div>
-
-          {/* Ariza Mazmuni, Fabula va Xodim ko'rsatmasi */}
-          <div className="p-4 rounded-xl bg-muted/20 border border-border/50 space-y-3 text-xs">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
-                Fabula:
-              </span>
-              <div className="p-3.5 rounded-lg bg-background border border-border/60 text-foreground whitespace-pre-wrap leading-relaxed font-sans text-xs print:bg-white print:border-black print:text-black">
-                {app.description || 'Ariza bo‘yicha to‘liq tafsilot kiritilmagan.'}
+            {/* Xodim qaydlari */}
+            {app.officer_notes && (
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-xs space-y-1">
+                <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
+                  Xodim / Tergovchi Qaydlari:
+                </span>
+                <p className="text-foreground text-xs italic">
+                  {app.officer_notes}
+                </p>
               </div>
-            </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-            <div className="pt-2 border-t border-border/40">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
-                Xodim Ko‘rsatmasi & Qaydnomasi:
-              </span>
-              <div className="p-3.5 rounded-lg bg-background border border-border/60 text-foreground whitespace-pre-wrap leading-relaxed font-sans text-xs print:bg-white print:border-black print:text-black">
-                {app.officer_notes || 'Xodim tomonidan qo‘shimcha ma‘lumot kiritilmagan.'}
-              </div>
-            </div>
+      {/* ===================================================================== */}
+      {/* KARTA 3: PLASTIK KARTALAR VA PUL O'TKAZMALARI SXEMASI */}
+      {/* ===================================================================== */}
+      <Card className="border-border/80 shadow-2xs">
+        <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+          <div className="flex items-center gap-2.5 text-primary">
+            <CreditCard className="h-5 w-5" />
+            <CardTitle className="text-base font-bold text-foreground">
+              Aniqlangan Plastik Kartalar va Pul O‘tkazmalari
+            </CardTitle>
           </div>
-        </div>
-
-        {/* ================================================================= */}
-        {/* III-BO'LIM: MOLIYAVIY ZARAR VA NOQONUNIY PUL O'TKAZMASI */}
-        {/* ================================================================= */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-                III. Moddiy Zarar va Bank Plastik Kartalari ({allTransfersList.length} ta)
-              </h3>
-            </div>
-          </div>
-
+          <CardDescription className="text-xs">
+            Jabrlanuvchi, vositachi va firibgar hisob raqamlari bo‘yicha tranzaksiyalar zanjiri
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-5">
           {allTransfersList.length > 0 ? (
             <div className="space-y-4">
-              {allTransfersList.map((item, idx) => (
+              {allTransfersList.map((tf, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-xl border border-border/80 bg-card/60 backdrop-blur-sm space-y-3"
+                  className="p-4 rounded-xl border border-border/80 bg-muted/10 space-y-3"
                 >
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-2">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[11px] font-bold">
                         {idx + 1}
                       </span>
-                      {item.title}
+                      {tf.title}
                     </span>
-                    {item.transferDate && (
-                      <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-primary" />
-                        {item.transferDate} {item.transferTime ? `(${item.transferTime})` : ''}
-                      </span>
+                    {tf.providerName && (
+                      <Badge variant="outline" className="text-xs font-medium">
+                        {tf.providerName}
+                      </Badge>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    {/* 1. Jabrlanuvchi kartasi */}
-                    <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
-                        <CreditCard className="h-3 w-3 text-primary" />
-                        Jabrlanuvchi Kartasi:
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center text-xs">
+                    {/* Jo'natuvchi karta */}
+                    <div className="p-3 rounded-lg bg-card border border-border/60 space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
+                        Jo‘natuvchi Karta (Jabrlanuvchi):
                       </span>
-                      <p className="font-mono font-bold text-foreground text-sm tracking-wide">
-                        {item.senderCardNumber || '—'}
+                      <p className="font-mono font-bold text-sm text-foreground">
+                        {formatCardNumber(tf.senderCardNumber)}
                       </p>
-                      <div className="pt-1 border-t border-border/30 text-[11px] space-y-0.5">
-                        <p className="text-foreground font-medium">
-                          <span className="text-muted-foreground">Egasi: </span>
-                          {item.senderFullName || '—'}
-                        </p>
-                        <p className="text-muted-foreground">
-                          <span>Bank: </span>
-                          <span className="text-foreground">{item.senderBankName || '—'}</span>
-                        </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {tf.senderBankName || 'Bank ko‘rsatilmagan'} {tf.senderFullName ? `• ${tf.senderFullName}` : ''}
+                      </p>
+                    </div>
+
+                    {/* O'tkazma yo'nalishi va summasi */}
+                    <div className="flex flex-col items-center justify-center text-center p-2 rounded-lg bg-muted/40 border border-border/40">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                        O‘tkazilgan Summa:
+                      </span>
+                      <span className="font-mono font-black text-sm sm:text-base text-red-600 dark:text-red-400 my-0.5">
+                        {formatCurrency(tf.amount, tf.currency)}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <ArrowRight className="h-3 w-3 text-primary" />
+                        <span>{formatDate(tf.transferDate)} {tf.transferTime || ''}</span>
                       </div>
                     </div>
 
-                    {/* 2. O'tkazma ma'lumoti */}
-                    <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1">
-                        <ArrowLeftRight className="h-3 w-3 text-primary" />
-                        O‘tkazma Tafsiloti:
+                    {/* Qabul qiluvchi karta */}
+                    <div className="p-3 rounded-lg bg-card border border-red-500/30 space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 block flex items-center justify-between">
+                        <span>Qabul Qiluvchi Karta (Firibgar):</span>
+                        <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[9px] py-0 px-1.5">
+                          Dropper
+                        </Badge>
                       </span>
-                      <p className="font-mono font-black text-lg text-primary">
-                        {formatCurrency(item.amount, item.currency)}
+                      <p className="font-mono font-bold text-sm text-foreground">
+                        {formatCardNumber(tf.receiverCardNumber)}
                       </p>
-                      <div className="pt-1 border-t border-border/30 text-[11px] space-y-0.5">
-                        <p className="text-foreground font-medium">
-                          <span className="text-muted-foreground">To‘lov tizimi: </span>
-                          {item.providerName || '—'}
-                        </p>
-                        <p className="text-muted-foreground">
-                          <span>Vaqti: </span>
-                          <span className="text-foreground">
-                            {item.transferDate
-                              ? `${item.transferDate}${item.transferTime ? ' ' + item.transferTime : ''}`
-                              : '—'}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 3. Firibgar kartasi */}
-                    <div className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/20 space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-red-400 block flex items-center gap-1">
-                        <ShieldAlert className="h-3 w-3" />
-                        Qabul Qiluvchi (Firibgar) Kartasi:
-                      </span>
-                      <p className="font-mono font-bold text-foreground text-sm tracking-wide">
-                        {item.receiverCardNumber || '—'}
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {tf.receiverBankName || 'Bank ko‘rsatilmagan'} {tf.receiverFullName ? `• ${tf.receiverFullName}` : ''}
                       </p>
-                      <div className="pt-1 border-t border-border/30 text-[11px] space-y-0.5">
-                        <p className="text-foreground font-medium">
-                          <span className="text-muted-foreground">Egasi: </span>
-                          {item.receiverFullName || '—'}
-                        </p>
-                        <p className="text-muted-foreground">
-                          <span>Bank: </span>
-                          <span className="text-foreground">{item.receiverBankName || '—'}</span>
-                        </p>
-                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="p-4 rounded-xl bg-muted/20 border border-border/50 text-xs text-muted-foreground italic">
-              Ushbu murojaat bo‘yicha to‘g‘ridan-to‘g‘ri moddiy zarar yoki bank plastik kartasi qayd
-              etilmagan.
+            <div className="p-6 rounded-xl bg-muted/20 border border-border/50 text-center text-xs text-muted-foreground italic space-y-1">
+              <CreditCard className="h-8 w-8 mx-auto text-muted-foreground/60" />
+              <p>Mazkur arizaga plastik karta va pul o‘tkazmasi shakli biriktirilmagan</p>
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* ================================================================= */}
-        {/* IV-BO'LIM: DALILIY ASHYOLAR VA BIRIKTIRILGAN FAYLLAR (ISBOTLAR) */}
-        {/* ================================================================= */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
-            <FileCheck2 className="h-4 w-4" />
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-              IV. Daliliy Ashyolar, Skrinshotlar va Hujjatlar ({evidenceFiles.length} ta)
-            </h3>
+      {/* ===================================================================== */}
+      {/* KARTA 4: RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) */}
+      {/* ===================================================================== */}
+      <Card className="border-border/80 shadow-2xs">
+        <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 border border-blue-500/20">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <span>Rasmiy Word Hujjatlari (.docx)</span>
+                <Badge variant="outline" className="text-xs font-mono font-normal">
+                  {appDocuments.length} ta hujjat
+                </Badge>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Arizaga biriktirilgan rasmiy Word hujjatlari. Kompyuterdan yuklash yoki tizimda ONLYOFFICE orqali tahrirlash mumkin.
+              </CardDescription>
+            </div>
           </div>
 
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Yashirin fayl tanlash inputi (kompyuterdan .docx yuklash uchun) */}
+            <input
+              ref={wordFileInputRef}
+              type="file"
+              accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setWordDialogState({
+                    isOpen: true,
+                    mode: 'upload',
+                    file,
+                  });
+                  e.target.value = '';
+                }
+              }}
+            />
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() =>
+                setTemplateModalState({
+                  isOpen: true,
+                  initialTemplateId: 'tushuntirish-telegram',
+                })
+              }
+              className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+              title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Shablondan yaratish</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => wordFileInputRef.current?.click()}
+              disabled={uploadWordMutation.isPending}
+              className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
+              title="Kompyuterdan Word (.docx / .doc) faylini yuklash"
+            >
+              {uploadWordMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+              )}
+              <span>Kompyuterdan yuklash</span>
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() =>
+                setTemplateModalState({
+                  isOpen: true,
+                  initialTemplateId: 'blank',
+                })
+              }
+              className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
+              title="Yangi Word blank yaratish va ONLYOFFICE da tahrirlash"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Yangi Word</span>
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5">
+          {appDocuments.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {appDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-card hover:border-blue-400/80 dark:hover:border-blue-700 transition-all shadow-2xs group"
+                >
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#185abd] text-white font-serif font-black text-sm shadow-2xs">
+                      W
+                    </div>
+                    <div className="overflow-hidden space-y-0.5">
+                      <p
+                        className="text-xs sm:text-sm font-bold text-foreground truncate"
+                        title={doc.title || doc.file_name}
+                      >
+                        {doc.title || doc.file_name}
+                      </p>
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                        <span>{(doc.size / 1024).toFixed(1)} KB</span>
+                        <span>&bull;</span>
+                        <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal">
+                          v{doc.version || 1}
+                        </Badge>
+                        <span>&bull;</span>
+                        <span>{formatDate(doc.updated_at || doc.created_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setActiveEditingDocId(doc.id)}
+                      className="h-7 px-2.5 text-xs font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer shadow-2xs"
+                      title="ONLYOFFICE da ochish, tahrirlash va saqlash"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      <span>Tahrirlash</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        window.open(documentsApi.getFileUrl(doc.id), '_blank');
+                      }}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Faylni yuklab olish"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })}
+                      className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                      title="O‘chirish"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl text-center space-y-2 bg-muted/10">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+                <FileText className="h-6 w-6" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Hozircha Word hujjati biriktirilmagan</p>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Ushbu arizaga yangi rasmiy Word blank yaratishingiz yoki kompyuteringizdagi mavjud .docx faylni yuklab, tizim ichida tahrirlashingiz mumkin.
+              </p>
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => wordFileInputRef.current?.click()}
+                  className="text-xs gap-1.5 cursor-pointer"
+                >
+                  <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Kompyuterdan yuklash</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    setWordDialogState({
+                      isOpen: true,
+                      mode: 'create',
+                      file: null,
+                    })
+                  }
+                  className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Yangi Word yaratish</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===================================================================== */}
+      {/* KARTA 5: TERGOV DALILLARI VA BIRIKTIRILGAN FAYLLAR (ATTACHMENTS) */}
+      {/* ===================================================================== */}
+      <Card className="border-border/80 shadow-2xs">
+        <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+          <div className="flex items-center gap-2.5 text-primary">
+            <Paperclip className="h-5 w-5" />
+            <CardTitle className="text-base font-bold text-foreground">
+              Tergov Dalillari va Biriktirilgan Fayllar
+            </CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            Skrinshotlar, chek kvitansiyalari, audio/video yozuvlar va ekspertiza dalillari
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-5">
           {evidenceFiles.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {evidenceFiles.map((file, idx) => {
-                const isImage =
+                const previewUrl = getFileViewUrl(file);
+                const downloadUrl = getFileDownloadUrl(file);
+                const isImg =
                   file.mimetype?.startsWith('image/') ||
-                  /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.url || '');
+                  file.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ||
+                  file.original_name?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ||
+                  file.key?.match(/\.(jpg|jpeg|png|webp|gif)$/i);
 
                 return (
                   <div
                     key={idx}
-                    className="group relative rounded-xl border border-border/60 bg-muted/30 overflow-hidden hover:border-primary/50 transition-all flex flex-col"
+                    className="group relative rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs hover:border-primary/50 transition-all flex flex-col"
                   >
-                    {isImage ? (
-                      <div
-                        onClick={() => setPreviewImage(file.url)}
-                        className="h-28 w-full bg-black/20 flex items-center justify-center overflow-hidden cursor-pointer relative"
-                      >
+                    <div
+                      onClick={() => (isImg ? setPreviewImage(previewUrl) : window.open(previewUrl, '_blank'))}
+                      className="aspect-square w-full bg-muted/40 flex items-center justify-center overflow-hidden cursor-pointer relative"
+                    >
+                      {isImg ? (
                         <img
-                          src={file.url}
-                          alt={file.original_name || 'Dalil rasmi'}
+                          src={previewUrl}
+                          alt={file.original_name || 'Dalil'}
                           className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white">
-                          <Eye className="h-4 w-4" />
-                          <span className="text-[11px] font-medium">Ko‘rish</span>
-                        </div>
+                      ) : (
+                        <FileText className="h-10 w-10 text-muted-foreground/80 group-hover:text-primary transition-colors" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white">
+                        <Eye className="h-4 w-4" />
+                        <span className="text-[10px] font-semibold">Ko‘rish</span>
                       </div>
-                    ) : (
-                      <div className="h-28 w-full bg-muted/50 flex flex-col items-center justify-center gap-1.5 p-2 text-muted-foreground">
-                        <FileText className="h-8 w-8 text-primary/70" />
-                        <span className="text-[10px] font-mono text-center truncate max-w-full px-2">
-                          {file.original_name || 'Hujjat'}
-                        </span>
-                      </div>
-                    )}
+                    </div>
 
-                    <div className="p-2 flex items-center justify-between gap-1 text-[11px] bg-card border-t border-border/40">
+                    <div className="p-2 bg-card border-t border-border/50 flex items-center justify-between gap-1">
                       <span
-                        className="truncate text-foreground font-medium"
-                        title={file.original_name}
+                        className="text-[11px] font-medium text-foreground truncate block flex-1"
+                        title={file.original_name || file.filename}
                       >
-                        {file.original_name || `Fayl-${idx + 1}`}
+                        {file.original_name || file.filename}
                       </span>
                       <a
-                        href={file.url}
+                        href={downloadUrl}
+                        download
                         target="_blank"
                         rel="noreferrer"
-                        download
-                        className="p-1 rounded text-muted-foreground hover:text-primary transition shrink-0"
+                        className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
                         title="Yuklab olish"
                       >
-                        <Download className="h-3.5 w-3.5" />
+                        <Download className="h-3 w-3" />
                       </a>
                     </div>
                   </div>
@@ -846,147 +1211,86 @@ export function ApplicationDetailPage() {
               })}
             </div>
           ) : (
-            <div className="p-4 rounded-xl bg-muted/20 border border-border/50 text-xs text-muted-foreground italic">
-              Hech qanday daliliy fayl yoki skrinshot biriktirilmagan.
+            <div className="p-6 rounded-xl bg-muted/20 border border-border/50 text-center text-xs text-muted-foreground italic space-y-1">
+              <ShieldAlert className="h-8 w-8 mx-auto text-muted-foreground/60" />
+              <p>Mazkur arizaga biriktirilgan dalillar yoki ilovalar mavjud emas</p>
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* ================================================================= */}
-        {/* V-BO'LIM: QO'SHIMCHA MAYDONLAR VA PARAMETRLAR */}
-        {/* ================================================================= */}
-        {otherCustomFields.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 border-b border-border/60 pb-2 text-primary print:text-black print:border-black">
-              <Building2 className="h-4 w-4" />
-              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground print:text-black">
-                V. Qo‘shimcha Maxsus Maydonlar ({otherCustomFields.length} ta)
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-              {otherCustomFields.map((field, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground">
-                      {field.label || field.key || 'Parametr'}
-                    </span>
-                    <Badge variant="outline" className="text-[9px] font-mono uppercase">
-                      {field.type}
-                    </Badge>
-                  </div>
-                  {field.citizen ? (
-                    <div className="space-y-1 pt-1 text-xs">
-                      <p className="font-bold text-foreground">
-                        {[
-                          field.citizen.last_name,
-                          field.citizen.first_name,
-                          field.citizen.middle_name,
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                      </p>
-                      <div className="text-[11px] text-muted-foreground font-mono space-y-0.5">
-                        {field.citizen.phone_number && <p>Tel: {field.citizen.phone_number}</p>}
-                        {field.citizen.passport && <p>Pasport: {field.citizen.passport}</p>}
-                        {field.citizen.pinfl && <p>JSHSHIR: {field.citizen.pinfl}</p>}
-                        {field.citizen.address && <p>Manzil: {field.citizen.address}</p>}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="font-semibold text-foreground text-xs break-words">
-                      {typeof field.value === 'object'
-                        ? JSON.stringify(field.value)
-                        : String(field.value ?? '—')}
-                    </p>
-                  )}
+      {/* ===================================================================== */}
+      {/* KARTA 6: QO'SHIMCHA MAYDONLAR (AGAR MAVJUD BO'LSA) */}
+      {/* ===================================================================== */}
+      {otherCustomFields.length > 0 && (
+        <Card className="border-border/80 shadow-2xs">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <CardTitle className="text-base font-bold text-foreground">
+              Qo‘shimcha Qaydlar va Maydonlar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {otherCustomFields.map((cf) => (
+                <div key={cf.id} className="p-3 rounded-xl bg-muted/30 border border-border/50 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                    {cf.label}:
+                  </span>
+                  <p className="font-semibold text-foreground">
+                    {Array.isArray(cf.value) ? cf.value.join(', ') : String(cf.value || '—')}
+                  </p>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* ================================================================= */}
-        {/* VI-BO'LIM: RASMIY IMZOLAR VA TASDIQLASH (PRINT UCHUN SHART) */}
-        {/* ================================================================= */}
-        <div className="pt-8 border-t-2 border-border/80 space-y-6 text-xs print:border-black">
-          <div className="grid grid-cols-2 gap-8 pt-4">
-            <div className="space-y-6">
-              <span className="font-bold text-foreground uppercase tracking-wide block print:text-black">
-                Murojaatni qabul qilgan mas‘ul xodim:
-              </span>
-              <div className="border-b border-foreground/40 pb-1 text-[11px] text-muted-foreground font-mono flex items-end justify-between print:border-black">
-                <span>Imzo: _________________________</span>
-                <span>F.I.SH: _________________</span>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <span className="font-bold text-foreground uppercase tracking-wide block print:text-black">
-                Arizachi (jabrlanuvchi fuqaro):
-              </span>
-              <div className="border-b border-foreground/40 pb-1 text-[11px] text-muted-foreground font-mono flex items-end justify-between print:border-black">
-                <span>Imzo: _________________________</span>
-                <span>
-                  F.I.SH:{' '}
-                  {app.citizen?.first_name
-                    ? `${app.citizen.last_name || ''} ${app.citizen.first_name[0]}.`
-                    : '_________'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-4 border-t border-border/40 font-mono print:text-black">
-            <span>Tizimda yaratilgan sana: {formatDateTime(app.created_at)}</span>
-            <span>M.O‘. (Muhr o‘rni)</span>
-            <span>Oxirgi o‘zgartirilgan: {formatDateTime(app.updated_at)}</span>
-          </div>
-        </div>
-      </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ===================================================================== */}
-      {/* 3. DIALOGLAR (O'CHIRISH VA RASMNI KATTALASHTIRIB KO'RISH) */}
+      {/* MODALLAR */}
       {/* ===================================================================== */}
-      {/* O'chirish dialogi */}
-      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Arizani tizimdan butunlay o‘chirish</DialogTitle>
-            <DialogDescription className="text-xs">
-              Ushbu arizani va unga biriktirilgan barcha ma‘lumotlarni o‘chirmoqchimisiz? Ushbu amal
-              qaytarilmaydi.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDeleteModalOpen(false)}
-              className="text-xs"
-            >
-              Bekor qilish
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-              className="text-xs gap-1.5"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+      {/* Hujjatni o'chirish dialogi */}
+      <ConfirmDialog
+        open={!!docToDelete}
+        onOpenChange={(open) => !open && setDocToDelete(null)}
+        title="Word hujjatini o‘chirish"
+        description={
+          docToDelete ? (
+            <span>
+              Haqiqatan ham <strong className="text-foreground font-semibold">"{docToDelete.title}"</strong> nomli rasmiy Word hujjatini tizimdan o‘chirmoqchimisiz? Ushbu amal qaytarilmaydi.
+            </span>
+          ) : ''
+        }
+        confirmText="Ha, o‘chirilsin"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        isLoading={deleteDocMutation.isPending}
+        onConfirm={() => {
+          if (docToDelete) {
+            deleteDocMutation.mutate(docToDelete.id, {
+              onSettled: () => setDocToDelete(null),
+            });
+          }
+        }}
+      />
+
+      {/* Arizani tizimdan butunlay o'chirish dialogi */}
+      <ConfirmDialog
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        title="Arizani tizimdan butunlay o‘chirish"
+        description="Ushbu arizani va unga biriktirilgan barcha ma‘lumotlarni o‘chirmoqchimisiz? Ushbu amal qaytarilmaydi."
+        confirmText="Ha, butunlay o‘chirish"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
 
       {/* Rasm Preview (Lightbox) modal */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl p-2 bg-black/90 border-0">
+        <DialogContent className="sm:max-w-4xl md:max-w-5xl p-3 bg-black/95 border-0">
           {previewImage && (
             <div className="relative flex flex-col items-center justify-center max-h-[85vh]">
               <img
@@ -1011,6 +1315,47 @@ export function ApplicationDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Word Hujjatini Yaratish yoki Yuklashda Nomini So'rash Dialogi */}
+      <CreateWordDialog
+        isOpen={wordDialogState.isOpen}
+        fileToUpload={wordDialogState.file}
+        applicationNumber={app?.application_number}
+        isLoading={createBlankDocMutation.isPending || uploadWordMutation.isPending}
+        onClose={() => setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }))}
+        onSubmit={async (title, file) => {
+          if (wordDialogState.mode === 'upload' && file) {
+            await uploadWordMutation.mutateAsync({ file, title });
+            setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }));
+          } else {
+            await createBlankDocMutation.mutateAsync(title);
+            setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }));
+          }
+        }}
+      />
+
+      {/* Rasmiy Shablon yoki Bo'sh Word Asosida Hujjat Yaratish Modali */}
+      <TemplateGeneratorModal
+        isOpen={templateModalState.isOpen}
+        onClose={() => setTemplateModalState((prev) => ({ ...prev, isOpen: false }))}
+        applicationId={id as string}
+        applicationNumber={app?.application_number}
+        initialTemplateId={templateModalState.initialTemplateId}
+        onSuccess={(newDocId) => {
+          queryClient.invalidateQueries({ queryKey: ['application-documents', id] });
+          queryClient.invalidateQueries({ queryKey: ['application-detail', id] });
+          setActiveEditingDocId(newDocId);
+        }}
+      />
+
+      {/* ONLYOFFICE Word Muharriri va Tezkor Amallar Modali */}
+      <DocumentEditorModal
+        documentId={activeEditingDocId}
+        application={app}
+        isOpen={!!activeEditingDocId}
+        onClose={() => setActiveEditingDocId(null)}
+        onSaved={() => refetchDocuments()}
+      />
     </div>
   );
 }

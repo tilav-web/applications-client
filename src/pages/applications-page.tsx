@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ChevronDown,
   Edit2,
   Eye,
   FileText,
   Filter,
+  Link2,
   Loader2,
   MapPin,
   Plus,
@@ -15,17 +17,20 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { CreateWordDialog } from '@/components/documents/create-word-dialog';
+import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
@@ -37,7 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { applicationsApi, applicationStatusesApi } from '@/lib/api';
+import { applicationsApi, applicationStatusesApi, documentsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import type { Application, ApplicationStatus, ApplicationStatusItem } from '@/types/models';
@@ -52,6 +57,32 @@ export function ApplicationsPage() {
   const limit = 10;
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // ONLYOFFICE modal boshqaruvi
+  const [selectedAppForWord, setSelectedAppForWord] = useState<Application | null>(null);
+  const [activeDocId, setActiveDocId] = useState<string | null>(null);
+
+  // Word hujjatini yangi yaratishda nomini so'rash modal holati
+  const [createWordForApp, setCreateWordForApp] = useState<Application | null>(null);
+  const [isCreatingWord, setIsCreatingWord] = useState(false);
+
+  const handleConfirmCreateWord = async (title: string) => {
+    if (!createWordForApp) return;
+    try {
+      setIsCreatingWord(true);
+      const newDoc = await documentsApi.createBlank(createWordForApp.id, title);
+      toast.success('Yangi Word hujjati biriktirildi');
+      await queryClient.invalidateQueries({ queryKey: ['applications'] });
+      const targetApp = createWordForApp;
+      setCreateWordForApp(null);
+      setSelectedAppForWord(targetApp);
+      setActiveDocId(newDoc.id);
+    } catch (err) {
+      toast.error(`Word hujjatini yaratishda xatolik: ${getErrorMessage(err)}`);
+    } finally {
+      setIsCreatingWord(false);
+    }
+  };
 
   // Statuses Query
   const { data: statusesData } = useQuery({
@@ -278,7 +309,7 @@ export function ApplicationsPage() {
               <TableHead>Holati</TableHead>
               <TableHead>Asosiy Arizachi</TableHead>
               <TableHead>Hudud & Jinoyat Turi</TableHead>
-              <TableHead>Qo‘shimcha Maydonlar</TableHead>
+              <TableHead>Bog‘liqliklar</TableHead>
               <TableHead>Sana</TableHead>
               <TableHead className="text-right">Amallar</TableHead>
             </TableRow>
@@ -341,45 +372,120 @@ export function ApplicationsPage() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {app.custom_fields?.length ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[11px] border-primary/30 text-primary"
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {app.relations_summary && app.relations_summary.total > 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/applications/${app.id}/relations`)}
+                        className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
+                          app.relations_summary.has_fraud_card_link
+                            ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
+                            : app.relations_summary.cards > 0
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
+                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 shadow-2xs'
+                        }`}
+                        title={`Bog'liqliklarni ko'rish: ${app.relations_summary.cards} ta karta, ${app.relations_summary.citizens} ta fuqaro`}
                       >
-                        {app.custom_fields.length} ta maydon
-                      </Badge>
+                        <Link2 className="h-3 w-3 shrink-0" />
+                        <span>{app.relations_summary.total} ta bog‘liqlik</span>
+                      </Button>
                     ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
+                      <span className="text-muted-foreground text-xs pl-2">—</span>
                     )}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {app.date ? new Date(app.date).toLocaleDateString() : '—'}
                   </TableCell>
-                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-right space-x-1 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    {/* WORD BELGISI / TUGMASI (ONLYOFFICE DA TEZDA OCHISH YOKI YANGI BIRIKTIRISH) */}
+                    {app.documents && app.documents.length > 0 ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-[#185abd] hover:text-[#185abd] hover:bg-blue-50/80 dark:hover:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 gap-1.5 rounded-md shadow-2xs transition-all cursor-pointer"
+                            title="Arizaga biriktirilgan Word hujjatlari"
+                          >
+                            <div className="flex h-4 w-4 items-center justify-center rounded bg-[#185abd] text-white text-[10px] font-bold font-serif leading-none shadow-2xs">
+                              W
+                            </div>
+                            <span className="text-[11px] font-semibold">Word ({app.documents.length})</span>
+                            <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel className="text-[11px] font-semibold text-muted-foreground">
+                            Hujjatlar ro‘yxati:
+                          </DropdownMenuLabel>
+                          {app.documents.map((doc) => (
+                            <DropdownMenuItem
+                              key={doc.id}
+                              onClick={() => {
+                                setSelectedAppForWord(app);
+                                setActiveDocId(doc.id);
+                              }}
+                              className="gap-2 cursor-pointer text-xs"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-[#185abd] shrink-0" />
+                              <span className="truncate">{doc.title || doc.file_name}</span>
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setCreateWordForApp(app)}
+                            className="gap-2 cursor-pointer text-xs font-semibold text-blue-600 focus:text-blue-600"
+                          >
+                            <Plus className="h-3.5 w-3.5 shrink-0" />
+                            <span>Yangi Word yaratish...</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCreateWordForApp(app)}
+                        className="h-8 px-2 text-[#185abd] hover:text-[#185abd] hover:bg-blue-50/80 dark:hover:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 gap-1.5 rounded-md shadow-2xs transition-all cursor-pointer"
+                        title="Yangi Word hujjati biriktirish"
+                      >
+                        <div className="flex h-4 w-4 items-center justify-center rounded bg-[#185abd] text-white text-[10px] font-bold font-serif leading-none shadow-2xs">
+                          W
+                        </div>
+                        <span className="text-[11px] font-semibold">Word</span>
+                      </Button>
+                    )}
+
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => navigate(`/applications/${app.id}`)}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
                       title="Ko‘rish (Hujjat ko‘rinishi)"
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </Button>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => navigate(`/applications/create/${app.id}`)}
-                      className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                      className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
                       title="Tahrirlash"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => setDeleteTargetId(app.id)}
-                      className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="h-8 w-8 p-0 text-red-400 hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
                       title="O‘chirish"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -411,36 +517,50 @@ export function ApplicationsPage() {
         )}
       </Card>
 
-      {/* DELETE CONFIRMATION DIALOG */}
-      <Dialog open={deleteTargetId !== null} onOpenChange={() => setDeleteTargetId(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Arizani o‘chirish</DialogTitle>
-            <DialogDescription className="text-xs">
-              Ushbu arizani butunlay o‘chirib tashlamoqchimisiz? Bu amal qaytarilmaydi.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteTargetId(null)}
-              className="text-xs"
-            >
-              Bekor qilish
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => deleteTargetId && deleteMutation.mutate(deleteTargetId)}
-              disabled={deleteMutation.isPending}
-              className="text-xs"
-            >
-              {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'O‘chirish'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* DELETE CONFIRMATION DIALOG (SHADCN ALERT DIALOG) */}
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => !open && setDeleteTargetId(null)}
+        title="Arizani o‘chirish"
+        description="Ushbu arizani butunlay o‘chirib tashlamoqchimisiz? Ushbu amal qaytarilmaydi."
+        confirmText="Ha, o‘chirilsin"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTargetId) {
+            deleteMutation.mutate(deleteTargetId, {
+              onSettled: () => setDeleteTargetId(null),
+            });
+          }
+        }}
+      />
+
+      {/* WORD HUJJATI NOMINI SO'RASH DIALOGI */}
+      <CreateWordDialog
+        isOpen={!!createWordForApp}
+        applicationNumber={createWordForApp?.application_number}
+        isLoading={isCreatingWord}
+        onClose={() => setCreateWordForApp(null)}
+        onSubmit={(title) => handleConfirmCreateWord(title)}
+      />
+
+      {/* ONLYOFFICE DOCUMENT EDITOR MODAL */}
+      {selectedAppForWord && activeDocId && (
+        <DocumentEditorModal
+          documentId={activeDocId}
+          application={selectedAppForWord}
+          isOpen={!!activeDocId}
+          onClose={() => {
+            setActiveDocId(null);
+            setSelectedAppForWord(null);
+            queryClient.invalidateQueries({ queryKey: ['applications'] });
+          }}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['applications'] });
+          }}
+        />
+      )}
     </div>
   );
 }

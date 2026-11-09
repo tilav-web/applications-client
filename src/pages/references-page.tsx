@@ -947,12 +947,12 @@ export function ReferencesPage() {
 
       {/* CREATE / EDIT DIALOG */}
       <Dialog open={modalType === 'create' || modalType === 'edit'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {modalType === 'create' ? 'Yangi Yozuv Qo‘shish' : 'Tahrirlash'}
             </DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               {activeTab === 'districts' && 'Tuman yoki hududiy bo‘lim ma‘lumotlarini kiriting'}
               {activeTab === 'mahallas' && 'Mahalla nomi va tegishli tumanni tanlang'}
               {activeTab === 'crimes' && 'Jinoyat turini kiriting'}
@@ -963,11 +963,11 @@ export function ReferencesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <div className="space-y-4 py-2">
             {/* Common Name field */}
-            <div className="space-y-1">
-              <label className="font-medium text-foreground">
-                {activeTab === 'crimes' ? 'Jinoyat Turi Nomi *' : 'Nomi / Sarlavha'}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                {activeTab === 'crimes' ? 'Jinoyat Turi Nomi *' : 'Nomi / Sarlavha *'}
               </label>
               <Input
                 placeholder={activeTab === 'crimes' ? 'Masalan: Firibgarlik...' : 'Nomi...'}
@@ -980,18 +980,18 @@ export function ReferencesPage() {
                     article: e.target.value,
                   })
                 }
-                className="h-9 text-xs"
+                className="h-10 text-xs sm:text-sm font-medium"
               />
             </div>
 
             {/* Mahalla uchun tegishli Tuman tanlash */}
             {activeTab === 'mahallas' && (
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Tegishli Tuman *</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Tegishli Tuman *</label>
                 <select
                   value={formData.district_id || ''}
                   onChange={(e) => setFormData({ ...formData, district_id: e.target.value })}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
                   required
                 >
                   <option value="">Tumanni tanlang...</option>
@@ -1005,26 +1005,26 @@ export function ReferencesPage() {
             )}
 
             {activeTab === 'banks' && (
-              <>
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Bank Kodi</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Bank Kodi</label>
                   <Input
                     placeholder="AGRO, KAPITAL"
                     value={formData.code || ''}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="h-9 text-xs font-mono"
+                    className="h-10 text-xs sm:text-sm font-mono uppercase"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">MFO Kodi</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">MFO Kodi</label>
                   <Input
-                    placeholder="00401"
+                    placeholder="00394"
                     value={formData.mfo || ''}
                     onChange={(e) => setFormData({ ...formData, mfo: e.target.value })}
-                    className="h-9 text-xs font-mono"
+                    className="h-10 text-xs sm:text-sm font-mono"
                   />
                 </div>
-              </>
+              </div>
             )}
 
             {activeTab === 'providers' && (
@@ -1120,16 +1120,21 @@ export function ReferencesPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
+            >
               Bekor qilish
             </Button>
             <Button
-              size="sm"
+              size="default"
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="text-xs shadow-md shadow-primary/25"
+              className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
               {createMutation.isPending || updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
             </Button>
@@ -1139,23 +1144,28 @@ export function ReferencesPage() {
 
       {/* DELETE CONFIRMATION DIALOG */}
       <Dialog open={modalType === 'delete'} onOpenChange={closeModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O‘chirishni tasdiqlang</DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription>
               Ushbu yozuvni o‘chirishni xohlaysizmi? Bu amalni ortga qaytarib bo‘lmaydi.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={closeModal} className="text-xs">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={closeModal}
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
+            >
               Yo&apos;q, bekor qilish
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="default"
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="text-xs"
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20"
             >
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}
             </Button>

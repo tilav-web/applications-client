@@ -1,11 +1,13 @@
 import type {
   Application,
+  ApplicationRelationsData,
   ApplicationStatusItem,
   Bank,
   Card,
   Citizen,
   Crime,
   District,
+  IGraphData,
   Mahalla,
   PaginatedResponse,
   PaymentProvider,
@@ -22,6 +24,10 @@ export const applicationsApi = {
   },
   getOne: async (id: string) => {
     const res = await apiClient.get<Application>(`/applications/${id}`);
+    return res.data;
+  },
+  getRelations: async (id: string) => {
+    const res = await apiClient.get<ApplicationRelationsData>(`/applications/${id}/relations`);
     return res.data;
   },
   create: async (data: Record<string, unknown>) => {
@@ -379,6 +385,8 @@ export interface UploadedFile {
 }
 
 export const filesApi = {
+  getViewUrl: getFileViewUrl,
+  getDownloadUrl: getFileDownloadUrl,
   uploadSingle: async (file: File, folder = 'attachments') => {
     const formData = new FormData();
     formData.append('file', file);
@@ -400,6 +408,48 @@ export const filesApi = {
     return res.data;
   },
 };
+
+export function getFileViewUrl(
+  file?: UploadedFile | { key?: string; proxy_url?: string; url?: string } | null,
+): string {
+  if (!file) return '';
+  if (file.key) {
+    return `/files/view?key=${encodeURIComponent(file.key)}`;
+  }
+  if (file.proxy_url) {
+    try {
+      const parsed = new URL(file.proxy_url, window.location.origin);
+      if (parsed.pathname.includes('/files/')) {
+        return `${parsed.pathname}${parsed.search}`;
+      }
+    } catch {
+      if (file.proxy_url.includes('/files/view')) {
+        const idx = file.proxy_url.indexOf('/files/view');
+        return file.proxy_url.substring(idx);
+      }
+    }
+    return file.proxy_url;
+  }
+  if (file.url) {
+    if (file.url.includes('/uvd-attachments/')) {
+      const idx = file.url.indexOf('/uvd-attachments/');
+      return file.url.substring(idx);
+    }
+    return file.url;
+  }
+  return '';
+}
+
+export function getFileDownloadUrl(
+  file?: UploadedFile | { key?: string; proxy_url?: string; url?: string } | null,
+): string {
+  if (!file) return '';
+  if (file.key) {
+    return `/files/download?key=${encodeURIComponent(file.key)}`;
+  }
+  const viewUrl = getFileViewUrl(file);
+  return viewUrl ? viewUrl.replace('/files/view', '/files/download') : '';
+}
 
 // 10. Users API
 export interface UserItem {
@@ -452,3 +502,247 @@ export const usersApi = {
     return res.data;
   },
 };
+
+// ============================================================================
+// ONLYOFFICE & WORD HUJJATLAR API
+// ============================================================================
+export interface ApplicationDocumentItem {
+  id: string;
+  application_id: string;
+  title: string;
+  file_name: string;
+  file_key: string;
+  file_url: string;
+  file_type: string;
+  size: number;
+  version: number;
+  doc_key: string | null;
+  created_by_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentEditorConfigResponse {
+  documentType: string;
+  document: {
+    fileType: string;
+    key: string;
+    title: string;
+    url: string;
+    permissions?: Record<string, boolean>;
+  };
+  editorConfig: {
+    callbackUrl: string;
+    user: {
+      id: string;
+      name: string;
+    };
+    mode: string;
+    lang: string;
+    coEditing?: any;
+    customization?: any;
+  };
+  documentId: string;
+  applicationId: string;
+  title: string;
+}
+
+export interface TemplateFieldConfig {
+  key: string;
+  label: string;
+  placeholder?: string;
+  type?: 'text' | 'number' | 'date';
+  required?: boolean;
+  description?: string;
+  category?: 'citizen' | 'incident' | 'card' | 'officer';
+  defaultValue?: string;
+}
+
+export interface DocumentTemplateItem {
+  id: string;
+  title: string;
+  defaultDocTitle?: string;
+  description: string;
+  category: 'Tushuntirish xati' | 'Bayonnoma' | 'Sanksiya' | 'Bo‘sh blank' | string;
+  pageCount: number;
+  isDynamic?: boolean;
+  availableTags?: string[];
+  fields: TemplateFieldConfig[];
+}
+
+export interface TemplatePreviewResponse {
+  template: DocumentTemplateItem;
+  prefilledData: Record<string, string>;
+  script: 'lotin' | 'krill';
+  applicationNumber?: string;
+}
+
+export interface GenerateFromTemplatePayload {
+  templateId: string;
+  script: 'lotin' | 'krill';
+  title?: string;
+  customData?: Record<string, string>;
+}
+
+export const documentsApi = {
+  getByApplication: async (applicationId: string) => {
+    const res = await apiClient.get<ApplicationDocumentItem[]>(
+      `/applications/${applicationId}/documents`,
+    );
+    return res.data;
+  },
+  getTemplates: async (script?: 'lotin' | 'krill') => {
+    const res = await apiClient.get<DocumentTemplateItem[]>('/documents/templates', {
+      params: { script },
+    });
+    return res.data;
+  },
+  getTemplatePreview: async (
+    applicationId: string,
+    templateId: string,
+    script: 'lotin' | 'krill' = 'lotin',
+  ) => {
+    const res = await apiClient.get<TemplatePreviewResponse>(
+      `/applications/${applicationId}/documents/template-preview/${templateId}`,
+      { params: { script } },
+    );
+    return res.data;
+  },
+  createFromTemplate: async (
+    applicationId: string,
+    payload: GenerateFromTemplatePayload,
+  ) => {
+    const res = await apiClient.post<ApplicationDocumentItem>(
+      `/applications/${applicationId}/documents/from-template`,
+      payload,
+    );
+    return res.data;
+  },
+  createBlank: async (applicationId: string, title?: string) => {
+    const res = await apiClient.post<ApplicationDocumentItem>(
+      `/applications/${applicationId}/documents/blank`,
+      { title },
+    );
+    return res.data;
+  },
+  upload: async (applicationId: string, file: File, title?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title) formData.append('title', title);
+    const res = await apiClient.post<ApplicationDocumentItem>(
+      `/applications/${applicationId}/documents/upload`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
+    return res.data;
+  },
+  getConfig: async (documentId: string) => {
+    const res = await apiClient.get<DocumentEditorConfigResponse>(
+      `/documents/${documentId}/config`,
+    );
+    return res.data;
+  },
+  delete: async (documentId: string) => {
+    const res = await apiClient.delete<boolean>(`/documents/${documentId}`);
+    return res.data;
+  },
+  getFileUrl: (documentId: string) => {
+    const base = apiClient.defaults.baseURL || '';
+    return `${base}/documents/${documentId}/file`;
+  },
+};
+
+export interface TemplateVariableItem {
+  tag: string;
+  rawKey: string;
+  label: string;
+  category: string;
+  description?: string;
+  sampleValue: string;
+}
+
+export interface TemplateCategoryConfig {
+  id: string;
+  label: string;
+  iconName: string;
+  items: TemplateVariableItem[];
+}
+
+export interface DocumentTemplateRecord {
+  id: string;
+  title: string;
+  title_krill?: string | null;
+  displayTitle?: string;
+  description?: string | null;
+  category: string;
+  file_key: string;
+  file_key_krill?: string | null;
+  file_name: string;
+  file_size: number;
+  version: number;
+  doc_key?: string | null;
+  is_active: boolean;
+  available_tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export const templatesApi = {
+  getAll: async (params?: { script?: 'lotin' | 'krill'; category?: string; search?: string }) => {
+    const res = await apiClient.get<DocumentTemplateRecord[]>('/templates', { params });
+    return res.data;
+  },
+  getVariables: async () => {
+    const res = await apiClient.get<TemplateCategoryConfig[]>('/templates/variables');
+    return res.data;
+  },
+  getById: async (id: string) => {
+    const res = await apiClient.get<DocumentTemplateRecord>(`/templates/${id}`);
+    return res.data;
+  },
+  createBlank: async (data: { title: string; title_krill?: string; description?: string; category?: string }) => {
+    const res = await apiClient.post<DocumentTemplateRecord>('/templates/blank', data);
+    return res.data;
+  },
+  upload: async (formData: FormData) => {
+    const res = await apiClient.post<DocumentTemplateRecord>('/templates/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+  update: async (id: string, data: Partial<DocumentTemplateRecord>) => {
+    const res = await apiClient.put<DocumentTemplateRecord>(`/templates/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<boolean>(`/templates/${id}`);
+    return res.data;
+  },
+  getConfig: async (id: string) => {
+    const res = await apiClient.get<DocumentEditorConfigResponse>(`/templates/${id}/config`);
+    return res.data;
+  },
+  testGenerate: async (id: string, payload?: { applicationId?: string; script?: 'lotin' | 'krill' }) => {
+    const res = await apiClient.post(`/templates/${id}/test-generate`, payload || {}, {
+      responseType: 'blob',
+    });
+    return res.data;
+  },
+};
+
+// 12. Financial Flow (Tarmoq Grafigi) API
+export const financialFlowApi = {
+  getGraph: async (params?: { searchCard?: string; riskLevel?: string; minAmount?: number }) => {
+    const res = await apiClient.get<IGraphData>('/financial-flow/graph', { params });
+    return res.data;
+  },
+  getCardDetails: async (cardNumber: string) => {
+    const res = await apiClient.get<{ card: Card; node: any; linkedApplications: any[] }>(
+      `/financial-flow/card/${cardNumber}`,
+    );
+    return res.data;
+  },
+};
+

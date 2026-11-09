@@ -3,7 +3,9 @@ import {
   ArrowLeftRight,
   BookOpen,
   CreditCard,
+  FileCode2,
   FileText,
+  GitFork,
   LayoutDashboard,
   User,
   Users,
@@ -58,8 +60,26 @@ export const navigationConfig: NavItem[] = [
     allowedRoles: ['*'],
     description: 'Tranzaksiyalar va to‘lov o‘tkazmalari',
   },
+  {
+    id: 'financial-flow',
+    title: 'Moliyaviy Oqim',
+    path: '/financial-flow',
+    icon: GitFork,
+    category: 'main',
+    allowedRoles: ['*'],
+    description: 'Barcha kartalar va to‘lov o‘tkazmalari tarmog‘i',
+  },
 
   // 2. Operativ & Ma'lumotnomalar
+  {
+    id: 'templates',
+    title: 'Hujjat Shablonlari',
+    path: '/templates',
+    icon: FileCode2,
+    category: 'operations',
+    allowedRoles: ['*'],
+    description: 'Dinamik rasmiy hujjatlar va tushuntirish xatlari shablonlari',
+  },
   {
     id: 'references',
     title: 'Ma‘lumotnomalar',
