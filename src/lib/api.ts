@@ -11,6 +11,7 @@ import type {
   Mahalla,
   PaginatedResponse,
   PaymentProvider,
+  SuspectFieldConfig,
   Transfer,
 } from '@/types/models';
 
@@ -300,6 +301,41 @@ export const applicationStatusesApi = {
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(
       `/application-statuses/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 5.3. Suspect Field Configs API (Gumonlanuvchi belgilari sozlamalari)
+export const suspectFieldConfigsApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<SuspectFieldConfig>>(
+      '/suspect-field-configs',
+      {
+        params,
+      },
+    );
+    return res.data;
+  },
+  getAllActive: async () => {
+    const res = await apiClient.get<SuspectFieldConfig[]>('/suspect-field-configs/active');
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<SuspectFieldConfig>(`/suspect-field-configs/${id}`);
+    return res.data;
+  },
+  create: async (data: Partial<SuspectFieldConfig>) => {
+    const res = await apiClient.post<SuspectFieldConfig>('/suspect-field-configs', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<SuspectFieldConfig>) => {
+    const res = await apiClient.patch<SuspectFieldConfig>(`/suspect-field-configs/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/suspect-field-configs/${id}`,
     );
     return res.data;
   },

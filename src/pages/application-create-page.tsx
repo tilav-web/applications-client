@@ -79,7 +79,6 @@ import type {
   Citizen,
   CrimeGravity,
   CustomFieldType,
-  SuspectTreeNode,
   TransferCustomField,
 } from '@/types/models';
 
@@ -246,7 +245,7 @@ export function ApplicationCreatePage() {
   const [applicationNumber, setApplicationNumber] = useState('');
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
-  const [suspectTree, setSuspectTree] = useState<SuspectTreeNode[]>([]);
+  const [suspectTree, setSuspectTree] = useState<any[]>([]);
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
   const [statusId, setStatusId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));

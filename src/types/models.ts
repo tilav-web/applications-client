@@ -180,6 +180,28 @@ export interface Transfer {
   updated_at?: string;
 }
 
+export interface SuspectFieldItem {
+  id: string;
+  field_key: string;
+  field_label?: string;
+  value: string;
+  note?: string;
+}
+
+export interface SuspectFieldConfig {
+  id: string;
+  key: string;
+  label: string;
+  category?: string | null;
+  icon?: string | null;
+  description?: string | null;
+  sample_value?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface SuspectTreeNode {
   id: string;
   label: string;

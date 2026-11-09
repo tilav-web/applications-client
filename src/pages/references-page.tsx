@@ -9,6 +9,7 @@ import {
   MapPin,
   Plus,
   Search,
+  ShieldAlert,
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -43,6 +44,7 @@ import {
   districtsApi,
   mahallasApi,
   paymentProvidersApi,
+  suspectFieldConfigsApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import type {
@@ -53,9 +55,11 @@ import type {
   District,
   Mahalla,
   PaymentProvider,
+  SuspectFieldConfig,
 } from '@/types/models';
 
-type ReferenceItem = District | Mahalla | Crime | Bank | PaymentProvider | ApplicationStatusItem;
+type ReferenceItem =
+  District | Mahalla | Crime | Bank | PaymentProvider | ApplicationStatusItem | SuspectFieldConfig;
 
 interface ReferenceFormData {
   name?: string | null;
@@ -69,13 +73,17 @@ interface ReferenceFormData {
   mfo?: string | null;
   gravity?: CrimeGravity | null;
   district_id?: string | null;
+  key?: string | null;
+  label?: string | null;
+  category?: string | null;
+  sample_value?: string | null;
   [key: string]: unknown;
 }
 
 export function ReferencesPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<
-    'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers' | 'statuses'
+    'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers' | 'statuses' | 'suspect_fields'
   >('districts');
 
   // Search and page state for each tab
@@ -96,6 +104,9 @@ export function ReferencesPage() {
 
   const [statusSearch, setStatusSearch] = useState('');
   const [statusPage, setStatusPage] = useState(1);
+
+  const [suspectFieldSearch, setSuspectFieldSearch] = useState('');
+  const [suspectFieldPage, setSuspectFieldPage] = useState(1);
 
   // Modal dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
@@ -154,6 +165,18 @@ export function ReferencesPage() {
     enabled: activeTab === 'statuses',
   });
 
+  // 6. Suspect Field Configs Query
+  const { data: suspectFieldsData, isLoading: isSuspectFieldsLoading } = useQuery({
+    queryKey: ['suspect-field-configs', { page: suspectFieldPage, search: suspectFieldSearch }],
+    queryFn: () =>
+      suspectFieldConfigsApi.getAll({
+        page: suspectFieldPage,
+        limit: 10,
+        search: suspectFieldSearch,
+      }),
+    enabled: activeTab === 'suspect_fields',
+  });
+
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -179,6 +202,15 @@ export function ReferencesPage() {
           is_default: Boolean(formData.is_default),
           sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
         });
+      if (activeTab === 'suspect_fields')
+        return suspectFieldConfigsApi.create({
+          key: (formData.key as string) || (formData.name as string) || '',
+          label: (formData.label as string) || (formData.name as string) || '',
+          category: (formData.category as string) || 'Umumiy',
+          sample_value: (formData.sample_value as string) || undefined,
+          description: (formData.description as string) || undefined,
+          sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : 0,
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -187,12 +219,17 @@ export function ReferencesPage() {
             ? 'payment-providers'
             : activeTab === 'statuses'
               ? 'application-statuses'
-              : activeTab,
+              : activeTab === 'suspect_fields'
+                ? 'suspect-field-configs'
+                : activeTab,
         ],
       });
       if (activeTab === 'statuses') {
         queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
         queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
+      }
+      if (activeTab === 'suspect_fields') {
+        queryClient.invalidateQueries({ queryKey: ['suspect-field-configs-active'] });
       }
       closeModal();
       toast.success('Yangi yozuv muvaffaqiyatli qo‘shildi');
@@ -227,6 +264,17 @@ export function ReferencesPage() {
           is_default: formData.is_default !== undefined ? Boolean(formData.is_default) : undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
         });
+      if (activeTab === 'suspect_fields')
+        return suspectFieldConfigsApi.update(targetItem.id, {
+          key: formData.key !== undefined ? (formData.key as string) : undefined,
+          label: formData.label !== undefined ? (formData.label as string) : undefined,
+          category: formData.category !== undefined ? (formData.category as string) : undefined,
+          sample_value:
+            formData.sample_value !== undefined ? (formData.sample_value as string) : undefined,
+          description:
+            formData.description !== undefined ? (formData.description as string) : undefined,
+          sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -235,12 +283,17 @@ export function ReferencesPage() {
             ? 'payment-providers'
             : activeTab === 'statuses'
               ? 'application-statuses'
-              : activeTab,
+              : activeTab === 'suspect_fields'
+                ? 'suspect-field-configs'
+                : activeTab,
         ],
       });
       if (activeTab === 'statuses') {
         queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
         queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
+      }
+      if (activeTab === 'suspect_fields') {
+        queryClient.invalidateQueries({ queryKey: ['suspect-field-configs-active'] });
       }
       closeModal();
       toast.success('Yozuv muvaffaqiyatli yangilandi');
@@ -259,6 +312,7 @@ export function ReferencesPage() {
       if (activeTab === 'banks') return banksApi.delete(targetItem.id);
       if (activeTab === 'providers') return paymentProvidersApi.delete(targetItem.id);
       if (activeTab === 'statuses') return applicationStatusesApi.delete(targetItem.id);
+      if (activeTab === 'suspect_fields') return suspectFieldConfigsApi.delete(targetItem.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -267,12 +321,17 @@ export function ReferencesPage() {
             ? 'payment-providers'
             : activeTab === 'statuses'
               ? 'application-statuses'
-              : activeTab,
+              : activeTab === 'suspect_fields'
+                ? 'suspect-field-configs'
+                : activeTab,
         ],
       });
       if (activeTab === 'statuses') {
         queryClient.invalidateQueries({ queryKey: ['application-statuses-all'] });
         queryClient.invalidateQueries({ queryKey: ['application-statuses-autocomplete'] });
+      }
+      if (activeTab === 'suspect_fields') {
+        queryClient.invalidateQueries({ queryKey: ['suspect-field-configs-active'] });
       }
       closeModal();
       toast.success('Yozuv o‘chirildi');
@@ -327,11 +386,20 @@ export function ReferencesPage() {
       <Tabs
         value={activeTab}
         onValueChange={(val) =>
-          setActiveTab(val as 'districts' | 'mahallas' | 'crimes' | 'banks' | 'providers')
+          setActiveTab(
+            val as
+              | 'districts'
+              | 'mahallas'
+              | 'crimes'
+              | 'banks'
+              | 'providers'
+              | 'statuses'
+              | 'suspect_fields',
+          )
         }
         className="w-full space-y-4"
       >
-        <TabsList className="grid grid-cols-2 sm:grid-cols-6 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-7 w-full sm:w-auto p-1 bg-muted/50 border border-border/60">
           <TabsTrigger value="districts" className="gap-2 text-xs">
             <MapPin className="h-3.5 w-3.5 text-primary" />
             Tumanlar
@@ -355,6 +423,10 @@ export function ReferencesPage() {
           <TabsTrigger value="statuses" className="gap-2 text-xs">
             <Activity className="h-3.5 w-3.5 text-primary" />
             Ariza Statuslari
+          </TabsTrigger>
+          <TabsTrigger value="suspect_fields" className="gap-2 text-xs">
+            <ShieldAlert className="h-3.5 w-3.5 text-primary" />
+            Gumonlanuvchi Parametrlari
           </TabsTrigger>
         </TabsList>
 
@@ -942,6 +1014,123 @@ export function ReferencesPage() {
             )}
           </Card>
         </TabsContent>
+
+        {/* 6. SUSPECT FIELD CONFIGS TAB */}
+        <TabsContent value="suspect_fields" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="relative max-w-md lg:max-w-lg">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Parametr nomi yoki kaliti bo'yicha qidiruv..."
+                  value={suspectFieldSearch}
+                  onChange={(e) => {
+                    setSuspectFieldSearch(e.target.value);
+                    setSuspectFieldPage(1);
+                  }}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Parametr Nomi</TableHead>
+                  <TableHead>Tizim Kaliti (Tag / Variable)</TableHead>
+                  <TableHead>Toifasi</TableHead>
+                  <TableHead>Namuna Qiymat</TableHead>
+                  <TableHead>Tartib</TableHead>
+                  <TableHead>Tavsif</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isSuspectFieldsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : suspectFieldsData?.items?.length ? (
+                  suspectFieldsData.items.map((field: SuspectFieldConfig) => (
+                    <TableRow key={field.id}>
+                      <TableCell className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                          <span>{field.label}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-xs text-primary font-bold"
+                        >
+                          {`{{suspect.${field.key}}}`}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[11px]">
+                          {field.category || 'Umumiy'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        {field.sample_value || '—'}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {field.sort_order ?? 0}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                        {field.description || '—'}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(field)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          title="Tahrirlash"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteModal(field)}
+                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          title="O‘chirish"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Hech qanday parametr topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+
+            {suspectFieldsData?.meta && (
+              <PaginationBar
+                page={suspectFieldsData.meta.page}
+                totalPages={suspectFieldsData.meta.totalPages}
+                total={suspectFieldsData.meta.total}
+                limit={suspectFieldsData.meta.limit}
+                hasNextPage={suspectFieldsData.meta.hasNextPage}
+                hasPreviousPage={suspectFieldsData.meta.hasPreviousPage}
+                onPageChange={(p) => setSuspectFieldPage(p)}
+                isLoading={isSuspectFieldsLoading}
+              />
+            )}
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* CREATE / EDIT DIALOG */}
@@ -959,6 +1148,8 @@ export function ReferencesPage() {
               {activeTab === 'providers' && 'To‘lov xizmati provayderi ma‘lumotlarini kiriting'}
               {activeTab === 'statuses' &&
                 'Ariza holati/statusi nomi, kodi, rangi va parametrlarini kiriting'}
+              {activeTab === 'suspect_fields' &&
+                'Gumonlanuvchi parametri (Telegram, Instagram, telefon, karta va h.k.) va tizim kalitini kiriting'}
             </DialogDescription>
           </DialogHeader>
 
@@ -966,19 +1157,46 @@ export function ReferencesPage() {
             {/* Common Name field */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
-                {activeTab === 'crimes' ? 'Jinoyat Turi Nomi *' : 'Nomi / Sarlavha *'}
+                {activeTab === 'crimes'
+                  ? 'Jinoyat Turi Nomi *'
+                  : activeTab === 'suspect_fields'
+                    ? 'Parametr Nomi (Label) *'
+                    : 'Nomi / Sarlavha *'}
               </label>
               <Input
-                placeholder={activeTab === 'crimes' ? 'Masalan: Firibgarlik...' : 'Nomi...'}
-                value={formData.name || formData.title || formData.article || ''}
-                onChange={(e) =>
+                placeholder={
+                  activeTab === 'crimes'
+                    ? 'Masalan: Firibgarlik...'
+                    : activeTab === 'suspect_fields'
+                      ? 'Masalan: Telegram Username...'
+                      : 'Nomi...'
+                }
+                value={
+                  (formData.label as string) ||
+                  formData.name ||
+                  formData.title ||
+                  formData.article ||
+                  ''
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const updates: Record<string, unknown> = {
+                    name: val,
+                    title: val,
+                    article: val,
+                    label: val,
+                  };
+                  if (activeTab === 'suspect_fields' && !targetItem && !formData.key) {
+                    updates.key = val
+                      .toLowerCase()
+                      .replace(/[\s-]+/g, '_')
+                      .replace(/[^a-z0-9_]/g, '');
+                  }
                   setFormData({
                     ...formData,
-                    name: e.target.value,
-                    title: e.target.value,
-                    article: e.target.value,
-                  })
-                }
+                    ...updates,
+                  });
+                }}
                 className="h-10 text-xs sm:text-sm font-medium"
               />
             </div>
@@ -1109,6 +1327,89 @@ export function ReferencesPage() {
                   <label className="font-medium text-foreground">Izoh (Tavsif)</label>
                   <Input
                     placeholder="Ariza statusi haqida qisqacha izoh..."
+                    value={(formData.description as string) || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Suspect Field Configs Form Fields */}
+            {activeTab === 'suspect_fields' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Tizim Kaliti (Key) *</label>
+                    <Input
+                      placeholder="telegram_username, phone_number..."
+                      value={(formData.key as string) || ''}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+                        })
+                      }
+                      className="h-9 text-xs font-mono"
+                      required
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Word shablonda {`{{suspect.${(formData.key as string) || 'kalit'}}}`} bo‘lib
+                      chiqadi
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Toifasi (Category)</label>
+                    <select
+                      value={(formData.category as string) || 'Umumiy'}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="Telegram">Telegram</option>
+                      <option value="Instagram">Instagram</option>
+                      <option value="Aloqa">Aloqa / Telefon</option>
+                      <option value="Moliya">Moliya / Bank / Kripto</option>
+                      <option value="Tarmoq">Tarmoq / IP / Server</option>
+                      <option value="Transport">Transport / Avto</option>
+                      <option value="Umumiy">Umumiy / Boshqa</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">
+                      Namuna qiymat (Sample value)
+                    </label>
+                    <Input
+                      placeholder="Masalan: @tilav_web, 123456..."
+                      value={(formData.sample_value as string) || ''}
+                      onChange={(e) => setFormData({ ...formData, sample_value: e.target.value })}
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">
+                      Tartib raqami (Sort order)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="1, 2, 3..."
+                      value={formData.sort_order ?? 0}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
+                      }
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-medium text-foreground">Tavsif / Izoh</label>
+                  <Input
+                    placeholder="Ushbu parametr nima maqsadda ishlatilishi haqida izoh..."
                     value={(formData.description as string) || ''}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="h-9 text-xs"

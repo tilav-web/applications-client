@@ -1,714 +1,504 @@
+import { useQuery } from '@tanstack/react-query';
 import {
-  Car,
-  Check,
+  Camera,
   Coins,
   CreditCard,
-  Edit2,
+  Globe,
   Hash,
-  MapPin,
-  MessageCircle,
   Phone,
   Plus,
   Send,
   ShieldAlert,
   Trash2,
-  User,
-  X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { suspectFieldConfigsApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import type { SuspectTreeNode } from '@/types/models';
+import type { SuspectFieldConfig, SuspectFieldItem } from '@/types/models';
 
 interface SuspectTreeBuilderProps {
-  value: SuspectTreeNode[] | null | undefined;
-  onChange?: (newTree: SuspectTreeNode[]) => void;
+  value: SuspectFieldItem[] | any[] | null | undefined;
+  onChange?: (items: any[]) => void;
   readOnly?: boolean;
 }
 
-interface ActiveAddState {
-  type: 'child' | 'sibling';
-  targetId: string;
-  parentId: string | 'ROOT';
+// Fallback parametrlar (agar API hali yuklanmagan bo'lsa)
+const FALLBACK_CONFIGS: SuspectFieldConfig[] = [
+  {
+    id: 'f-1',
+    key: 'telegram_username',
+    label: 'Telegram Username',
+    category: 'Telegram',
+    icon: 'Send',
+  },
+  { id: 'f-2', key: 'telegram_id', label: 'Telegram ID', category: 'Telegram', icon: 'Send' },
+  {
+    id: 'f-3',
+    key: 'telegram_bio',
+    label: 'Telegram Bio / Izoh',
+    category: 'Telegram',
+    icon: 'Send',
+  },
+  {
+    id: 'f-4',
+    key: 'instagram_username',
+    label: 'Instagram Username',
+    category: 'Instagram',
+    icon: 'Camera',
+  },
+  { id: 'f-5', key: 'phone_number', label: 'Telefon raqami', category: 'Aloqa', icon: 'Phone' },
+  {
+    id: 'f-6',
+    key: 'card_number',
+    label: 'Bank plastik karta',
+    category: 'Moliya',
+    icon: 'CreditCard',
+  },
+  { id: 'f-7', key: 'crypto_wallet', label: 'Kripto-hamyon', category: 'Moliya', icon: 'Coins' },
+  { id: 'f-8', key: 'ip_address', label: 'IP Manzil', category: 'Tarmoq', icon: 'Globe' },
+  { id: 'f-9', key: 'other_info', label: 'Boshqa maʼlumot', category: 'Boshqa', icon: 'Hash' },
+];
+
+function getCategoryIcon(key: string, category?: string | null, className = 'w-3.5 h-3.5') {
+  const k = (key || '').toLowerCase();
+  const c = (category || '').toLowerCase();
+  if (k.includes('telegram') || k.includes('tg') || c.includes('telegram')) {
+    return <Send className={cn('text-sky-500', className)} />;
+  }
+  if (k.includes('instagram') || k.includes('insta') || c.includes('instagram')) {
+    return <Camera className={cn('text-pink-500', className)} />;
+  }
+  if (k.includes('phone') || k.includes('telefon') || c.includes('aloqa')) {
+    return <Phone className={cn('text-emerald-500', className)} />;
+  }
+  if (k.includes('card') || k.includes('karta') || c.includes('moliya')) {
+    return <CreditCard className={cn('text-amber-500', className)} />;
+  }
+  if (k.includes('crypto') || k.includes('wallet') || k.includes('kripto')) {
+    return <Coins className={cn('text-yellow-500', className)} />;
+  }
+  if (k.includes('ip') || k.includes('server') || c.includes('tarmoq')) {
+    return <Globe className={cn('text-indigo-500', className)} />;
+  }
+  return <Hash className={cn('text-muted-foreground', className)} />;
 }
 
-function renderNodeIcon(label: string, className = 'w-3 h-3') {
-  const l = (label || '').toLowerCase();
-  if (l.includes('telegram') || l.includes('tg')) return <Send className={className} />;
-  if (l.includes('instagram') || l.includes('insta'))
-    return <MessageCircle className={className} />;
-  if (l.includes('telefon') || l.includes('tel') || l.includes('phone') || l.includes('raqam'))
-    return <Phone className={className} />;
-  if (l.includes('shaxs') || l.includes('ism') || l.includes('f.i.sh') || l.includes('pasport'))
-    return <User className={className} />;
-  if (l.includes('karta') || l.includes('card')) return <CreditCard className={className} />;
-  if (l.includes('manzil') || l.includes('joy') || l.includes('shahar') || l.includes('tuman'))
-    return <MapPin className={className} />;
-  if (l.includes('kripto') || l.includes('crypto') || l.includes('usdt') || l.includes('btc'))
-    return <Coins className={className} />;
-  if (l.includes('avto') || l.includes('mashina') || l.includes('avtoraqam'))
-    return <Car className={className} />;
-  return <Hash className={className} />;
+let globalRowCounter = 0;
+function generateRowId(): string {
+  globalRowCounter += 1;
+  const rand =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().slice(0, 8)
+      : `${globalRowCounter}`;
+  return `suspect-row-${globalRowCounter}-${rand}`;
 }
 
-// Vertikal magistral (spine) segmenti
-function SpineSegment({
-  isFirst,
-  isLast,
-  singleItem,
-}: {
-  isFirst: boolean;
-  isLast: boolean;
-  singleItem: boolean;
-}) {
-  if (singleItem) return null;
-  return (
-    <div
-      className={cn(
-        'absolute left-0 w-[2px] bg-border/80 pointer-events-none',
-        isFirst && 'top-1/2 bottom-0',
-        isLast && 'top-0 bottom-1/2',
-        !isFirst && !isLast && 'top-0 bottom-0',
-      )}
-    />
-  );
+/**
+ * Eski daraxt formatidagi ma'lumotlarni tekis 3-ustunli ro'yxatga aylantirish
+ */
+function normalizeSuspectData(val: unknown): SuspectFieldItem[] {
+  if (!val || !Array.isArray(val)) return [];
+
+  const result: SuspectFieldItem[] = [];
+
+  for (let i = 0; i < val.length; i++) {
+    const item = val[i];
+    if (!item) continue;
+
+    // Yangi format: { field_key, value, note }
+    if (item.field_key !== undefined || (item.value !== undefined && !item.children)) {
+      result.push({
+        id: item.id || generateRowId(),
+        field_key: item.field_key || item.key || 'other_info',
+        field_label: item.field_label || item.label || 'Boshqa',
+        value: item.value || '',
+        note: item.note || item.description || '',
+      });
+    } else {
+      // Eski daraxt formati: { label, children }
+      const walk = (nodes: any[], path: string[] = []) => {
+        for (const n of nodes) {
+          if (!n) continue;
+          const text = (n.label || n.value || '').trim();
+          const newPath = [...path, text];
+          if (n.children && n.children.length > 0) {
+            walk(n.children, newPath);
+          } else {
+            result.push({
+              id: n.id || generateRowId(),
+              field_key: 'other_info',
+              field_label: path[0] || 'Gumonlanuvchi',
+              value: text,
+              note: newPath.join(' ➔ '),
+            });
+          }
+        }
+      };
+      walk([item]);
+    }
+  }
+
+  return result;
 }
 
 export function SuspectTreeBuilder({ value, onChange, readOnly = false }: SuspectTreeBuilderProps) {
-  const tree: SuspectTreeNode[] = useMemo(() => value || [], [value]);
+  // 1. Admin tomonidan yaratilgan parametrlarni API dan olish
+  const { data: activeConfigsData } = useQuery({
+    queryKey: ['suspect-field-configs-active'],
+    queryFn: () => suspectFieldConfigsApi.getAllActive(),
+    staleTime: 60_000,
+  });
 
-  // Bo'sh daraxt uchun birinchi elementni qo'shish holati
-  const [isAddingInitial, setIsAddingInitial] = useState(false);
+  const availableConfigs: SuspectFieldConfig[] = useMemo(() => {
+    if (activeConfigsData && activeConfigsData.length > 0) {
+      return activeConfigsData;
+    }
+    return FALLBACK_CONFIGS;
+  }, [activeConfigsData]);
 
-  // Faol yangi shoxobcha qo'shish (child yoki sibling)
-  const [activeAdd, setActiveAdd] = useState<ActiveAddState | null>(null);
-  const [addText, setAddText] = useState<string>('');
+  // 2. Mahalliy elementlar holati
+  const items = useMemo(() => normalizeSuspectData(value), [value]);
 
-  // Tahrirlash
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [editText, setEditText] = useState<string>('');
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
-  // O'chirish
-  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+  // 3. Yangi qator qo'shish
+  const handleAddRow = (indexToInsertAfter?: number) => {
+    if (readOnly) return;
 
-  // Daraxtdagi barcha tugunlar soni
-  const totalCount = useMemo(() => {
-    let count = 0;
-    const walk = (nodes: SuspectTreeNode[]) => {
-      for (const n of nodes) {
-        count++;
-        if (n.children && n.children.length > 0) walk(n.children);
-      }
-    };
-    walk(tree);
-    return count;
-  }, [tree]);
-
-  // 1. Dastlabki birinchi elementni saqlash (daraxt bo'sh bo'lganda)
-  const handleCommitInitial = () => {
-    const text = addText.trim();
-    if (!text) return;
-
-    const newNode: SuspectTreeNode = {
-      id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      label: text,
-      children: [],
+    const defaultConfig = availableConfigs[0] || FALLBACK_CONFIGS[0];
+    const newItem: SuspectFieldItem = {
+      id: generateRowId(),
+      field_key: defaultConfig.key,
+      field_label: defaultConfig.label,
+      value: '',
+      note: '',
     };
 
-    onChange?.([newNode]);
-    setAddText('');
-    setIsAddingInitial(false);
-  };
-
-  // 2. Bola (Child / o'ngga) qo'shishni boshlash
-  const handleStartAddChild = (nodeId: string, parentId: string | 'ROOT') => {
-    setActiveAdd({ type: 'child', targetId: nodeId, parentId });
-    setAddText('');
-    setEditingNodeId(null);
-  };
-
-  // 3. Ildizdosh (Sibling / pastga) qo'shishni boshlash
-  const handleStartAddSibling = (targetId: string, parentId: string | 'ROOT') => {
-    setActiveAdd({ type: 'sibling', targetId, parentId });
-    setAddText('');
-    setEditingNodeId(null);
-  };
-
-  // 4. Qo'shishni bekor qilish
-  const handleCancelAdd = () => {
-    setActiveAdd(null);
-    setAddText('');
-  };
-
-  // 5. Yangi qo'shilgan tugunni saqlash
-  const handleCommitAdd = () => {
-    const text = addText.trim();
-    if (!text || !activeAdd) return;
-
-    const newNode: SuspectTreeNode = {
-      id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      label: text,
-      children: [],
-    };
-
-    if (activeAdd.type === 'child') {
-      // activeAdd.targetId ning bolalari ro'yxatiga qo'shish
-      const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
-        return nodes.map((n) => {
-          if (n.id === activeAdd.targetId) {
-            return {
-              ...n,
-              children: [...(n.children || []), newNode],
-            };
-          }
-          if (n.children && n.children.length > 0) {
-            return { ...n, children: recurse(n.children) };
-          }
-          return n;
-        });
-      };
-      onChange?.(recurse(tree));
-    } else if (activeAdd.type === 'sibling') {
-      // activeAdd.targetId dan keyin o'sha darajaga joylashtirish
-      if (activeAdd.parentId === 'ROOT') {
-        const idx = tree.findIndex((n) => n.id === activeAdd.targetId);
-        const next = [...tree];
-        if (idx !== -1) {
-          next.splice(idx + 1, 0, newNode);
-        } else {
-          next.push(newNode);
-        }
-        onChange?.(next);
-      } else {
-        const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
-          return nodes.map((n) => {
-            if (n.id === activeAdd.parentId) {
-              const children = [...(n.children || [])];
-              const idx = children.findIndex((c) => c.id === activeAdd.targetId);
-              if (idx !== -1) {
-                children.splice(idx + 1, 0, newNode);
-              } else {
-                children.push(newNode);
-              }
-              return { ...n, children };
-            }
-            if (n.children && n.children.length > 0) {
-              return { ...n, children: recurse(n.children) };
-            }
-            return n;
-          });
-        };
-        onChange?.(recurse(tree));
-      }
+    let nextItems: SuspectFieldItem[];
+    if (indexToInsertAfter !== undefined && indexToInsertAfter >= 0) {
+      nextItems = [...items];
+      nextItems.splice(indexToInsertAfter + 1, 0, newItem);
+    } else {
+      nextItems = [...items, newItem];
     }
 
-    setActiveAdd(null);
-    setAddText('');
+    onChange?.(nextItems);
   };
 
-  // 6. Tahrirlash
-  const handleStartEdit = (node: SuspectTreeNode) => {
-    setEditingNodeId(node.id);
-    setEditText(node.label);
-    setActiveAdd(null);
+  // 4. Elementni o'chirish
+  const handleRemoveRow = (id: string) => {
+    if (readOnly) return;
+    const nextItems = items.filter((it) => it.id !== id);
+    onChange?.(nextItems);
   };
 
-  const handleCommitEdit = () => {
-    const text = editText.trim();
-    if (!editingNodeId || !text) return;
-
-    const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
-      return nodes.map((n) => {
-        if (n.id === editingNodeId) {
-          return {
-            ...n,
-            label: text,
-          };
-        }
-        if (n.children && n.children.length > 0) {
-          return {
-            ...n,
-            children: recurse(n.children),
-          };
-        }
-        return n;
-      });
-    };
-
-    onChange?.(recurse(tree));
-    setEditingNodeId(null);
+  // 5. Select o'zgarganda
+  const handleSelectField = (id: string, newKey: string) => {
+    if (readOnly) return;
+    const cfg = availableConfigs.find((c) => c.key === newKey);
+    const nextItems = items.map((it) => {
+      if (it.id === id) {
+        return {
+          ...it,
+          field_key: newKey,
+          field_label: cfg?.label || newKey,
+        };
+      }
+      return it;
+    });
+    onChange?.(nextItems);
   };
 
-  const handleCancelEdit = () => {
-    setEditingNodeId(null);
+  // 6. Qiymat o'zgarganda
+  const handleValueChange = (id: string, newValue: string) => {
+    if (readOnly) return;
+    const nextItems = items.map((it) => {
+      if (it.id === id) {
+        return { ...it, value: newValue };
+      }
+      return it;
+    });
+    onChange?.(nextItems);
   };
 
-  // 7. O'chirish
-  const handleDeleteNode = (id: string) => {
-    const recurse = (nodes: SuspectTreeNode[]): SuspectTreeNode[] => {
-      return nodes
-        .filter((n) => n.id !== id)
-        .map((n) => ({
-          ...n,
-          children: n.children ? recurse(n.children) : [],
-        }));
-    };
-    onChange?.(recurse(tree));
-    setNodeToDelete(null);
+  // 7. Izoh o'zgarganda
+  const handleNoteChange = (id: string, newNote: string) => {
+    if (readOnly) return;
+    const nextItems = items.map((it) => {
+      if (it.id === id) {
+        return { ...it, note: newNote };
+      }
+      return it;
+    });
+    onChange?.(nextItems);
   };
 
+  // 8. Tozalash
   const handleClearAll = () => {
     onChange?.([]);
+    setIsClearConfirmOpen(false);
   };
 
-  return (
-    <div className="space-y-2">
-      {/* Sarlavha & Boshqaruv paneli */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
+  // --------------------------------------------------------------------------
+  // ReadOnly rejimi (Application Detail Page)
+  // --------------------------------------------------------------------------
+  if (readOnly) {
+    if (items.length === 0) {
+      return (
+        <div className="py-2 text-xs text-muted-foreground italic">
+          Gumonlanuvchiga tegishli belgilar kiritilmagan
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400">
-            <ShieldAlert className="h-3.5 w-3.5" />
-          </div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-            2.1. Firibgar / Gumonlanuvchi ma'lumotlari daraxti
-            {totalCount > 0 && (
-              <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono">
-                {totalCount} ta belgi
-              </Badge>
-            )}
-          </h4>
+          <ShieldAlert className="w-4 h-4 text-rose-500" />
+          <span className="text-xs font-bold tracking-wider uppercase text-foreground">
+            Firibgar / Gumonlanuvchi maʼlumotlari
+          </span>
+          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-mono">
+            {items.length} ta belgi
+          </Badge>
         </div>
 
-        {!readOnly && totalCount > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {items.map((it) => (
+            <div
+              key={it.id}
+              className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-border/70 bg-card/60 backdrop-blur-xs text-xs"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 rounded-md bg-muted/60 shrink-0">
+                  {getCategoryIcon(it.field_key)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    {it.field_label || it.field_key}
+                  </div>
+                  <div className="font-semibold text-foreground font-mono truncate">
+                    {it.value || '—'}
+                  </div>
+                </div>
+              </div>
+              {it.note && (
+                <span
+                  className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md shrink-0 max-w-[40%] truncate"
+                  title={it.note}
+                >
+                  {it.note}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Tahrirlash rejimi (Application Form: 3 ta bog'langan input + qatorlar)
+  // --------------------------------------------------------------------------
+  return (
+    <div className="w-full space-y-3">
+      {/* Sarlavha paneli */}
+      <div className="flex items-center justify-between pb-1">
+        <div className="flex items-center gap-2">
+          <div className="p-1 rounded-md bg-rose-500/10 text-rose-500">
+            <ShieldAlert className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-xs font-bold tracking-wider uppercase text-foreground">
+            2.1. FIRIBGAR / GUMONLANUVCHI BELGILARI VA MAʼLUMOTLARI
+          </span>
+          {items.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-mono">
+              {items.length} TA BELGI
+            </Badge>
+          )}
+        </div>
+
+        {items.length > 0 && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={handleClearAll}
-            className="h-6 text-[11px] text-muted-foreground hover:text-red-500 gap-1 px-2"
+            onClick={() => setIsClearConfirmOpen(true)}
+            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 gap-1 cursor-pointer"
           >
-            <Trash2 className="h-3 w-3" />
+            <Trash2 className="w-3 h-3" />
             Tozalash
           </Button>
         )}
       </div>
 
-      {/* DARAХТ CHIZIQLARI MAYDONI */}
-      <div className="relative rounded-lg border border-border/80 bg-card/30 p-4 overflow-x-auto min-h-[90px] flex items-center">
-        {/* Yengil fon panjarasi */}
+      {/* Asosiy Ish Maydoni (Keng doska, chiziqli bog'lanish bilan) */}
+      <div className="relative w-full rounded-xl border border-border/80 bg-slate-500/[0.02] dark:bg-slate-900/30 p-3 sm:p-4 overflow-x-auto">
+        {/* Orqa fon nuqtalari */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
           style={{
             backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
-            backgroundSize: '14px 14px',
+            backgroundSize: '16px 16px',
           }}
         />
 
-        {tree.length === 0 ? (
-          /* BO'SH HOLAT: Dastlabki birinchi ma'lumotni kiritish (chapda keraksiz chiziqsiz) */
-          !readOnly && (
-            <div className="py-2">
-              {isAddingInitial ? (
-                <div className="flex items-center gap-1.5 p-1.5 rounded-lg border border-primary bg-background shadow-xs animate-in fade-in duration-100">
-                  <input
-                    type="text"
-                    placeholder="Masalan: telegram, telefon, karta..."
-                    value={addText}
-                    onChange={(e) => setAddText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleCommitInitial();
-                      if (e.key === 'Escape') setIsAddingInitial(false);
-                    }}
-                    className="h-7 text-xs font-semibold bg-transparent border-0 border-b-2 border-primary focus:outline-none px-2 w-56 text-foreground"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCommitInitial}
-                    disabled={!addText.trim()}
-                    className="h-6 px-2.5 rounded bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-40"
-                  >
-                    <Check className="w-3 h-3" />
-                    <span>Qo‘shish</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingInitial(false)}
-                    className="h-6 w-6 rounded hover:bg-muted text-muted-foreground flex items-center justify-center cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddingInitial(true);
-                    setAddText('');
-                  }}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary/5 text-primary text-xs font-semibold transition-all cursor-pointer shadow-2xs hover:scale-[1.01]"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Daraxtga birinchi maʼlumotni kiritish</span>
-                </button>
-              )}
+        {items.length === 0 ? (
+          /* Bo'sh holat */
+          <div className="relative py-8 flex flex-col items-center justify-center text-center">
+            <div className="p-3 rounded-full bg-primary/10 text-primary mb-2.5">
+              <ShieldAlert className="w-5 h-5" />
             </div>
-          )
+            <p className="text-xs font-medium text-foreground mb-1">
+              Hozircha hech qanday gumonlanuvchi belgisi kiritilmagan
+            </p>
+            <p className="text-[11px] text-muted-foreground mb-3 max-w-sm">
+              Telegram ID, nik, telefon, karta raqami yoki boshqa maʼlumotlarni 3 ta ustunli
+              zanjirda kiriting
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleAddRow()}
+              className="h-8 px-4 text-xs gap-1.5 shadow-sm font-medium cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Gumonlanuvchi maʼlumotini qo‘shish
+            </Button>
+          </div>
         ) : (
-          /* MAVJUD DARAХТ (ROOT LEVEL) */
-          <div className="relative flex items-center py-2">
-            <TreeLevelBranch
-              nodes={tree}
-              parentId="ROOT"
-              readOnly={readOnly}
-              activeAdd={activeAdd}
-              addText={addText}
-              setAddText={setAddText}
-              onStartAddChild={handleStartAddChild}
-              onStartAddSibling={handleStartAddSibling}
-              onCommitAdd={handleCommitAdd}
-              onCancelAdd={handleCancelAdd}
-              editingNodeId={editingNodeId}
-              editText={editText}
-              setEditText={setEditText}
-              onStartEdit={handleStartEdit}
-              onCommitEdit={handleCommitEdit}
-              onCancelEdit={handleCancelEdit}
-              onDeleteNode={(id) => setNodeToDelete(id)}
-            />
+          /* Qatorlar ro'yxati (Har bir qatorda 3 ta bog'langan input + amallar) */
+          <div className="relative space-y-2.5 min-w-[700px]">
+            {items.map((row, index) => {
+              const currentCfg = availableConfigs.find((c) => c.key === row.field_key);
+
+              return (
+                <div
+                  key={row.id}
+                  className="group relative flex items-center gap-0 transition-all duration-150"
+                >
+                  {/* Tartib raqami */}
+                  <span className="w-5 text-[11px] font-mono text-muted-foreground/70 shrink-0 text-right pr-2 select-none">
+                    {index + 1}.
+                  </span>
+
+                  {/* 1-USTUN: SELECT (Admin qo'shgan parametrlar turi) */}
+                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card/90 shadow-2xs hover:border-primary/50 transition-colors w-[220px] shrink-0">
+                    <div className="mr-2 shrink-0">
+                      {getCategoryIcon(row.field_key, currentCfg?.category)}
+                    </div>
+                    <select
+                      value={row.field_key}
+                      onChange={(e) => handleSelectField(row.id, e.target.value)}
+                      className="w-full bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer truncate"
+                    >
+                      {availableConfigs.map((cfg) => (
+                        <option
+                          key={cfg.id}
+                          value={cfg.key}
+                          className="bg-popover text-popover-foreground py-1"
+                        >
+                          {cfg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* CHIZIQLI BOG'LANMA: 1-ustundan 2-ustunga */}
+                  <div className="w-6 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
+
+                  {/* 2-USTUN: VALUE (Xodim kiritadigan qiymat) */}
+                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all flex-1 min-w-[180px]">
+                    <span className="text-[11px] font-mono text-muted-foreground/60 mr-2 shrink-0 select-none">
+                      #
+                    </span>
+                    <input
+                      type="text"
+                      value={row.value}
+                      onChange={(e) => handleValueChange(row.id, e.target.value)}
+                      placeholder="Qiymat (masalan: @nik, 123456, +998...)"
+                      className="w-full bg-transparent text-xs font-medium text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* CHIZIQLI BOG'LANMA: 2-ustundan 3-ustunga */}
+                  <div className="w-6 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
+
+                  {/* 3-USTUN: NOTE / IZOH (Qo'shimcha tavsif) */}
+                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all flex-1 min-w-[160px]">
+                    <span className="text-[11px] font-mono text-muted-foreground/60 mr-2 shrink-0 select-none">
+                      ✎
+                    </span>
+                    <input
+                      type="text"
+                      value={row.note || ''}
+                      onChange={(e) => handleNoteChange(row.id, e.target.value)}
+                      placeholder="Izoh (ixtiyoriy, masalan: Yozishma boti)"
+                      className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* CHIZIQLI BOG'LANMA: 3-ustundan Tugmalarga */}
+                  <div className="w-4 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
+
+                  {/* HARAKATLAR: Yonidagi [+] va [Trash] */}
+                  <div className="flex items-center gap-1 shrink-0 pl-1">
+                    {/* [+] Tugmasi (shu qatordan so'ng yangi qator ochish) */}
+                    <button
+                      type="button"
+                      onClick={() => handleAddRow(index)}
+                      className="h-7 w-7 rounded-md border border-dashed border-border hover:border-primary hover:bg-primary/10 text-muted-foreground hover:text-primary flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                      title="Shu qatordan so‘ng yangi parametr qo‘shish"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* [Trash] Tugmasi (qatorni o'chirish) */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveRow(row.id)}
+                      className="h-7 w-7 rounded-md border border-transparent hover:border-rose-500/30 hover:bg-rose-500/10 text-muted-foreground/60 hover:text-rose-500 flex items-center justify-center transition-all cursor-pointer"
+                      title="Qatorni o‘chirish"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Pastki qatorda qo'shimcha tezkor qo'shish */}
+            <div className="pt-2 pl-5 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleAddRow()}
+                className="h-7 px-3 text-[11px] border-dashed border-border hover:border-primary text-muted-foreground hover:text-primary gap-1 font-normal cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                Yangi qator qo‘shish
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* O'CHIRISHNI TASDIQLASH */}
+      {/* Tozalashni tasdiqlash modali */}
       <ConfirmDialog
-        open={!!nodeToDelete}
-        onOpenChange={(open) => !open && setNodeToDelete(null)}
-        title="Belgini o‘chirish"
-        description="Ushbu maʼlumot va uning barcha ichki tarmoqlarini daraxtdan o‘chirmoqchimisiz?"
-        confirmText="Ha, o‘chirilsin"
+        open={isClearConfirmOpen}
+        onOpenChange={setIsClearConfirmOpen}
+        title="Barcha maʼlumotlarni tozalash"
+        description="Gumonlanuvchiga tegishli barcha kiritilgan parametrlar o‘chiriladi. Davom ettirasizmi?"
+        confirmText="Ha, tozalash"
         cancelText="Bekor qilish"
         variant="destructive"
-        onConfirm={() => {
-          if (nodeToDelete) handleDeleteNode(nodeToDelete);
-        }}
+        onConfirm={handleClearAll}
       />
-    </div>
-  );
-}
-
-// ============================================================================
-// BIR DARAJADAGI ELEMENTLAR RO'YXATI (TREE LEVEL BRANCH)
-// ============================================================================
-interface TreeLevelBranchProps {
-  nodes: SuspectTreeNode[];
-  parentId: string | 'ROOT';
-  readOnly: boolean;
-  activeAdd: ActiveAddState | null;
-  addText: string;
-  setAddText: (val: string) => void;
-  onStartAddChild: (nodeId: string, parentId: string | 'ROOT') => void;
-  onStartAddSibling: (targetId: string, parentId: string | 'ROOT') => void;
-  onCommitAdd: () => void;
-  onCancelAdd: () => void;
-  editingNodeId: string | null;
-  editText: string;
-  setEditText: (val: string) => void;
-  onStartEdit: (node: SuspectTreeNode) => void;
-  onCommitEdit: () => void;
-  onCancelEdit: () => void;
-  onDeleteNode: (id: string) => void;
-}
-
-function TreeLevelBranch({
-  nodes,
-  parentId,
-  readOnly,
-  activeAdd,
-  addText,
-  setAddText,
-  onStartAddChild,
-  onStartAddSibling,
-  onCommitAdd,
-  onCancelAdd,
-  editingNodeId,
-  editText,
-  setEditText,
-  onStartEdit,
-  onCommitEdit,
-  onCancelEdit,
-  onDeleteNode,
-}: TreeLevelBranchProps) {
-  // Ko'rsatiladigan elementlar ketma-ketligini yig'amiz: mavjud tugunlar + agar sibling qo'shilayotgan bo'lsa uning inputi
-  type BranchItem = { type: 'node'; node: SuspectTreeNode } | { type: 'input'; targetId: string };
-
-  const items = useMemo(() => {
-    const list: BranchItem[] = [];
-    for (const n of nodes) {
-      list.push({ type: 'node', node: n });
-      if (
-        activeAdd &&
-        activeAdd.type === 'sibling' &&
-        activeAdd.parentId === parentId &&
-        activeAdd.targetId === n.id
-      ) {
-        list.push({ type: 'input', targetId: n.id });
-      }
-    }
-    return list;
-  }, [nodes, activeAdd, parentId]);
-
-  return (
-    <div className="relative flex flex-col justify-center shrink-0">
-      {items.map((item, index) => {
-        const isFirst = index === 0;
-        const isLast = index === items.length - 1;
-        const singleItem = items.length === 1;
-
-        if (item.type === 'input') {
-          return (
-            <div
-              key="inline-sibling-input"
-              className="relative flex items-center shrink-0 py-1.5 pl-6"
-            >
-              {/* Ulovchi chiziqlar */}
-              <div className="absolute left-0 top-1/2 w-6 h-[2px] bg-border/80 pointer-events-none" />
-              <SpineSegment isFirst={isFirst} isLast={isLast} singleItem={singleItem} />
-
-              {/* Inline input */}
-              <div className="flex items-center gap-1 py-0.5 animate-in fade-in slide-in-from-left-2 duration-100">
-                <input
-                  type="text"
-                  placeholder="Yozing va Enter bosing..."
-                  value={addText}
-                  onChange={(e) => setAddText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      onCommitAdd();
-                    } else if (e.key === 'Escape') {
-                      e.preventDefault();
-                      onCancelAdd();
-                    }
-                  }}
-                  className="h-6.5 text-xs font-semibold bg-transparent border-0 border-b-2 border-primary focus:outline-none px-1 w-44 md:w-56 text-foreground placeholder:text-muted-foreground/50"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={onCommitAdd}
-                  disabled={!addText.trim()}
-                  className="h-5.5 px-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-40 shrink-0"
-                  title="Saqlash (Enter)"
-                >
-                  <Check className="w-3 h-3" />
-                  <span>Saqlash</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancelAdd}
-                  className="h-5.5 w-5.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors shrink-0"
-                  title="Bekor qilish (Esc)"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          );
-        }
-
-        const node = item.node;
-        const isEditing = editingNodeId === node.id;
-        const hasChildren = Boolean(node.children && node.children.length > 0);
-        const isAddingChildHere = activeAdd?.type === 'child' && activeAdd.targetId === node.id;
-
-        return (
-          <div key={node.id} className="relative flex items-center shrink-0 py-1.5 pl-6">
-            {/* Chap tomondagi gorizontal chiziq (Spinedan tugun pillga keladi) */}
-            <div className="absolute left-0 top-1/2 w-6 h-[2px] bg-border/80 pointer-events-none" />
-
-            {/* Vertikal ulovchi orqa chiziq */}
-            <SpineSegment isFirst={isFirst} isLast={isLast} singleItem={singleItem} />
-
-            {/* TUGUN ELEMENTI VA HOVER TUGMALARI */}
-            <div className="group/node relative flex items-center shrink-0">
-              {isEditing ? (
-                /* TAHRIRLASH REJIMI */
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-primary bg-background shadow-xs">
-                  <input
-                    type="text"
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') onCommitEdit();
-                      if (e.key === 'Escape') onCancelEdit();
-                    }}
-                    className="h-6 text-xs font-semibold bg-transparent border-0 border-b border-primary/50 focus:outline-none min-w-[120px] text-foreground"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={onCommitEdit}
-                    className="h-5 w-5 rounded bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center cursor-pointer ml-1"
-                    title="Saqlash (Enter)"
-                  >
-                    <Check className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onCancelEdit}
-                    className="h-5 w-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer"
-                    title="Bekor qilish (Esc)"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                /* ASOSIY TUGUN PILL */
-                <div className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/80 hover:border-primary/60 bg-background hover:bg-muted/40 text-foreground transition-all shadow-2xs select-none">
-                  <span className="text-primary/70 shrink-0">
-                    {renderNodeIcon(node.label, 'w-3 h-3')}
-                  </span>
-                  <span className="text-xs font-semibold">{node.label}</span>
-
-                  {node.value && (
-                    <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded select-all">
-                      {node.value}
-                    </span>
-                  )}
-
-                  {!readOnly && (
-                    <div className="opacity-0 group-hover/node:opacity-100 flex items-center gap-0.5 ml-1 pl-1 border-l border-border/60 transition-opacity">
-                      <button
-                        type="button"
-                        onClick={() => onStartEdit(node)}
-                        className="h-4 w-4 rounded hover:bg-primary/15 text-muted-foreground hover:text-primary flex items-center justify-center cursor-pointer transition-colors"
-                        title="Tahrirlash"
-                      >
-                        <Edit2 className="w-2.5 h-2.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteNode(node.id)}
-                        className="h-4 w-4 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-500 flex items-center justify-center cursor-pointer transition-colors"
-                        title="O‘chirish"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* HOVER QILGANDA PASTIDAN CHIQADIGAN TO'RTBURCHAK '+' TUGMASI (SIBLING) */}
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => onStartAddSibling(node.id, parentId)}
-                      className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-[4px] bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center justify-center opacity-0 translate-y-1 group-hover/node:opacity-100 group-hover/node:translate-y-0 scale-90 group-hover/node:scale-100 transition-all duration-150 cursor-pointer"
-                      title="Pastidan yangi tarmoq qo‘shish (+)"
-                    >
-                      <Plus className="w-3 h-3 stroke-[2.5]" />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* O'NGGA CHIZIQ (-----+ ko'rinishida) */}
-              {!hasChildren && !isAddingChildHere ? (
-                /* Bolasi yo'q bo'lsa: o'ng tomonga chiziq va [+] tugmasi */
-                !readOnly && (
-                  <div className="flex items-center">
-                    <div className="w-6 h-[2px] bg-border/80" />
-                    <button
-                      type="button"
-                      onClick={() => onStartAddChild(node.id, parentId)}
-                      className="h-4.5 w-4.5 rounded-full border border-dashed border-muted-foreground/60 hover:border-primary hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-all cursor-pointer shadow-2xs"
-                      title="Ichki tarmoq qo‘shish (+)"
-                    >
-                      <Plus className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                )
-              ) : (
-                /* Bolasi bo'lsa: bolalar konteyneriga ulovchi bitta toza chiziq */
-                <div className="w-6 h-[2px] bg-border/80 shrink-0 pointer-events-none" />
-              )}
-            </div>
-
-            {/* BOLALAR TARMOG'I (RECURSION) */}
-            {(hasChildren || isAddingChildHere) && (
-              <div className="relative flex flex-col justify-center shrink-0">
-                {/* Mavjud bolalar va faol qo'shilayotgan bola inputi */}
-                <TreeLevelBranch
-                  nodes={node.children || []}
-                  parentId={node.id}
-                  readOnly={readOnly}
-                  activeAdd={activeAdd}
-                  addText={addText}
-                  setAddText={setAddText}
-                  onStartAddChild={onStartAddChild}
-                  onStartAddSibling={onStartAddSibling}
-                  onCommitAdd={onCommitAdd}
-                  onCancelAdd={onCancelAdd}
-                  editingNodeId={editingNodeId}
-                  editText={editText}
-                  setEditText={setEditText}
-                  onStartEdit={onStartEdit}
-                  onCommitEdit={onCommitEdit}
-                  onCancelEdit={onCancelEdit}
-                  onDeleteNode={onDeleteNode}
-                />
-
-                {/* Agar aynan shu tugunga YANGI BOLA (child) kiritilayotgan bo'lsa va uning bolalari ro'yxatida bo'lmasa */}
-                {isAddingChildHere && (!node.children || node.children.length === 0) && (
-                  <div className="relative flex items-center shrink-0 py-1.5 pl-6">
-                    <div className="absolute left-0 top-1/2 w-6 h-[2px] bg-border/80 pointer-events-none" />
-                    <div className="flex items-center gap-1 py-0.5 animate-in fade-in slide-in-from-left-2 duration-100">
-                      <input
-                        type="text"
-                        placeholder="Masalan: username, bio, telefon..."
-                        value={addText}
-                        onChange={(e) => setAddText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            onCommitAdd();
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault();
-                            onCancelAdd();
-                          }
-                        }}
-                        className="h-6.5 text-xs font-semibold bg-transparent border-0 border-b-2 border-primary focus:outline-none px-1 w-44 md:w-56 text-foreground placeholder:text-muted-foreground/50"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={onCommitAdd}
-                        disabled={!addText.trim()}
-                        className="h-5.5 px-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-40 shrink-0"
-                        title="Saqlash (Enter)"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>Saqlash</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={onCancelAdd}
-                        className="h-5.5 w-5.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors shrink-0"
-                        title="Bekor qilish (Esc)"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
