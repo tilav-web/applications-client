@@ -282,9 +282,7 @@ export function CardsPage() {
               </div>
               <div>
                 <DialogTitle>
-                  {modalType === 'create'
-                    ? 'Yangi Plastik Karta Qo‘shish'
-                    : 'Kartani Tahrirlash'}
+                  {modalType === 'create' ? 'Yangi Plastik Karta Qo‘shish' : 'Kartani Tahrirlash'}
                 </DialogTitle>
                 <DialogDescription>
                   Karta raqami, amal qilish muddati, bank va karta egasi fuqaroni belgilang
@@ -329,9 +327,7 @@ export function CardsPage() {
                 </label>
                 <select
                   value={formData.citizen_id || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, citizen_id: e.target.value || null })
-                  }
+                  onChange={(e) => setFormData({ ...formData, citizen_id: e.target.value || null })}
                   className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Fuqaroni tanlang (ixtiyoriy)...</option>
@@ -392,9 +388,7 @@ export function CardsPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Kartani o‘chirish</DialogTitle>
-            <DialogDescription>
-              Ushbu kartani bazadan o‘chirmoqchimisiz?
-            </DialogDescription>
+            <DialogDescription>Ushbu kartani bazadan o‘chirmoqchimisiz?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

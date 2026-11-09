@@ -180,6 +180,13 @@ export interface Transfer {
   updated_at?: string;
 }
 
+export interface SuspectTreeNode {
+  id: string;
+  label: string;
+  value?: string;
+  children?: SuspectTreeNode[];
+}
+
 export interface ApplicationCustomField {
   id?: string;
   application_id?: string | null;
@@ -224,6 +231,7 @@ export interface Application {
   card?: Card | null;
   transfer_id?: string | null;
   transfer?: Transfer | null;
+  suspect_tree?: SuspectTreeNode[] | null;
   custom_fields?: ApplicationCustomField[];
   documents?: {
     id: string;
@@ -244,6 +252,7 @@ export interface Application {
     total: number;
     cards: number;
     citizens: number;
+    suspects?: number;
     has_fraud_card_link: boolean;
   };
 }

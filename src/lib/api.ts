@@ -608,10 +608,7 @@ export const documentsApi = {
     );
     return res.data;
   },
-  createFromTemplate: async (
-    applicationId: string,
-    payload: GenerateFromTemplatePayload,
-  ) => {
+  createFromTemplate: async (applicationId: string, payload: GenerateFromTemplatePayload) => {
     const res = await apiClient.post<ApplicationDocumentItem>(
       `/applications/${applicationId}/documents/from-template`,
       payload,
@@ -703,7 +700,12 @@ export const templatesApi = {
     const res = await apiClient.get<DocumentTemplateRecord>(`/templates/${id}`);
     return res.data;
   },
-  createBlank: async (data: { title: string; title_krill?: string; description?: string; category?: string }) => {
+  createBlank: async (data: {
+    title: string;
+    title_krill?: string;
+    description?: string;
+    category?: string;
+  }) => {
     const res = await apiClient.post<DocumentTemplateRecord>('/templates/blank', data);
     return res.data;
   },
@@ -725,7 +727,10 @@ export const templatesApi = {
     const res = await apiClient.get<DocumentEditorConfigResponse>(`/templates/${id}/config`);
     return res.data;
   },
-  testGenerate: async (id: string, payload?: { applicationId?: string; script?: 'lotin' | 'krill' }) => {
+  testGenerate: async (
+    id: string,
+    payload?: { applicationId?: string; script?: 'lotin' | 'krill' },
+  ) => {
     const res = await apiClient.post(`/templates/${id}/test-generate`, payload || {}, {
       responseType: 'blob',
     });
@@ -746,4 +751,3 @@ export const financialFlowApi = {
     return res.data;
   },
 };
-

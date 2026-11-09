@@ -62,7 +62,7 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success("Karta raqami nusxalandi!");
+    toast.success('Karta raqami nusxalandi!');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -82,8 +82,8 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
               isDropper
                 ? 'bg-red-50 text-red-600 border border-red-200'
                 : isTransit
-                ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                : 'bg-blue-50 text-[#2874a6] border border-blue-200'
+                  ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                  : 'bg-blue-50 text-[#2874a6] border border-blue-200'
             }`}
           >
             <CreditCard className="h-4 w-4" />
@@ -92,9 +92,7 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
             <h3 className="font-bold text-sm tracking-tight text-gray-900">
               Karta & Profil Tafsilotlari
             </h3>
-            <p className="text-[11px] text-gray-500">
-              Tarmoqda aniqlangan moliyaviy ob‘ekt
-            </p>
+            <p className="text-[11px] text-gray-500">Tarmoqda aniqlangan moliyaviy ob‘ekt</p>
           </div>
         </div>
 
@@ -124,14 +122,21 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
               className="h-7 px-2.5 gap-1 text-xs cursor-pointer bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
               title="Nusxa olish"
             >
-              {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+              {copied ? (
+                <Check className="h-3 w-3 text-emerald-600" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
               <span>{copied ? 'Nusxalandi' : 'Nusxa'}</span>
             </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {node.bankName && (
-              <Badge variant="outline" className="text-xs gap-1 font-normal bg-white border-gray-300 text-gray-700">
+              <Badge
+                variant="outline"
+                className="text-xs gap-1 font-normal bg-white border-gray-300 text-gray-700"
+              >
                 <Building2 className="h-3 w-3 text-gray-500" />
                 {node.bankName}
               </Badge>
@@ -153,7 +158,10 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
             ) : null}
 
             {node.isUnknownDestination && (
-              <Badge variant="secondary" className="text-xs text-amber-700 bg-amber-50 border border-amber-200">
+              <Badge
+                variant="secondary"
+                className="text-xs text-amber-700 bg-amber-50 border border-amber-200"
+              >
                 ❓ Noaniq manzil
               </Badge>
             )}
@@ -229,9 +237,7 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
               <FileText className="h-3.5 w-3.5 text-[#2874a6]" />
               Bog‘langan Arizalar ({linkedApps.length})
             </h4>
-            <span className="text-[11px] text-gray-500">
-              Ushbu karta uchragan ishlar
-            </span>
+            <span className="text-[11px] text-gray-500">Ushbu karta uchragan ishlar</span>
           </div>
 
           {linkedApps.length === 0 ? (
@@ -267,9 +273,7 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
                     </div>
 
                     {appItem.description && (
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {appItem.description}
-                      </p>
+                      <p className="text-xs text-gray-600 line-clamp-2">{appItem.description}</p>
                     )}
 
                     <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs">
@@ -286,11 +290,12 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
                       </div>
 
                       <div className="text-right">
-                        {appItem.transfer_amount !== undefined && appItem.transfer_amount !== null && (
-                          <span className="font-mono font-bold text-rose-600 text-xs block">
-                            {formatCurrency(appItem.transfer_amount, appItem.currency)}
-                          </span>
-                        )}
+                        {appItem.transfer_amount !== undefined &&
+                          appItem.transfer_amount !== null && (
+                            <span className="font-mono font-bold text-rose-600 text-xs block">
+                              {formatCurrency(appItem.transfer_amount, appItem.currency)}
+                            </span>
+                          )}
                         <span className="text-[10px] text-gray-500">
                           {appItem.status_label || 'Jarayonda'}
                         </span>

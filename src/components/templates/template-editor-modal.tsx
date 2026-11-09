@@ -1,14 +1,6 @@
 import { DocumentEditor } from '@onlyoffice/document-editor-react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Check,
-  Eye,
-  FileCode2,
-  Loader2,
-  Save,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { Check, Eye, FileCode2, Loader2, Save, Sparkles, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -74,6 +66,30 @@ export function TemplateEditorModal({
     };
   }, []);
 
+  const handleForceSave = () => {
+    setIsSaving(true);
+    try {
+      const docEditor = (window as any).DocEditor?.instances?.[editorId];
+      if (docEditor && typeof docEditor.serviceCommand === 'function') {
+        docEditor.serviceCommand('forcesave');
+        setTimeout(() => {
+          setIsModified(false);
+          setIsSaving(false);
+          toast.success('Shablon saqlandi');
+          onSaved?.();
+        }, 1200);
+        return;
+      }
+    } catch (err) {
+      console.error('forcesave error:', err);
+    }
+    setTimeout(() => {
+      setIsModified(false);
+      setIsSaving(false);
+      onSaved?.();
+    }, 1000);
+  };
+
   // 4. Keyboard save shortcut (Ctrl + S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -135,30 +151,6 @@ export function TemplateEditorModal({
     }
     await copyTextToClipboard(tag);
     setIsModified(true);
-  };
-
-  const handleForceSave = () => {
-    setIsSaving(true);
-    try {
-      const docEditor = (window as any).DocEditor?.instances?.[editorId];
-      if (docEditor && typeof docEditor.serviceCommand === 'function') {
-        docEditor.serviceCommand('forcesave');
-        setTimeout(() => {
-          setIsModified(false);
-          setIsSaving(false);
-          toast.success('Shablon saqlandi');
-          onSaved?.();
-        }, 1200);
-        return;
-      }
-    } catch (err) {
-      console.error('forcesave error:', err);
-    }
-    setTimeout(() => {
-      setIsModified(false);
-      setIsSaving(false);
-      onSaved?.();
-    }, 1000);
   };
 
   const handleTestGenerate = async () => {

@@ -31,11 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { applicationsApi } from '@/lib/api';
-import type {
-  CardRelationItem,
-  CitizenRelationItem,
-  LinkedApplicationInfo,
-} from '@/types/models';
+import type { CardRelationItem, CitizenRelationItem, LinkedApplicationInfo } from '@/types/models';
 
 const formatCurrency = (amount?: number | null, currency = 'UZS') => {
   if (amount === undefined || amount === null) return '—';
@@ -200,7 +196,8 @@ export function ApplicationRelationsPage() {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Mazkur ariza bo‘yicha aniqlangan umumiy firibgar kartalar, jabrlanuvchilar va takroriy fuqaro profillari tahlili
+              Mazkur ariza bo‘yicha aniqlangan umumiy firibgar kartalar, jabrlanuvchilar va takroriy
+              fuqaro profillari tahlili
             </p>
           </div>
 
@@ -226,7 +223,10 @@ export function ApplicationRelationsPage() {
               Diqqat: Xavfli Firibgarlik Zanjiri Aniqlangan!
             </h4>
             <p className="text-xs sm:text-sm text-red-600/90 dark:text-red-400/90 leading-relaxed">
-              Ushbu arizadagi <strong>pul tushgan (firibgar) plastik kartasi</strong> boshqa jabrlanuvchilarning arizalarida ham qabul qiluvchi sifatida aniqlandi. Mazkur arizalarni yagona guruhli firibgarlik jinoyati doirasida birlashtirish tavsiya etiladi.
+              Ushbu arizadagi <strong>pul tushgan (firibgar) plastik kartasi</strong> boshqa
+              jabrlanuvchilarning arizalarida ham qabul qiluvchi sifatida aniqlandi. Mazkur
+              arizalarni yagona guruhli firibgarlik jinoyati doirasida birlashtirish tavsiya
+              etiladi.
             </p>
           </div>
         </div>
@@ -267,7 +267,9 @@ export function ApplicationRelationsPage() {
                   {formatCurrency(stats?.grand_total_loss)}
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground">Bog'liq barcha arizalar yig'indisi</p>
+              <p className="text-[11px] text-muted-foreground">
+                Bog'liq barcha arizalar yig'indisi
+              </p>
             </div>
             <div className="h-12 w-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0">
               <TrendingUp className="h-6 w-6" />
@@ -288,7 +290,9 @@ export function ApplicationRelationsPage() {
                 </span>
                 <span className="text-xs text-muted-foreground font-medium">ta karta</span>
               </div>
-              <p className="text-[11px] text-muted-foreground">Tizimda takrorlangan moliyaviy rekvizitlar</p>
+              <p className="text-[11px] text-muted-foreground">
+                Tizimda takrorlangan moliyaviy rekvizitlar
+              </p>
             </div>
             <div className="h-12 w-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
               <CreditCard className="h-6 w-6" />
@@ -309,7 +313,9 @@ export function ApplicationRelationsPage() {
                 </span>
                 <span className="text-xs text-muted-foreground font-medium">ta shaxs</span>
               </div>
-              <p className="text-[11px] text-muted-foreground">JSHSHIR, pasport yoki tel bo'yicha</p>
+              <p className="text-[11px] text-muted-foreground">
+                JSHSHIR, pasport yoki tel bo'yicha
+              </p>
             </div>
             <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0">
               <Users className="h-6 w-6" />
@@ -330,7 +336,8 @@ export function ApplicationRelationsPage() {
               </Badge>
             </h2>
             <p className="text-xs text-muted-foreground">
-              Ushbu arizadagi karta raqamlari boshqa qaysi arizalarda uchraganligi va umumiy moliyaviy zarar
+              Ushbu arizadagi karta raqamlari boshqa qaysi arizalarda uchraganligi va umumiy
+              moliyaviy zarar
             </p>
           </div>
         </div>
@@ -480,7 +487,10 @@ export function ApplicationRelationsPage() {
                               <TableCell className="text-xs text-muted-foreground font-mono">
                                 {formatDate(la.date)}
                               </TableCell>
-                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <TableCell
+                                className="text-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -538,20 +548,27 @@ export function ApplicationRelationsPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-base text-foreground">
-                        {citR.citizen.last_name} {citR.citizen.first_name} {citR.citizen.middle_name || ''}
+                        {citR.citizen.last_name} {citR.citizen.first_name}{' '}
+                        {citR.citizen.middle_name || ''}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         {citR.citizen.phone_number && (
                           <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            +{citR.citizen.phone_number.replace(/\D/g, '')}
+                            <Phone className="h-3 w-3" />+
+                            {citR.citizen.phone_number.replace(/\D/g, '')}
                           </span>
                         )}
                         {citR.citizen.passport && (
-                          <span>Pasport: <strong className="text-foreground">{citR.citizen.passport}</strong></span>
+                          <span>
+                            Pasport:{' '}
+                            <strong className="text-foreground">{citR.citizen.passport}</strong>
+                          </span>
                         )}
                         {citR.citizen.pinfl && (
-                          <span>JSHSHIR: <strong className="text-foreground">{citR.citizen.pinfl}</strong></span>
+                          <span>
+                            JSHSHIR:{' '}
+                            <strong className="text-foreground">{citR.citizen.pinfl}</strong>
+                          </span>
                         )}
                       </div>
                     </div>

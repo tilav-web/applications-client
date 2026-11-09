@@ -101,7 +101,10 @@ export function CreateWordDialog({
                   </p>
                 </div>
               </div>
-              <Badge variant="outline" className="border-blue-500/40 text-blue-600 bg-blue-500/10 text-[10px] shrink-0">
+              <Badge
+                variant="outline"
+                className="border-blue-500/40 text-blue-600 bg-blue-500/10 text-[10px] shrink-0"
+              >
                 .DOCX / .DOC
               </Badge>
             </div>

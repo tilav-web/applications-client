@@ -193,7 +193,8 @@ export function TemplateGeneratorModal({
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Kerakli shablonni yoki bo‘sh Word blankni tanlang, nomini kiriting va darhol ONLYOFFICE da tahrirlang.
+                  Kerakli shablonni yoki bo‘sh Word blankni tanlang, nomini kiriting va darhol
+                  ONLYOFFICE da tahrirlang.
                 </DialogDescription>
               </div>
             </div>
@@ -235,7 +236,9 @@ export function TemplateGeneratorModal({
               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Hujjat Turlari & Shablonlar ({templates.length})
               </span>
-              {isLoadingTemplates && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              {isLoadingTemplates && (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              )}
             </div>
 
             <div className="space-y-2 mt-1">
@@ -307,10 +310,14 @@ export function TemplateGeneratorModal({
                   <div className="flex items-center gap-2">
                     <FilePlus2 className="h-4 w-4 text-purple-600 shrink-0" />
                     <span>
-                      <strong>Bo‘sh Word Blank:</strong> Hech qanday shablonsiz toza hujjat yaratiladi va ONLYOFFICE da erkin tahrirlash uchun ochiladi.
+                      <strong>Bo‘sh Word Blank:</strong> Hech qanday shablonsiz toza hujjat
+                      yaratiladi va ONLYOFFICE da erkin tahrirlash uchun ochiladi.
                     </span>
                   </div>
-                  <Badge variant="outline" className="border-purple-500/40 text-[10px] font-semibold shrink-0">
+                  <Badge
+                    variant="outline"
+                    className="border-purple-500/40 text-[10px] font-semibold shrink-0"
+                  >
                     Toza blank
                   </Badge>
                 </div>
@@ -319,7 +326,8 @@ export function TemplateGeneratorModal({
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>
-                      Arizadagi barcha mavjud ma’lumotlar avtomatik joylashtirildi. Kerakli o‘zgartirishlarni kiritishingiz mumkin.
+                      Arizadagi barcha mavjud ma’lumotlar avtomatik joylashtirildi. Kerakli
+                      o‘zgartirishlarni kiritishingiz mumkin.
                     </span>
                   </div>
                   <Badge
@@ -353,7 +361,9 @@ export function TemplateGeneratorModal({
 
                 {/* Quick suggestions pills */}
                 <div className="flex items-center flex-wrap gap-1.5 pt-1">
-                  <span className="text-[11px] text-muted-foreground font-medium">Tezkor nomlar:</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    Tezkor nomlar:
+                  </span>
                   {QUICK_TITLE_SUGGESTIONS.map((sug) => (
                     <button
                       key={sug}
@@ -376,25 +386,29 @@ export function TemplateGeneratorModal({
                     </div>
                     <h4 className="text-sm font-bold text-foreground">Universal Dinamik Shablon</h4>
                     <p className="text-xs text-muted-foreground max-w-md mt-1.5 leading-relaxed">
-                      Arizadagi barcha ma’lumotlar (fuqaro, tuman, karta, o‘tkazmalar) avtomatik ravishda Word hujjatingizga to‘liq joylashtiriladi. Hujjat yaratilgach, ONLYOFFICE muharriri ochilib, yakuniy tahrirlash imkoni beriladi.
+                      Arizadagi barcha ma’lumotlar (fuqaro, tuman, karta, o‘tkazmalar) avtomatik
+                      ravishda Word hujjatingizga to‘liq joylashtiriladi. Hujjat yaratilgach,
+                      ONLYOFFICE muharriri ochilib, yakuniy tahrirlash imkoni beriladi.
                     </p>
-                    {selectedTemplate.availableTags && selectedTemplate.availableTags.length > 0 && (
-                      <div className="mt-3 max-w-md">
-                        <span className="text-[11px] font-medium text-muted-foreground block mb-1.5">
-                          Ushbu shablondagi dinamik teglar ({selectedTemplate.availableTags.length} ta):
-                        </span>
-                        <div className="flex flex-wrap gap-1 justify-center max-h-24 overflow-y-auto">
-                          {selectedTemplate.availableTags.map((tag: string) => (
-                            <code
-                              key={tag}
-                              className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-primary font-mono"
-                            >
-                              {`{{${tag}}}`}
-                            </code>
-                          ))}
+                    {selectedTemplate.availableTags &&
+                      selectedTemplate.availableTags.length > 0 && (
+                        <div className="mt-3 max-w-md">
+                          <span className="text-[11px] font-medium text-muted-foreground block mb-1.5">
+                            Ushbu shablondagi dinamik teglar (
+                            {selectedTemplate.availableTags.length} ta):
+                          </span>
+                          <div className="flex flex-wrap gap-1 justify-center max-h-24 overflow-y-auto">
+                            {selectedTemplate.availableTags.map((tag: string) => (
+                              <code
+                                key={tag}
+                                className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-primary font-mono"
+                              >
+                                {`{{${tag}}}`}
+                              </code>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 </div>
               )}
@@ -468,8 +482,10 @@ export function TemplateGeneratorModal({
                   </div>
                   <h4 className="text-sm font-bold text-foreground">Bo‘sh Word Blank Yaratish</h4>
                   <p className="text-xs text-muted-foreground max-w-md mt-1.5 leading-relaxed">
-                    Ushbu parametr tanlanganda hech qanday tayyor matnsiz bo‘m-bo‘sh rasmiy Word hujjati yaratiladi.
-                    Hujjat nomini yuqorida tasdiqlang va pastdagi tugmani bosing. ONLYOFFICE muharriri ochilib, to‘g‘ridan-to‘g‘ri yozishni boshlashingiz mumkin bo‘ladi.
+                    Ushbu parametr tanlanganda hech qanday tayyor matnsiz bo‘m-bo‘sh rasmiy Word
+                    hujjati yaratiladi. Hujjat nomini yuqorida tasdiqlang va pastdagi tugmani
+                    bosing. ONLYOFFICE muharriri ochilib, to‘g‘ridan-to‘g‘ri yozishni boshlashingiz
+                    mumkin bo‘ladi.
                   </p>
                 </div>
               )}

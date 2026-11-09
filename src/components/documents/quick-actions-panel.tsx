@@ -40,7 +40,18 @@ interface ActionItem {
 function numberToWordsUz(num: number): string {
   if (num === 0) return 'nol';
   const units = ['', 'bir', 'ikki', 'uch', "to'rt", 'besh', 'olti', 'yetti', 'sakkiz', "to'qqiz"];
-  const tens = ['', "o'n", 'yigirma', "o'ttiz", 'qirq', 'ellik', 'oltmish', 'yetmish', 'sakson', "to'qson"];
+  const tens = [
+    '',
+    "o'n",
+    'yigirma',
+    "o'ttiz",
+    'qirq',
+    'ellik',
+    'oltmish',
+    'yetmish',
+    'sakson',
+    "to'qson",
+  ];
   const scales = ['', 'ming', 'million', 'milliard', 'trillion'];
 
   function convertGroup(n: number): string {
@@ -166,7 +177,8 @@ export function QuickActionsPanel({
 
       const fullName = `${lName} ${fName} ${mName}`.trim();
       const shortName = `${lName} ${fName}`.trim();
-      const initials = `${lName} ${fName ? `${fName[0]}.` : ''} ${mName ? `${mName[0]}.` : ''}`.trim();
+      const initials =
+        `${lName} ${fName ? `${fName[0]}.` : ''} ${mName ? `${mName[0]}.` : ''}`.trim();
 
       if (fullName) {
         result.push({
@@ -220,9 +232,10 @@ export function QuickActionsPanel({
 
       if (cit.phone_number) {
         const raw = cit.phone_number.replace(/\D/g, '');
-        const formatted = raw.length === 12
-          ? `+${raw.slice(0, 3)} ${raw.slice(3, 5)} ${raw.slice(5, 8)} ${raw.slice(8, 10)} ${raw.slice(10, 12)}`
-          : cit.phone_number;
+        const formatted =
+          raw.length === 12
+            ? `+${raw.slice(0, 3)} ${raw.slice(3, 5)} ${raw.slice(5, 8)} ${raw.slice(8, 10)} ${raw.slice(10, 12)}`
+            : cit.phone_number;
 
         result.push({
           id: 'cit_phone',
@@ -339,7 +352,8 @@ export function QuickActionsPanel({
         if (cf.type === 'CITIZEN' && cf.citizen) {
           const c = cf.citizen;
           const roleLabel = cf.label || `Qo‘shimcha fuqaro #${idx + 1}`;
-          const cFullName = `${c.last_name || ''} ${c.first_name || ''} ${c.middle_name || ''}`.trim();
+          const cFullName =
+            `${c.last_name || ''} ${c.first_name || ''} ${c.middle_name || ''}`.trim();
           const cShort = `${c.last_name || ''} ${c.first_name || ''}`.trim();
 
           if (cFullName) {
@@ -437,12 +451,8 @@ export function QuickActionsPanel({
               <Zap className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-slate-800 tracking-tight">
-                Tezkor amallar
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                Hujjatga joylashtirish uchun bosing
-              </p>
+              <h3 className="text-xs font-bold text-slate-800 tracking-tight">Tezkor amallar</h3>
+              <p className="text-[11px] text-slate-500">Hujjatga joylashtirish uchun bosing</p>
             </div>
           </div>
 

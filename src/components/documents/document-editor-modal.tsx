@@ -1,14 +1,6 @@
 import { DocumentEditor } from '@onlyoffice/document-editor-react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Check,
-  ChevronRight,
-  Download,
-  Loader2,
-  Save,
-  X,
-  Zap,
-} from 'lucide-react';
+import { Check, ChevronRight, Download, Loader2, Save, X, Zap } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -67,6 +59,28 @@ export function DocumentEditorModal({
       }
     };
   }, []);
+
+  // Hujjatni majburiy saqlash (Ctrl+S yoki tugma orqali)
+  const handleForceSave = () => {
+    setIsSaving(true);
+    try {
+      const docEditor = (window as any).DocEditor?.instances?.[editorId];
+      if (docEditor && typeof docEditor.serviceCommand === 'function') {
+        docEditor.serviceCommand('forcesave');
+        setTimeout(() => {
+          setIsModified(false);
+          setIsSaving(false);
+          onSaved?.();
+        }, 500);
+        return;
+      }
+    } catch (e) {
+      console.warn('Force save xatoligi:', e);
+    }
+    setIsSaving(false);
+    setIsModified(false);
+    onSaved?.();
+  };
 
   // 3. Klaviatura orqali tezkor saqlash (Ctrl + S yoki Cmd + S)
   useEffect(() => {
@@ -137,28 +151,6 @@ export function DocumentEditorModal({
     // Fallback: Clipboard
     navigator.clipboard.writeText(text);
     setIsModified(true);
-  };
-
-  // Hujjatni majburiy saqlash (Ctrl+S yoki tugma orqali)
-  const handleForceSave = () => {
-    setIsSaving(true);
-    try {
-      const docEditor = (window as any).DocEditor?.instances?.[editorId];
-      if (docEditor && typeof docEditor.serviceCommand === 'function') {
-        docEditor.serviceCommand('forcesave');
-        setTimeout(() => {
-          setIsModified(false);
-          setIsSaving(false);
-          onSaved?.();
-        }, 500);
-        return;
-      }
-    } catch (e) {
-      console.warn('Force save xatoligi:', e);
-    }
-    setIsSaving(false);
-    setIsModified(false);
-    onSaved?.();
   };
 
   // Faylni to'g'ridan-to'g'ri yuklab olish
@@ -233,9 +225,7 @@ export function DocumentEditorModal({
                   : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
             }`}
             title={
-              isModified
-                ? 'O‘zgarishlarni saqlash (Ctrl + S)'
-                : 'Barcha o‘zgarishlar saqlangan'
+              isModified ? 'O‘zgarishlarni saqlash (Ctrl + S)' : 'Barcha o‘zgarishlar saqlangan'
             }
           >
             {isSaving ? (
@@ -313,9 +303,7 @@ export function DocumentEditorModal({
             <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
               <X className="h-6 w-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">
-              Hujjatni yuklab bo‘lmadi
-            </h3>
+            <h3 className="text-sm font-bold text-slate-900">Hujjatni yuklab bo‘lmadi</h3>
             <p className="text-xs text-slate-500 max-w-sm">
               {configError instanceof Error ? configError.message : 'Server bilan aloqa uzildi'}
             </p>

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
 import type { IGraphEdge } from '@/types/models';
 
 export interface MinimapNode {
@@ -137,18 +138,7 @@ export const GraphMinimap: React.FC<Props> = ({
 
     ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
     ctx.fillRect(vx, vy, vw, vh);
-  }, [
-    nodes,
-    edges,
-    viewX0,
-    viewY0,
-    viewX1,
-    viewY1,
-    scale,
-    toMapX,
-    toMapY,
-    isCollapsed,
-  ]);
+  }, [nodes, edges, viewX0, viewY0, viewX1, viewY1, scale, toMapX, toMapY, isCollapsed]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     isDragging.current = true;
@@ -183,7 +173,11 @@ export const GraphMinimap: React.FC<Props> = ({
           className="text-gray-500 hover:text-gray-900 cursor-pointer p-0.5 rounded"
           title={isCollapsed ? 'Kattalashtirish' : 'Kichraytirish'}
         >
-          {isCollapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {isCollapsed ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
 
@@ -202,4 +196,3 @@ export const GraphMinimap: React.FC<Props> = ({
     </div>
   );
 };
-

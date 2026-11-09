@@ -108,19 +108,19 @@ export function formatAmountWords(raw?: string | number | null, currency = 'UZS'
 
 const LOWERCASE_PARTICLES = new Set([
   "o'g'li",
-  "o‘g‘li",
-  "oʻgʻli",
-  "o`g`li",
+  'o‘g‘li',
+  'oʻgʻli',
+  'o`g`li',
   "og'li",
-  "ogli",
+  'ogli',
   "o'gli",
-  "qizi",
-  "қизи",
-  "кизи",
-  "ўғли",
-  "угли",
-  "ўғли",
-  "уғли",
+  'qizi',
+  'қизи',
+  'кизи',
+  'ўғли',
+  'угли',
+  'ўғли',
+  'уғли',
 ]);
 
 /**
@@ -138,9 +138,7 @@ export function formatUzbekName(str?: string | null): string {
     .map((word) => {
       if (!word) return '';
 
-      const normalizedForCheck = word
-        .toLowerCase()
-        .replace(/[\u2018\u2019\u02BB\u02BC\x60]/g, "'");
+      const normalizedForCheck = word.toLowerCase().replace(/[\u2018\u2019\u02BB\u02BC\x60]/g, "'");
 
       if (
         LOWERCASE_PARTICLES.has(normalizedForCheck) ||
@@ -180,5 +178,3 @@ export function formatTitleCase(str?: string | null): string {
     })
     .join(' ');
 }
-
-

@@ -71,9 +71,7 @@ export function FinancialFlowPage() {
             <CreditCard className="w-3.5 h-3.5" />
           </div>
           <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">
-              Jami Kartalar
-            </span>
+            <span className="text-[9.5px] text-gray-500 block leading-tight">Jami Kartalar</span>
             <span className="text-xs sm:text-sm font-bold text-gray-900 font-mono">
               {summary.totalCards}
             </span>
@@ -86,9 +84,7 @@ export function FinancialFlowPage() {
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
           <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">
-              Umumiy Oqim
-            </span>
+            <span className="text-[9.5px] text-gray-500 block leading-tight">Umumiy Oqim</span>
             <span className="text-xs sm:text-sm font-bold text-emerald-700 font-mono truncate block">
               {formatSum(summary.totalFlowAmount)}
             </span>
@@ -101,9 +97,7 @@ export function FinancialFlowPage() {
             <AlertOctagon className="w-3.5 h-3.5" />
           </div>
           <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">
-              Dropper Kartalar
-            </span>
+            <span className="text-[9.5px] text-gray-500 block leading-tight">Dropper Kartalar</span>
             <span className="text-xs sm:text-sm font-bold text-red-600 font-mono">
               {summary.droppersCount}
             </span>
@@ -116,9 +110,7 @@ export function FinancialFlowPage() {
             <ArrowRightLeft className="w-3.5 h-3.5" />
           </div>
           <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">
-              Tranzit Kartalar
-            </span>
+            <span className="text-[9.5px] text-gray-500 block leading-tight">Tranzit Kartalar</span>
             <span className="text-xs sm:text-sm font-bold text-yellow-600 font-mono">
               {summary.transitCount}
             </span>
@@ -131,9 +123,7 @@ export function FinancialFlowPage() {
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
           <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">
-              Xavfli Kartalar
-            </span>
+            <span className="text-[9.5px] text-gray-500 block leading-tight">Xavfli Kartalar</span>
             <span className="text-xs sm:text-sm font-bold text-rose-700 font-mono">
               {summary.blacklistedCount}
             </span>
@@ -193,10 +183,7 @@ export function FinancialFlowPage() {
 
             {/* Karta bosilganda ochiluvchi Tafsilotlar paneli */}
             {selectedNode && (
-              <NodeDetailsDrawer
-                node={selectedNode}
-                onClose={() => setSelectedNode(null)}
-              />
+              <NodeDetailsDrawer node={selectedNode} onClose={() => setSelectedNode(null)} />
             )}
           </>
         ) : (
@@ -206,7 +193,8 @@ export function FinancialFlowPage() {
               Hech qanday karta ma‘lumotlari topilmadi
             </span>
             <p className="text-xs text-gray-500 max-w-sm">
-              Filtrlarni tozalab ko‘ring yoki arizalarga to‘lov o‘tkazmalari va kartalar kiritilganligini tekshiring.
+              Filtrlarni tozalab ko‘ring yoki arizalarga to‘lov o‘tkazmalari va kartalar
+              kiritilganligini tekshiring.
             </p>
             <Button
               variant="outline"

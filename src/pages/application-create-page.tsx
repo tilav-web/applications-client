@@ -31,6 +31,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
 import { TemplateGeneratorModal } from '@/components/documents/template-generator-modal';
@@ -78,6 +79,7 @@ import type {
   Citizen,
   CrimeGravity,
   CustomFieldType,
+  SuspectTreeNode,
   TransferCustomField,
 } from '@/types/models';
 
@@ -244,6 +246,7 @@ export function ApplicationCreatePage() {
   const [applicationNumber, setApplicationNumber] = useState('');
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
+  const [suspectTree, setSuspectTree] = useState<SuspectTreeNode[]>([]);
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
   const [statusId, setStatusId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
@@ -543,6 +546,9 @@ export function ApplicationCreatePage() {
       setApplicationNumber(initialApp.application_number || '');
       setDescription(initialApp.description || '');
       setOfficerNotes(initialApp.officer_notes || '');
+      if (initialApp.suspect_tree && Array.isArray(initialApp.suspect_tree)) {
+        setSuspectTree(initialApp.suspect_tree);
+      }
       setStatus(initialApp.status || initialApp.application_status?.code || 'YANGI');
       setStatusId(initialApp.status_id || initialApp.application_status?.id || null);
       if (initialApp.date) {
@@ -935,6 +941,7 @@ export function ApplicationCreatePage() {
         application_number: applicationNumber.trim() ? applicationNumber.trim() : null,
         description: description || undefined,
         officer_notes: officerNotes || undefined,
+        suspect_tree: suspectTree,
         status,
         status_id: statusId || undefined,
         date: date ? new Date(date).toISOString() : undefined,
@@ -1796,6 +1803,11 @@ export function ApplicationCreatePage() {
               placeholder="Surishtiruvchi / xodim tomonidan aniqlangan holatlar, ma'lumotlar va qaydlar..."
               className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
             />
+          </div>
+
+          {/* FIRIBGAR / GUMONLANUVCHI MA'LUMOTLARI DARAXTI (MINDMAP) */}
+          <div className="pt-2 border-t border-border/50">
+            <SuspectTreeBuilder value={suspectTree} onChange={setSuspectTree} />
           </div>
         </div>
 

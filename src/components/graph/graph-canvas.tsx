@@ -1,13 +1,9 @@
-import {
-  Compass,
-  Users,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { Compass, Users, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import type { IGraphEdge, IGraphNode } from '@/types/models';
+
 import { GraphMinimap } from './graph-minimap';
 
 interface Props {
@@ -237,8 +233,8 @@ export const GraphCanvas: React.FC<Props> = ({
         node.role === 'MULE_DROPPER' || (node.riskScore && node.riskScore >= 70)
           ? 120 + (index % 2) * 25
           : node.role === 'TRANSIT'
-          ? 220 + (index % 2) * 30
-          : 300 + (index % 2) * 35;
+            ? 220 + (index % 2) * 30
+            : 300 + (index % 2) * 35;
 
       const x = centerX + Math.cos(angle) * radiusDist;
       const y = centerY + Math.sin(angle) * radiusDist;
@@ -447,20 +443,28 @@ export const GraphCanvas: React.FC<Props> = ({
 
         const lineWidth = isHighlighted ? 2.0 : 1.3;
 
-        let edgeColor = 'rgba(100, 116, 139, ' + alpha + ')';
-        let arrowFillColor = '#475569';
+        let edgeColor: string;
+        let arrowFillColor: string;
 
         if (edge.isUnknownDestination || tgt.isUnknownDestination) {
-          edgeColor = isHighlighted ? 'rgba(217, 119, 6, 0.95)' : 'rgba(217, 119, 6, ' + alpha * 0.75 + ')';
+          edgeColor = isHighlighted
+            ? 'rgba(217, 119, 6, 0.95)'
+            : 'rgba(217, 119, 6, ' + alpha * 0.75 + ')';
           arrowFillColor = isHighlighted ? '#b45309' : '#d97706';
         } else if (tgt.role === 'MULE_DROPPER' || (tgt.riskScore && tgt.riskScore >= 70)) {
-          edgeColor = isHighlighted ? 'rgba(239, 68, 68, 0.95)' : 'rgba(239, 68, 68, ' + alpha * 0.75 + ')';
+          edgeColor = isHighlighted
+            ? 'rgba(239, 68, 68, 0.95)'
+            : 'rgba(239, 68, 68, ' + alpha * 0.75 + ')';
           arrowFillColor = isHighlighted ? '#b91c1c' : '#ef4444';
         } else if (tgt.role === 'TRANSIT') {
-          edgeColor = isHighlighted ? 'rgba(245, 158, 11, 0.95)' : 'rgba(245, 158, 11, ' + alpha * 0.75 + ')';
+          edgeColor = isHighlighted
+            ? 'rgba(245, 158, 11, 0.95)'
+            : 'rgba(245, 158, 11, ' + alpha * 0.75 + ')';
           arrowFillColor = isHighlighted ? '#b45309' : '#f59e0b';
         } else {
-          edgeColor = isHighlighted ? 'rgba(59, 130, 246, 0.95)' : 'rgba(59, 130, 246, ' + alpha * 0.75 + ')';
+          edgeColor = isHighlighted
+            ? 'rgba(59, 130, 246, 0.95)'
+            : 'rgba(59, 130, 246, ' + alpha * 0.75 + ')';
           arrowFillColor = isHighlighted ? '#1d4ed8' : '#3b82f6';
         }
 
@@ -482,10 +486,14 @@ export const GraphCanvas: React.FC<Props> = ({
 
         // Arrow head
         const arrowAngle = Math.atan2(dy, dx);
-        const baseLeftX = arrowTipX - arrowLen * Math.cos(arrowAngle) + arrowHalfWidth * Math.sin(arrowAngle);
-        const baseLeftY = arrowTipY - arrowLen * Math.sin(arrowAngle) - arrowHalfWidth * Math.cos(arrowAngle);
-        const baseRightX = arrowTipX - arrowLen * Math.cos(arrowAngle) - arrowHalfWidth * Math.sin(arrowAngle);
-        const baseRightY = arrowTipY - arrowLen * Math.sin(arrowAngle) + arrowHalfWidth * Math.cos(arrowAngle);
+        const baseLeftX =
+          arrowTipX - arrowLen * Math.cos(arrowAngle) + arrowHalfWidth * Math.sin(arrowAngle);
+        const baseLeftY =
+          arrowTipY - arrowLen * Math.sin(arrowAngle) - arrowHalfWidth * Math.cos(arrowAngle);
+        const baseRightX =
+          arrowTipX - arrowLen * Math.cos(arrowAngle) - arrowHalfWidth * Math.sin(arrowAngle);
+        const baseRightY =
+          arrowTipY - arrowLen * Math.sin(arrowAngle) + arrowHalfWidth * Math.cos(arrowAngle);
 
         ctx.beginPath();
         ctx.moveTo(arrowTipX, arrowTipY);
@@ -684,7 +692,11 @@ export const GraphCanvas: React.FC<Props> = ({
         } else if (node.role === 'CRYPTO_CASHOUT') {
           ctx.fillStyle = isHovered ? '#6d28d9' : '#8b5cf6';
           ctx.strokeStyle = '#4c1d95';
-        } else if (node.role === 'MULE_DROPPER' || node.isBlacklisted || (node.riskScore && node.riskScore >= 70)) {
+        } else if (
+          node.role === 'MULE_DROPPER' ||
+          node.isBlacklisted ||
+          (node.riskScore && node.riskScore >= 70)
+        ) {
           ctx.fillStyle = isHovered ? '#c0392b' : '#e74c3c';
           ctx.strokeStyle = '#922b21';
         } else if (node.role === 'COMPROMISED_VICTIM') {

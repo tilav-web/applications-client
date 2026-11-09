@@ -39,7 +39,9 @@ export function AppLayout() {
               : 'overflow-y-auto p-3 sm:p-4 lg:p-5',
           )}
         >
-          <div className={cn('w-full', isFinancialFlow ? 'h-full flex-1 flex flex-col min-h-0' : '')}>
+          <div
+            className={cn('w-full', isFinancialFlow ? 'h-full flex-1 flex flex-col min-h-0' : '')}
+          >
             <Outlet />
           </div>
         </main>

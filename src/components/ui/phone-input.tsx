@@ -1,6 +1,7 @@
 import React from 'react';
+
+import { cleanPhoneNumber, formatPhoneDisplay } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { formatPhoneDisplay, cleanPhoneNumber } from '@/lib/formatters';
 
 interface PhoneInputProps {
   value?: string | null;
@@ -51,4 +52,3 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     </div>
   );
 };
-

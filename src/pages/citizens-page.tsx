@@ -337,9 +337,7 @@ export function CitizensPage() {
                   <Input
                     placeholder="ISM"
                     value={formData.first_name || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, first_name: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                     className="h-10 text-xs sm:text-sm uppercase font-medium"
                   />
                 </div>
@@ -349,9 +347,7 @@ export function CitizensPage() {
                   <Input
                     placeholder="FAMILIYA"
                     value={formData.last_name || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, last_name: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                     className="h-10 text-xs sm:text-sm uppercase font-medium"
                   />
                 </div>
@@ -363,9 +359,7 @@ export function CitizensPage() {
                   <Input
                     placeholder="SHARIF"
                     value={formData.middle_name || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, middle_name: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
                     className="h-10 text-xs sm:text-sm uppercase font-medium"
                   />
                 </div>
@@ -382,11 +376,7 @@ export function CitizensPage() {
                   <label className="text-xs font-semibold text-foreground">Tug‘ilgan Sana</label>
                   <Input
                     type="date"
-                    value={
-                      formData.birth_date
-                        ? String(formData.birth_date).substring(0, 10)
-                        : ''
-                    }
+                    value={formData.birth_date ? String(formData.birth_date).substring(0, 10) : ''}
                     onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
                     className="h-10 text-xs sm:text-sm font-medium cursor-pointer"
                   />
@@ -530,9 +520,7 @@ export function CitizensPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Fuqaroni o‘chirish</DialogTitle>
-            <DialogDescription>
-              Ushbu fuqaroni bazadan o‘chirmoqchimisiz?
-            </DialogDescription>
+            <DialogDescription>Ushbu fuqaroni bazadan o‘chirmoqchimisiz?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

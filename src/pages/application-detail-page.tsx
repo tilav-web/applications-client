@@ -29,6 +29,7 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
 import { TemplateGeneratorModal } from '@/components/documents/template-generator-modal';
@@ -402,7 +403,9 @@ export function ApplicationDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground animate-pulse">Ariza ma‘lumotlari yuklanmoqda...</p>
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Ariza ma‘lumotlari yuklanmoqda...
+        </p>
       </div>
     );
   }
@@ -564,16 +567,19 @@ export function ApplicationDetailPage() {
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Ro‘yxatga olingan sana: <span className="font-semibold text-foreground">{formatDate(app.date)}</span>
+            Ro‘yxatga olingan sana:{' '}
+            <span className="font-semibold text-foreground">{formatDate(app.date)}</span>
             {app.district && (
               <>
-                {' '}&bull; Hudud:{' '}
+                {' '}
+                &bull; Hudud:{' '}
                 <span className="font-semibold text-foreground">{app.district.name}</span>
               </>
             )}
             {app.officer_notes && (
               <>
-                {' '}&bull; Mas‘ul xodim qaydi:{' '}
+                {' '}
+                &bull; Mas‘ul xodim qaydi:{' '}
                 <span className="italic text-foreground">{app.officer_notes}</span>
               </>
             )}
@@ -583,7 +589,10 @@ export function ApplicationDetailPage() {
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
           {getStatusBadge(app.status, app.application_status)}
           {app.crime && (
-            <Badge variant="outline" className="border-primary/30 text-primary font-semibold text-xs py-1 px-3">
+            <Badge
+              variant="outline"
+              className="border-primary/30 text-primary font-semibold text-xs py-1 px-3"
+            >
               {app.crime.article || app.crime.title}
             </Badge>
           )}
@@ -618,7 +627,9 @@ export function ApplicationDetailPage() {
             <div className="overflow-hidden">
               <span className="text-xs text-muted-foreground block">Pul O‘tkazmalari</span>
               <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
-                {allTransfersList.length > 0 ? `${allTransfersList.length} ta shakl` : 'Mavjud emas'}
+                {allTransfersList.length > 0
+                  ? `${allTransfersList.length} ta shakl`
+                  : 'Mavjud emas'}
               </span>
             </div>
           </CardContent>
@@ -831,9 +842,14 @@ export function ApplicationDetailPage() {
                 <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
                   Xodim / Tergovchi Qaydlari:
                 </span>
-                <p className="text-foreground text-xs italic">
-                  {app.officer_notes}
-                </p>
+                <p className="text-foreground text-xs italic">{app.officer_notes}</p>
+              </div>
+            )}
+
+            {/* Firibgar / Gumonlanuvchi Daraxti */}
+            {app.suspect_tree && app.suspect_tree.length > 0 && (
+              <div className="pt-2 border-t border-border/40">
+                <SuspectTreeBuilder value={app.suspect_tree} readOnly />
               </div>
             )}
           </CardContent>
@@ -887,7 +903,8 @@ export function ApplicationDetailPage() {
                         {formatCardNumber(tf.senderCardNumber)}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate">
-                        {tf.senderBankName || 'Bank ko‘rsatilmagan'} {tf.senderFullName ? `• ${tf.senderFullName}` : ''}
+                        {tf.senderBankName || 'Bank ko‘rsatilmagan'}{' '}
+                        {tf.senderFullName ? `• ${tf.senderFullName}` : ''}
                       </p>
                     </div>
 
@@ -901,7 +918,9 @@ export function ApplicationDetailPage() {
                       </span>
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                         <ArrowRight className="h-3 w-3 text-primary" />
-                        <span>{formatDate(tf.transferDate)} {tf.transferTime || ''}</span>
+                        <span>
+                          {formatDate(tf.transferDate)} {tf.transferTime || ''}
+                        </span>
                       </div>
                     </div>
 
@@ -917,7 +936,8 @@ export function ApplicationDetailPage() {
                         {formatCardNumber(tf.receiverCardNumber)}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate">
-                        {tf.receiverBankName || 'Bank ko‘rsatilmagan'} {tf.receiverFullName ? `• ${tf.receiverFullName}` : ''}
+                        {tf.receiverBankName || 'Bank ko‘rsatilmagan'}{' '}
+                        {tf.receiverFullName ? `• ${tf.receiverFullName}` : ''}
                       </p>
                     </div>
                   </div>
@@ -950,7 +970,8 @@ export function ApplicationDetailPage() {
                 </Badge>
               </CardTitle>
               <CardDescription className="text-xs">
-                Arizaga biriktirilgan rasmiy Word hujjatlari. Kompyuterdan yuklash yoki tizimda ONLYOFFICE orqali tahrirlash mumkin.
+                Arizaga biriktirilgan rasmiy Word hujjatlari. Kompyuterdan yuklash yoki tizimda
+                ONLYOFFICE orqali tahrirlash mumkin.
               </CardDescription>
             </div>
           </div>
@@ -1086,7 +1107,9 @@ export function ApplicationDetailPage() {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() => setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })}
+                      onClick={() =>
+                        setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })
+                      }
                       className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
                       title="O‘chirish"
                     >
@@ -1101,9 +1124,12 @@ export function ApplicationDetailPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
                 <FileText className="h-6 w-6" />
               </div>
-              <p className="text-sm font-semibold text-foreground">Hozircha Word hujjati biriktirilmagan</p>
+              <p className="text-sm font-semibold text-foreground">
+                Hozircha Word hujjati biriktirilmagan
+              </p>
               <p className="text-xs text-muted-foreground max-w-md">
-                Ushbu arizaga yangi rasmiy Word blank yaratishingiz yoki kompyuteringizdagi mavjud .docx faylni yuklab, tizim ichida tahrirlashingiz mumkin.
+                Ushbu arizaga yangi rasmiy Word blank yaratishingiz yoki kompyuteringizdagi mavjud
+                .docx faylni yuklab, tizim ichida tahrirlashingiz mumkin.
               </p>
               <div className="flex items-center gap-2 pt-2">
                 <Button
@@ -1170,7 +1196,9 @@ export function ApplicationDetailPage() {
                     className="group relative rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs hover:border-primary/50 transition-all flex flex-col"
                   >
                     <div
-                      onClick={() => (isImg ? setPreviewImage(previewUrl) : window.open(previewUrl, '_blank'))}
+                      onClick={() =>
+                        isImg ? setPreviewImage(previewUrl) : window.open(previewUrl, '_blank')
+                      }
                       className="aspect-square w-full bg-muted/40 flex items-center justify-center overflow-hidden cursor-pointer relative"
                     >
                       {isImg ? (
@@ -1232,7 +1260,10 @@ export function ApplicationDetailPage() {
           <CardContent className="p-4 sm:p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {otherCustomFields.map((cf) => (
-                <div key={cf.id} className="p-3 rounded-xl bg-muted/30 border border-border/50 text-xs">
+                <div
+                  key={cf.id}
+                  className="p-3 rounded-xl bg-muted/30 border border-border/50 text-xs"
+                >
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
                     {cf.label}:
                   </span>
@@ -1258,9 +1289,13 @@ export function ApplicationDetailPage() {
         description={
           docToDelete ? (
             <span>
-              Haqiqatan ham <strong className="text-foreground font-semibold">"{docToDelete.title}"</strong> nomli rasmiy Word hujjatini tizimdan o‘chirmoqchimisiz? Ushbu amal qaytarilmaydi.
+              Haqiqatan ham{' '}
+              <strong className="text-foreground font-semibold">"{docToDelete.title}"</strong> nomli
+              rasmiy Word hujjatini tizimdan o‘chirmoqchimisiz? Ushbu amal qaytarilmaydi.
             </span>
-          ) : ''
+          ) : (
+            ''
+          )
         }
         confirmText="Ha, o‘chirilsin"
         cancelText="Bekor qilish"

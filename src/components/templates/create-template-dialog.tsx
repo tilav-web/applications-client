@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
-import { templatesApi, type DocumentTemplateRecord } from '@/lib/api';
+import { type DocumentTemplateRecord, templatesApi } from '@/lib/api';
 
 interface CreateTemplateDialogProps {
   isOpen: boolean;
@@ -21,11 +21,7 @@ interface CreateTemplateDialogProps {
   onSuccess: (template: DocumentTemplateRecord) => void;
 }
 
-export function CreateTemplateDialog({
-  isOpen,
-  onClose,
-  onSuccess,
-}: CreateTemplateDialogProps) {
+export function CreateTemplateDialog({ isOpen, onClose, onSuccess }: CreateTemplateDialogProps) {
   const [activeTab, setActiveTab] = useState<'blank' | 'upload'>('blank');
   const [title, setTitle] = useState('');
   const [titleKrill, setTitleKrill] = useState('');
@@ -97,7 +93,9 @@ export function CreateTemplateDialog({
         handleClose();
       }
     } catch (err: any) {
-      toast.error('Xatolik: ' + (err.response?.data?.message || err.message || 'Xatolik yuz berdi'));
+      toast.error(
+        'Xatolik: ' + (err.response?.data?.message || err.message || 'Xatolik yuz berdi'),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -112,7 +110,8 @@ export function CreateTemplateDialog({
             Yangi Hujjat Shablonini Qo‘shish
           </DialogTitle>
           <DialogDescription>
-            Tizimga yangi universal shablon qo‘shing. U arizalar sahifasida avtomatik ravishda barcha xodimlar uchun mavjud bo‘ladi.
+            Tizimga yangi universal shablon qo‘shing. U arizalar sahifasida avtomatik ravishda
+            barcha xodimlar uchun mavjud bo‘ladi.
           </DialogDescription>
         </DialogHeader>
 
@@ -147,7 +146,9 @@ export function CreateTemplateDialog({
         <form onSubmit={handleSubmit} className="space-y-3.5 pt-2">
           {activeTab === 'upload' && (
             <div>
-              <label className="text-xs font-medium text-foreground">Word (.docx) faylini tanlang *</label>
+              <label className="text-xs font-medium text-foreground">
+                Word (.docx) faylini tanlang *
+              </label>
               <div className="mt-1.5 flex justify-center rounded-lg border border-dashed border-border px-6 py-4 hover:border-primary/50 transition-colors bg-muted/20">
                 <div className="text-center">
                   <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -191,7 +192,9 @@ export function CreateTemplateDialog({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Nomi (Kirillcha - ixtiyoriy)</label>
+              <label className="text-xs font-medium text-foreground">
+                Nomi (Kirillcha - ixtiyoriy)
+              </label>
               <Input
                 value={titleKrill}
                 onChange={(e) => setTitleKrill(e.target.value)}
@@ -205,7 +208,9 @@ export function CreateTemplateDialog({
             <label className="text-xs font-medium text-foreground">Tavsifi (Izoh)</label>
             <textarea
               value={description}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setDescription(e.target.value)
+              }
               placeholder="Ushbu shablon qanday vaziyatlarda va kimlar uchun qo‘llaniladi..."
               rows={2}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"

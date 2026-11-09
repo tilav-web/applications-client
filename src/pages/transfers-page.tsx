@@ -463,9 +463,7 @@ export function TransfersPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O‘tkazmani o‘chirish</DialogTitle>
-            <DialogDescription>
-              Ushbu pul o‘tkazmasini bazadan o‘chirmoqchimisiz?
-            </DialogDescription>
+            <DialogDescription>Ushbu pul o‘tkazmasini bazadan o‘chirmoqchimisiz?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

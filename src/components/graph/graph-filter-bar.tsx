@@ -1,11 +1,5 @@
+import { Boxes, Filter, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import React from 'react';
-import {
-  Boxes,
-  Filter,
-  RefreshCw,
-  RotateCcw,
-  Search,
-} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -111,7 +105,9 @@ export const GraphFilterBar: React.FC<Props> = ({
               className="h-8 px-2.5 text-xs font-medium border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-none cursor-pointer gap-1"
               title="Yangilash"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-[#2874a6]' : ''}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-[#2874a6]' : ''}`}
+              />
               <span className="hidden sm:inline">Yangilash</span>
             </Button>
           )}
@@ -131,4 +127,3 @@ export const GraphFilterBar: React.FC<Props> = ({
     </div>
   );
 };
-
