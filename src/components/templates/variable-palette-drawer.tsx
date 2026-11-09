@@ -10,6 +10,7 @@ import {
   CreditCard,
   FileText,
   Plus,
+  PlusCircle,
   Scale,
   Search,
   ShieldAlert,
@@ -41,7 +42,9 @@ const CATEGORY_ICONS: Record<string, any> = {
   district: Building2,
   victim_card: CreditCard,
   fraud_card: ShieldAlert,
+  transfer: CreditCard,
   transfers: ArrowLeftRight,
+  custom: PlusCircle,
   officer: BadgeCheck,
   system: Calendar,
 };
