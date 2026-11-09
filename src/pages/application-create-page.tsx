@@ -29,7 +29,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -233,6 +233,7 @@ function CustomCitizenMahallaSelect({
 export function ApplicationCreatePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   const [canLeave, setCanLeave] = useState(false);
@@ -421,6 +422,17 @@ export function ApplicationCreatePage() {
     queryFn: () => applicationsApi.getOne(id as string),
     enabled: !!id,
   });
+
+  const isExplicitEditRoute = location.pathname.includes('/applications/edit/');
+  const isEditMode =
+    isExplicitEditRoute ||
+    Boolean(
+      initialApp &&
+        ((initialApp.application_number && initialApp.application_number.trim() !== '') ||
+          initialApp.citizen_id ||
+          initialApp.citizen ||
+          (initialApp.status && initialApp.status !== 'YANGI')),
+    );
 
   // 500ms (0.5 soniya) kechiktirish (debounce) - yozish to'xtagandan keyin so'rov ketadi
   const debouncedCitizenForm = useDebounce(citizenForm, 500);
@@ -803,6 +815,28 @@ export function ApplicationCreatePage() {
     setShowCitizenPopover(false);
   };
 
+  const handleUnlinkCitizen = () => {
+    const msg = isEditMode
+      ? 'Ushbu fuqaroni arizadan ajratib, boshqa fuqaroni tanlamoqchimisiz yoki yangi kiritmoqchimisiz?'
+      : 'Tanlangan fuqaroni bekor qilib, boshqa fuqaro tanlamoqchimisiz?';
+    if (window.confirm(msg)) {
+      setSelectedCitizenId(null);
+      setCitizenForm({
+        first_name: '',
+        last_name: '',
+        middle_name: '',
+        passport: '',
+        phone_number: '',
+        pinfl: '',
+        address: '',
+        birth_date: '',
+        gender: '',
+      });
+      setCitizenDistrictId(null);
+      setCitizenMahallaId(null);
+    }
+  };
+
   const handleSelectCrime = (c: Crime) => {
     setSelectedCrimeId(c.id);
     setCrimeForm({
@@ -1095,8 +1129,16 @@ export function ApplicationCreatePage() {
         queryClient.invalidateQueries({ queryKey: ['transfers'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['application-draft', id], refetchType: 'all' }),
       ]);
-      toast.success('Ariza muvaffaqiyatli saqlandi va ro‘yxatga olindi!');
-      navigate('/applications');
+      toast.success(
+        isEditMode
+          ? 'O‘zgarishlar muvaffaqiyatli saqlandi!'
+          : 'Ariza muvaffaqiyatli saqlandi va ro‘yxatga olindi!',
+      );
+      if (isEditMode && id) {
+        navigate(`/applications/${id}`);
+      } else {
+        navigate('/applications');
+      }
     },
     onError: (err: unknown) => {
       console.error('Arizani saqlashda xatolik:', err);
@@ -1158,7 +1200,7 @@ export function ApplicationCreatePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
-                  Murojaatlar
+                  {isEditMode ? 'Arizani Tahrirlash' : 'Yangi Ariza & Murojaat'}
                 </h1>
                 <Badge
                   variant="outline"
@@ -1169,7 +1211,9 @@ export function ApplicationCreatePage() {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Fuqaro murojaati va kiberjinoyat holatini ro‘yxatga olish shakli
+                {isEditMode
+                  ? `№ ${applicationNumber || initialApp?.application_number || id} sonli ariza ma‘lumotlarini o‘zgartirish va to‘ldirish`
+                  : 'Fuqaro murojaati va kiberjinoyat holatini ro‘yxatga olish shakli'}
               </p>
             </div>
           </div>
@@ -1243,20 +1287,28 @@ export function ApplicationCreatePage() {
             </div>
 
             {selectedCitizenId ? (
-              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1.5 text-xs py-1 px-2.5 shrink-0">
+              <Badge
+                className={`${
+                  isEditMode
+                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                } gap-1.5 text-xs py-1 px-2.5 shrink-0`}
+              >
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Bazadagi fuqaro biriktirildi
+                {isEditMode
+                  ? 'Biriktirilgan fuqaro (tahrirlanmoqda)'
+                  : 'Bazadagi fuqaro biriktirildi'}
                 <button
                   type="button"
-                  onClick={() => setSelectedCitizenId(null)}
-                  className="ml-1 text-muted-foreground hover:text-foreground"
-                  title="Bog‘lanishni bekor qilish"
+                  onClick={handleUnlinkCitizen}
+                  className="ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Bog‘lanishni bekor qilish / Boshqa fuqaro tanlash"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-[11px] text-muted-foreground shrink-0">
+              <Badge variant="outline" className="text-[11px] text-muted-foreground shrink-0 border-dashed">
                 Yangi fuqaro sifatida qayd etiladi
               </Badge>
             )}
@@ -1270,11 +1322,12 @@ export function ApplicationCreatePage() {
                 <Input
                   placeholder="ISM"
                   value={citizenForm.first_name}
-                  onFocus={() => setShowCitizenPopover(true)}
+                  onFocus={() => {
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
+                  }}
                   onChange={(e) => {
                     setCitizenForm({ ...citizenForm, first_name: e.target.value });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
                   }}
                   className="h-10 text-xs uppercase font-medium"
                 />
@@ -1285,11 +1338,12 @@ export function ApplicationCreatePage() {
                 <Input
                   placeholder="FAMILIYA"
                   value={citizenForm.last_name}
-                  onFocus={() => setShowCitizenPopover(true)}
+                  onFocus={() => {
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
+                  }}
                   onChange={(e) => {
                     setCitizenForm({ ...citizenForm, last_name: e.target.value });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
                   }}
                   className="h-10 text-xs uppercase font-medium"
                 />
@@ -1302,11 +1356,12 @@ export function ApplicationCreatePage() {
                 <Input
                   placeholder="SHARIF"
                   value={citizenForm.middle_name}
-                  onFocus={() => setShowCitizenPopover(true)}
+                  onFocus={() => {
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
+                  }}
                   onChange={(e) => {
                     setCitizenForm({ ...citizenForm, middle_name: e.target.value });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
                   }}
                   className="h-10 text-xs uppercase font-medium"
                 />
@@ -1323,11 +1378,8 @@ export function ApplicationCreatePage() {
                 <Input
                   type="date"
                   value={citizenForm.birth_date}
-                  onFocus={() => setShowCitizenPopover(true)}
                   onChange={(e) => {
                     setCitizenForm({ ...citizenForm, birth_date: e.target.value });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
                   }}
                   className="h-10 text-xs font-medium cursor-pointer"
                 />
@@ -1346,7 +1398,6 @@ export function ApplicationCreatePage() {
                         ...citizenForm,
                         gender: citizenForm.gender === 'male' ? '' : 'male',
                       });
-                      setSelectedCitizenId(null);
                     }}
                     className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
                       citizenForm.gender === 'male'
@@ -1363,7 +1414,6 @@ export function ApplicationCreatePage() {
                         ...citizenForm,
                         gender: citizenForm.gender === 'female' ? '' : 'female',
                       });
-                      setSelectedCitizenId(null);
                     }}
                     className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
                       citizenForm.gender === 'female'
@@ -1380,11 +1430,12 @@ export function ApplicationCreatePage() {
                 <label className="text-xs font-semibold text-foreground">Telefon Raqami</label>
                 <PhoneInput
                   value={citizenForm.phone_number}
-                  onFocus={() => setShowCitizenPopover(true)}
+                  onFocus={() => {
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
+                  }}
                   onChange={(val) => {
                     setCitizenForm({ ...citizenForm, phone_number: val });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
                   }}
                 />
               </div>
@@ -1400,14 +1451,15 @@ export function ApplicationCreatePage() {
                 <Input
                   placeholder="AA1234567"
                   value={citizenForm.passport}
-                  onFocus={() => setShowCitizenPopover(true)}
+                  onFocus={() => {
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
+                  }}
                   onChange={(e) => {
                     setCitizenForm({
                       ...citizenForm,
                       passport: e.target.value.toUpperCase(),
                     });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
                   }}
                   className="h-10 text-xs font-mono uppercase font-bold"
                 />
@@ -1421,11 +1473,12 @@ export function ApplicationCreatePage() {
                 <Input
                   placeholder="30101901234567"
                   value={citizenForm.pinfl}
-                  onFocus={() => setShowCitizenPopover(true)}
+                  onFocus={() => {
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
+                  }}
                   onChange={(e) => {
                     setCitizenForm({ ...citizenForm, pinfl: e.target.value.toUpperCase() });
-                    setSelectedCitizenId(null);
-                    setShowCitizenPopover(true);
+                    if (!selectedCitizenId) setShowCitizenPopover(true);
                   }}
                   className="h-10 text-xs font-mono uppercase"
                 />
@@ -1519,7 +1572,7 @@ export function ApplicationCreatePage() {
             </div>
 
             {/* Fuqaro Jonli Avtokomplit Popoveri */}
-            {showCitizenPopover && matchedCitizens.length > 0 && (
+            {showCitizenPopover && !selectedCitizenId && matchedCitizens.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover text-popover-foreground border border-border shadow-2xl rounded-xl p-2 max-h-60 overflow-y-auto animate-in fade-in-50">
                 <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1.5 flex items-center justify-between border-b border-border/50 mb-1">
                   <span className="flex items-center gap-1.5">
@@ -3094,7 +3147,9 @@ export function ApplicationCreatePage() {
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  <span>Arizani Saqlash & Yakunlash</span>
+                  <span>
+                    {isEditMode ? 'O‘zgarishlarni Saqlash' : 'Arizani Saqlash & Yakunlash'}
+                  </span>
                 </>
               )}
             </Button>

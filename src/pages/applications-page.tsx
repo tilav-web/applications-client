@@ -474,7 +474,7 @@ export function ApplicationsPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigate(`/applications/create/${app.id}`)}
+                      onClick={() => navigate(`/applications/edit/${app.id}`)}
                       className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
                       title="Tahrirlash"
                     >

@@ -177,7 +177,7 @@ export function ApplicationRelationsPage() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/applications/create/${app.id}`)}
+              onClick={() => navigate(`/applications/edit/${app.id}`)}
               className="gap-1.5 cursor-pointer text-xs"
             >
               <Pencil className="h-3.5 w-3.5" />

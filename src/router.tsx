@@ -52,6 +52,10 @@ export const router = createBrowserRouter([
             element: <ApplicationCreatePage />,
           },
           {
+            path: 'applications/edit/:id',
+            element: <ApplicationCreatePage />,
+          },
+          {
             path: 'applications/:id/relations',
             element: <ApplicationRelationsPage />,
           },

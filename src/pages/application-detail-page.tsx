@@ -527,7 +527,7 @@ export function ApplicationDetailPage() {
           <Button
             type="button"
             size="sm"
-            onClick={() => navigate(`/applications/create/${app.id}`)}
+            onClick={() => navigate(`/applications/edit/${app.id}`)}
             className="h-9 px-3.5 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs cursor-pointer"
           >
             <Edit2 className="h-3.5 w-3.5" />
