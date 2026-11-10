@@ -1293,11 +1293,11 @@ export function ApplicationCreatePage() {
         {/* ================================================================= */}
         {/* 1-QISM: ARIZACHI (JABRLANUVCHI FUQARO) SHAXSIY ANKETASI */}
         {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-4 bg-sky-50 dark:bg-sky-950/20 transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-200/70 dark:border-sky-800/40 pb-3">
+        <div className="p-5 sm:p-6 space-y-4 bg-red-50 dark:bg-red-950/20 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-red-200/70 dark:border-red-800/40 pb-3">
             <div className="flex flex-wrap items-center gap-3 flex-1">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                <div className="p-1.5 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
                   <User className="h-4 w-4" />
                 </div>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground whitespace-nowrap">
@@ -1678,9 +1678,9 @@ export function ApplicationCreatePage() {
         {/* ================================================================= */}
         {/* 2-QISM: YO‘NALTIRILGAN HUDUD VA JINOYAT TURI */}
         {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-4 bg-indigo-50 dark:bg-indigo-950/20 transition-colors">
-          <div className="flex items-center gap-2.5 border-b border-indigo-200/70 dark:border-indigo-800/40 pb-3">
-            <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+        <div className="p-5 sm:p-6 space-y-4 bg-orange-50 dark:bg-orange-950/20 transition-colors">
+          <div className="flex items-center gap-2.5 border-b border-orange-200/70 dark:border-orange-800/40 pb-3">
+            <div className="p-1.5 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
               <MapPin className="h-4 w-4" />
             </div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
