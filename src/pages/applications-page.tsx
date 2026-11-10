@@ -76,7 +76,7 @@ export function ApplicationsPage() {
   const [relationsFilter, setRelationsFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('');
 
-  const [isFilterRowVisible, setIsFilterRowVisible] = useState(true);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -403,23 +403,43 @@ export function ApplicationsPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto self-end sm:self-auto">
               <Button
                 type="button"
-                variant={isFilterRowVisible ? 'secondary' : 'outline'}
+                variant={isFilterPanelOpen ? 'secondary' : 'outline'}
                 size="sm"
-                onClick={() => setIsFilterRowVisible(!isFilterRowVisible)}
+                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 className="h-9 text-xs gap-1.5 font-medium border-border/80 shrink-0 cursor-pointer"
-                title="Jadvaldagi ustun filtrlari qatorini yoqish / o'chirish"
+                title="Batafsil filtrlarni ko'rsatish / yashirish"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span>Ustun filtrlari</span>
+                <span>Batafsil filtrlar</span>
                 {activeFiltersCount > 0 && (
                   <Badge variant="default" className="h-4.5 px-1.5 text-[10px] ml-0.5">
                     {activeFiltersCount}
                   </Badge>
                 )}
+                <ChevronDown
+                  className={cn(
+                    'h-3.5 w-3.5 transition-transform duration-200',
+                    isFilterPanelOpen && 'rotate-180',
+                  )}
+                />
               </Button>
+
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearAllFilters}
+                  className="h-9 text-xs gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0 cursor-pointer font-medium"
+                  title="Barcha filtrlarni tozalash"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Tozalash</span>
+                </Button>
+              )}
 
               <Button
                 type="button"
@@ -437,6 +457,229 @@ export function ApplicationsPage() {
               </Button>
             </div>
           </div>
+
+          {/* 2. Kengaytirilgan Filtrlar Paneli (Clean Responsive Grid) */}
+          {isFilterPanelOpen && (
+            <div className="pt-3 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* 1. Tuman (Hudud) */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Hudud / Tuman
+                </label>
+                <select
+                  value={districtFilter}
+                  onChange={(e) => {
+                    setDistrictFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                >
+                  <option value="">Barcha tumanlar</option>
+                  {allDistricts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. Jinoyat turi */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Jinoyat turi / Modda
+                </label>
+                <select
+                  value={crimeFilter}
+                  onChange={(e) => {
+                    setCrimeFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer text-primary"
+                >
+                  <option value="">Barcha moddalar</option>
+                  {allCrimes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.article || c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Ariza raqami */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Ariza raqami
+                </label>
+                <div className="relative">
+                  <Input
+                    placeholder="№ 2026-..."
+                    value={appNumberFilter}
+                    onChange={(e) => {
+                      setAppNumberFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-8 text-xs font-mono pr-6"
+                  />
+                  {appNumberFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppNumberFilter('');
+                        setPage(1);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      title="Tozalash"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 4. Asosiy arizachi */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Arizachi (F.I.SH / Pasport)
+                </label>
+                <div className="relative">
+                  <Input
+                    placeholder="Fuqaro F.I.SH / Telefon..."
+                    value={citizenNameFilter}
+                    onChange={(e) => {
+                      setCitizenNameFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-8 text-xs pr-6"
+                  />
+                  {citizenNameFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCitizenNameFilter('');
+                        setPage(1);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      title="Tozalash"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 5. Holati */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Ariza holati
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                >
+                  <option value="">Barcha holatlar</option>
+                  {allApplicationStatuses.length > 0 ? (
+                    allApplicationStatuses.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="YANGI">Yangi</option>
+                      <option value="JARAYONDA">Jarayonda</option>
+                      <option value="HAL_QILINDI">Hal qilindi</option>
+                      <option value="RAD_ETILDI">Rad etildi</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* 6. Sana */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Ariza sanasi
+                </label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => {
+                      setDateFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-8 text-xs [color-scheme:dark] pr-6"
+                  />
+                  {dateFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateFilter('');
+                        setPage(1);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      title="Sanani tozalash"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 7. Bog‘liqliklar */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Bog‘liqliklar
+                </label>
+                <select
+                  value={relationsFilter}
+                  onChange={(e) => {
+                    setRelationsFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                >
+                  <option value="">Barchasi</option>
+                  <option value="with_relations">Bog‘liqligi bor (1+)</option>
+                  <option value="fraud_card">Firibgar kartasi aniqlangan</option>
+                </select>
+              </div>
+
+              {/* 8. Tafsilot / Qaydlar */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Tafsilot & Qaydlar
+                </label>
+                <div className="relative">
+                  <Input
+                    placeholder="Fabula yoki izoh bo'yicha..."
+                    value={descFilter}
+                    onChange={(e) => {
+                      setDescFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-8 text-xs pr-6"
+                  />
+                  {descFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDescFilter('');
+                        setPage(1);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      title="Tozalash"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Faol filtrlar chiplari (Badges) */}
           {hasActiveFilters && (
@@ -644,229 +887,6 @@ export function ApplicationsPage() {
               <TableHead className="whitespace-nowrap">Sana</TableHead>
               <TableHead className="text-right whitespace-nowrap">Amallar</TableHead>
             </TableRow>
-
-            {/* 2-Qator: Ustunlar bo'yicha filterlar (Header Filter Row) */}
-            {isFilterRowVisible && (
-              <TableRow className="bg-muted/15 border-b border-border hover:bg-muted/15">
-                {/* 1. Hudud & Jinoyat Turi */}
-                <TableHead className="p-1.5 align-top min-w-[155px]">
-                  <div className="space-y-1">
-                    <select
-                      value={districtFilter}
-                      onChange={(e) => {
-                        setDistrictFilter(e.target.value);
-                        setPage(1);
-                      }}
-                      className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal cursor-pointer"
-                      title="Tuman bo'yicha filter"
-                    >
-                      <option value="">Barcha tumanlar</option>
-                      {allDistricts.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={crimeFilter}
-                      onChange={(e) => {
-                        setCrimeFilter(e.target.value);
-                        setPage(1);
-                      }}
-                      className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal text-primary cursor-pointer"
-                      title="Jinoyat turi/moddasi bo'yicha filter"
-                    >
-                      <option value="">Barcha moddalar</option>
-                      {allCrimes.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.article || c.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </TableHead>
-
-                {/* 2. Ariza Raqami */}
-                <TableHead className="p-1.5 align-top min-w-[130px]">
-                  <div className="relative">
-                    <Input
-                      placeholder="№ qidiruv..."
-                      value={appNumberFilter}
-                      onChange={(e) => {
-                        setAppNumberFilter(e.target.value);
-                        setPage(1);
-                      }}
-                      className="h-7 text-xs px-2 pr-6 bg-background/90 font-mono"
-                    />
-                    {appNumberFilter && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAppNumberFilter('');
-                          setPage(1);
-                        }}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
-                        title="Tozalash"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </TableHead>
-
-                {/* 3. Tafsilot & Xodim Qaydlari */}
-                <TableHead className="p-1.5 align-top min-w-[180px]">
-                  <div className="relative">
-                    <Input
-                      placeholder="Tafsilot yoki qayd..."
-                      value={descFilter}
-                      onChange={(e) => {
-                        setDescFilter(e.target.value);
-                        setPage(1);
-                      }}
-                      className="h-7 text-xs px-2 pr-6 bg-background/90 font-normal"
-                    />
-                    {descFilter && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDescFilter('');
-                          setPage(1);
-                        }}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
-                        title="Tozalash"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </TableHead>
-
-                {/* 4. Holati */}
-                <TableHead className="p-1.5 align-top min-w-[125px]">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal cursor-pointer"
-                    title="Holati bo'yicha filter"
-                  >
-                    <option value="">Barcha holatlar</option>
-                    {allApplicationStatuses.length > 0 ? (
-                      allApplicationStatuses.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.name}
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="YANGI">Yangi</option>
-                        <option value="JARAYONDA">Jarayonda</option>
-                        <option value="HAL_QILINDI">Hal qilindi</option>
-                        <option value="RAD_ETILDI">Rad etildi</option>
-                      </>
-                    )}
-                  </select>
-                </TableHead>
-
-                {/* 5. Asosiy Arizachi */}
-                <TableHead className="p-1.5 align-top min-w-[140px]">
-                  <div className="relative">
-                    <Input
-                      placeholder="F.I.SH / Telefon..."
-                      value={citizenNameFilter}
-                      onChange={(e) => {
-                        setCitizenNameFilter(e.target.value);
-                        setPage(1);
-                      }}
-                      className="h-7 text-xs px-2 pr-6 bg-background/90 font-normal"
-                    />
-                    {citizenNameFilter && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCitizenNameFilter('');
-                          setPage(1);
-                        }}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
-                        title="Tozalash"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </TableHead>
-
-                {/* 6. Bog'liqliklar */}
-                <TableHead className="p-1.5 align-top min-w-[130px]">
-                  <select
-                    value={relationsFilter}
-                    onChange={(e) => {
-                      setRelationsFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal cursor-pointer"
-                    title="Bog'liqliklar bo'yicha filter"
-                  >
-                    <option value="">Barchasi</option>
-                    <option value="with_relations">Bog‘liqligi bor (1+)</option>
-                    <option value="fraud_card">Firibgar kartasi</option>
-                  </select>
-                </TableHead>
-
-                {/* 7. Sana */}
-                <TableHead className="p-1.5 align-top min-w-[125px]">
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={dateFilter}
-                      onChange={(e) => {
-                        setDateFilter(e.target.value);
-                        setPage(1);
-                      }}
-                      className="h-7 text-xs px-1.5 pr-6 bg-background/90 [color-scheme:dark]"
-                      title="Sana bo'yicha filter"
-                    />
-                    {dateFilter && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDateFilter('');
-                          setPage(1);
-                        }}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
-                        title="Sanani tozalash"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </TableHead>
-
-                {/* 8. Amallar */}
-                <TableHead className="p-1.5 align-top text-right min-w-[110px]">
-                  {hasActiveFilters ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearAllFilters}
-                      className="h-7 px-2 text-[11px] text-destructive hover:bg-destructive/10 border-destructive/30 gap-1 w-full justify-center cursor-pointer font-medium"
-                      title="Barcha filtrlarni tozalash"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>Tozalash</span>
-                    </Button>
-                  ) : (
-                    <div className="text-center text-[10px] text-muted-foreground/60 py-1 font-mono">
-                      Filtrlar
-                    </div>
-                  )}
-                </TableHead>
-              </TableRow>
-            )}
           </TableHeader>
           <TableBody className="divide-y divide-border">
             {isLoading ? (
