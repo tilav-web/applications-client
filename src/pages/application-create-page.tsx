@@ -1293,11 +1293,11 @@ export function ApplicationCreatePage() {
         {/* ================================================================= */}
         {/* 1-QISM: ARIZACHI (JABRLANUVCHI FUQARO) SHAXSIY ANKETASI */}
         {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-4 bg-sky-500/[0.035] dark:bg-sky-500/[0.05] transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-500/15 pb-3">
+        <div className="p-5 sm:p-6 space-y-4 bg-sky-50 dark:bg-sky-950/20 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-sky-200/70 dark:border-sky-800/40 pb-3">
             <div className="flex flex-wrap items-center gap-3 flex-1">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                   <User className="h-4 w-4" />
                 </div>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground whitespace-nowrap">
@@ -1678,9 +1678,9 @@ export function ApplicationCreatePage() {
         {/* ================================================================= */}
         {/* 2-QISM: YO‘NALTIRILGAN HUDUD VA JINOYAT TURI */}
         {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-4 bg-indigo-500/[0.035] dark:bg-indigo-500/[0.05] transition-colors">
-          <div className="flex items-center gap-2.5 border-b border-indigo-500/15 pb-3">
-            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+        <div className="p-5 sm:p-6 space-y-4 bg-indigo-50 dark:bg-indigo-950/20 transition-colors">
+          <div className="flex items-center gap-2.5 border-b border-indigo-200/70 dark:border-indigo-800/40 pb-3">
+            <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
               <MapPin className="h-4 w-4" />
             </div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
@@ -1861,10 +1861,10 @@ export function ApplicationCreatePage() {
         {/* ================================================================= */}
         {/* 3-QISM: BANK KARTASI VA NOQONUNIY O'TKAZMA (MOLIYAVIY ZARAR) */}
         {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-5 bg-emerald-500/[0.035] dark:bg-emerald-500/[0.05] transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/15 pb-3">
+        <div className="p-5 sm:p-6 space-y-5 bg-emerald-50 dark:bg-emerald-950/20 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/70 dark:border-emerald-800/40 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                 <CreditCard className="h-4 w-4" />
               </div>
               <div>
@@ -2386,9 +2386,9 @@ export function ApplicationCreatePage() {
         {/* ================================================================= */}
         {/* 4-QISM: HUJJATLAR, ISBOTLAR VA QO'SHIMCHA SUBYEKTLAR */}
         {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-6 bg-amber-500/[0.035] dark:bg-amber-500/[0.05] transition-colors">
-          <div className="flex items-center gap-2.5 border-b border-amber-500/15 pb-3">
-            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="p-5 sm:p-6 space-y-6 bg-amber-50 dark:bg-amber-950/20 transition-colors">
+          <div className="flex items-center gap-2.5 border-b border-amber-200/70 dark:border-amber-800/40 pb-3">
+            <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
               <Paperclip className="h-4 w-4" />
             </div>
             <div>
