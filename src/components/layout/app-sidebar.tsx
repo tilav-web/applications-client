@@ -129,7 +129,7 @@ export function AppSidebar() {
           className="w-full justify-center gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 h-9 text-xs transition-colors"
         >
           <LogOut className="h-3.5 w-3.5" />
-          <span>Tizimdan chiqish (Logout)</span>
+          <span>Tizimdan chiqish</span>
         </Button>
       </div>
     </aside>

@@ -7,7 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -96,22 +95,6 @@ export function AppHeader() {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-xs font-semibold leading-none">{fullName}</p>
-                <p className="text-[11px] leading-none text-muted-foreground font-mono">
-                  username: @{user?.username}
-                </p>
-                {user?.profile?.phone_number && (
-                  <p className="text-[10px] leading-none text-muted-foreground">
-                    tel: {user.profile.phone_number}
-                  </p>
-                )}
-              </div>
-            </DropdownMenuLabel>
-
-            <DropdownMenuSeparator />
-
             <DropdownMenuItem onClick={() => navigate('/profile')}>
               <UserIcon className="h-4 w-4 mr-2 text-primary" />
               Mening profilim
@@ -131,7 +114,7 @@ export function AppHeader() {
               className="text-destructive focus:text-destructive"
             >
               <LogOut className="h-4 w-4 mr-2" />
-              Chiqish (Logout)
+              Chiqish
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
