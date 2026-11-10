@@ -21,7 +21,7 @@ import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   DropdownMenu,
@@ -371,9 +371,10 @@ export function ApplicationsPage() {
         </Button>
       </div>
 
-      {/* Search and Top Bar */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-2xs">
-        <CardContent className="p-3.5 flex flex-col sm:flex-row gap-3 items-center justify-between">
+      {/* Applications Table Card with Integrated Top Toolbar */}
+      <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xs">
+        {/* Top Toolbar */}
+        <div className="p-3 sm:px-4 flex flex-col sm:flex-row gap-3 items-center justify-between border-b border-border/70 bg-card/40">
           {/* Left: General Search */}
           <div className="relative flex-1 w-full sm:max-w-md lg:max-w-lg">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -456,11 +457,11 @@ export function ApplicationsPage() {
               <span className="hidden sm:inline">Yangilash</span>
             </Button>
           </div>
-        </CardContent>
+        </div>
 
         {/* Faol filtrlar chiplari (Badges) */}
         {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3.5 pb-3 pt-1 border-t border-border/40 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 px-3.5 py-1.5 border-b border-border/60 bg-muted/20 text-xs">
             <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 mr-1">
               <Filter className="h-3 w-3" /> Faol filtrlar:
             </span>
@@ -644,24 +645,35 @@ export function ApplicationsPage() {
             </Button>
           </div>
         )}
-      </Card>
 
-      {/* Applications Table */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
         <Table>
           <TableHeader>
             {/* 1-Qator: Ustun nomlari */}
             <TableRow className="border-b border-border bg-muted/40">
-              <TableHead className="w-[145px] whitespace-nowrap">Hudud & Jinoyat Turi</TableHead>
-              <TableHead className="w-[140px] whitespace-nowrap">Ariza Raqami</TableHead>
-              <TableHead className="min-w-[200px] whitespace-nowrap">
+              <TableHead className="w-[145px] h-9 px-3 text-[11px] whitespace-nowrap">
+                Hudud & Jinoyat Turi
+              </TableHead>
+              <TableHead className="w-[140px] h-9 px-3 text-[11px] whitespace-nowrap">
+                Ariza Raqami
+              </TableHead>
+              <TableHead className="min-w-[200px] h-9 px-3 text-[11px] whitespace-nowrap">
                 Tafsilot & Xodim Qaydlari
               </TableHead>
-              <TableHead className="w-[135px] whitespace-nowrap">Holati</TableHead>
-              <TableHead className="w-[155px] whitespace-nowrap">Asosiy Arizachi</TableHead>
-              <TableHead className="w-[125px] whitespace-nowrap">Bog‘liqliklar</TableHead>
-              <TableHead className="w-[125px] whitespace-nowrap">Sana</TableHead>
-              <TableHead className="w-[85px] text-right whitespace-nowrap">Amallar</TableHead>
+              <TableHead className="w-[135px] h-9 px-3 text-[11px] whitespace-nowrap">
+                Holati
+              </TableHead>
+              <TableHead className="w-[155px] h-9 px-3 text-[11px] whitespace-nowrap">
+                Asosiy Arizachi
+              </TableHead>
+              <TableHead className="w-[125px] h-9 px-3 text-[11px] whitespace-nowrap">
+                Bog‘liqliklar
+              </TableHead>
+              <TableHead className="w-[125px] h-9 px-3 text-[11px] whitespace-nowrap">
+                Sana
+              </TableHead>
+              <TableHead className="w-[85px] h-9 px-3 text-[11px] text-right whitespace-nowrap">
+                Amallar
+              </TableHead>
             </TableRow>
 
             {/* 2-Qator: Har bir ustun uchun o'zining filtri (1 filter per column) */}
