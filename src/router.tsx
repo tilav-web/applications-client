@@ -15,6 +15,7 @@ import { LoginPage } from '@/pages/login-page';
 import { NotFoundPage } from '@/pages/not-found-page';
 import { ProfilePage } from '@/pages/profile-page';
 import { ReferencesPage } from '@/pages/references-page';
+import { ReportsPage } from '@/pages/reports-page';
 import { TemplatesPage } from '@/pages/templates-page';
 import { TransfersPage } from '@/pages/transfers-page';
 import { UsersPage } from '@/pages/users-page';
@@ -78,6 +79,10 @@ export const router = createBrowserRouter([
           {
             path: 'financial-flow',
             element: <FinancialFlowPage />,
+          },
+          {
+            path: 'reports',
+            element: <ReportsPage />,
           },
           {
             path: 'references',

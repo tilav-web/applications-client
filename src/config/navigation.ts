@@ -1,6 +1,7 @@
 import {
   Activity,
   ArrowLeftRight,
+  BarChart3,
   BookOpen,
   CreditCard,
   FileCode2,
@@ -68,6 +69,15 @@ export const navigationConfig: NavItem[] = [
     category: 'main',
     allowedRoles: ['*'],
     description: 'Barcha kartalar va to‘lov o‘tkazmalari tarmog‘i',
+  },
+  {
+    id: 'reports',
+    title: 'Statistika & Hisobotlar',
+    path: '/reports',
+    icon: BarChart3,
+    category: 'main',
+    allowedRoles: ['*'],
+    description: 'Qashqadaryo viloyati IIB yig‘ma statistik hisobotlari va Excel eksport',
   },
 
   // 2. Operativ & Ma'lumotnomalar
