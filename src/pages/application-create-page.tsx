@@ -19,6 +19,7 @@ import {
   MapPin,
   Paperclip,
   Plus,
+  RotateCcw,
   Save,
   ShieldAlert,
   Sparkles,
@@ -242,6 +243,7 @@ export function ApplicationCreatePage() {
 
   const [canLeave, setCanLeave] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   // ==========================================================================
   // 1. ASOSIY ARIZA QAYD REKVIZITLARI
@@ -3191,17 +3193,31 @@ export function ApplicationCreatePage() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="default"
-              onClick={() => setIsDeleteModalOpen(true)}
-              disabled={deleteMutation.isPending || saveMutation.isPending}
-              className="h-10 text-xs font-semibold px-4 gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition"
-            >
-              <Trash2 className="h-4 w-4" />
-              Bekor qilish / O‘chirish
-            </Button>
+            {isEditMode ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="default"
+                onClick={() => setIsCancelModalOpen(true)}
+                disabled={saveMutation.isPending}
+                className="h-10 text-xs font-semibold px-4 gap-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <RotateCcw className="h-4 w-4 text-slate-500" />
+                Bekor qilish
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="default"
+                onClick={() => setIsDeleteModalOpen(true)}
+                disabled={deleteMutation.isPending || saveMutation.isPending}
+                className="h-10 text-xs font-semibold px-4 gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                Bekor qilish / O‘chirish
+              </Button>
+            )}
 
             <Button
               type="button"
@@ -3227,6 +3243,51 @@ export function ApplicationCreatePage() {
           </div>
         </div>
       </div>
+
+      {/* TAHRIRLASHNI BEKOR QILISH DIALOGI (MA'LUMOTLAR BAZADA O'CHMASDAN SAQLANIB QOLADI) */}
+      <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold">
+              <RotateCcw className="h-5 w-5 text-slate-500" />
+              <span>Tahrirlashni bekor qilish</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
+              Haqiqatan ham tahrirlash formasidan chiqmoqchimisiz? Kiritilgan oxirgi o‘zgarishlar
+              saqlanmaydi, ammo mavjud ariza va unga biriktirilgan barcha ma‘lumotlar bazada to‘liq
+              o‘z holicha saqlanib qoladi (o‘chirilmaydi).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => setIsCancelModalOpen(false)}
+              className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
+            >
+              Yo‘q, tahrirlashda davom etish
+            </Button>
+            <Button
+              variant="default"
+              size="default"
+              onClick={() => {
+                setCanLeave(true);
+                setIsCancelModalOpen(false);
+                toast.info('Tahrirlash bekor qilindi (ariza o‘chirilmay saqlanib qoldi)');
+                if (id) {
+                  navigate(`/applications/${id}`);
+                } else {
+                  navigate('/applications');
+                }
+              }}
+              className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Ha, bekor qilinsin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* O'CHIRISHNI TASDIQLASH DIALOGI */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
