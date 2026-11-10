@@ -10,12 +10,14 @@ import {
   CreditCard,
   FileText,
   Filter,
+  LayoutList,
   Loader2,
   MapPin,
   RefreshCw,
   Scale,
   ShieldAlert,
   ShieldCheck,
+  Table as TableIcon,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
@@ -97,6 +99,11 @@ export function DashboardPage() {
     return d.toISOString().substring(0, 10);
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().substring(0, 10));
+
+  // Tab view states (list vs table) for breakdown cards
+  const [districtView, setDistrictView] = useState<'list' | 'table'>('list');
+  const [crimeView, setCrimeView] = useState<'list' | 'table'>('list');
+  const [providerView, setProviderView] = useState<'list' | 'table'>('list');
 
   // Query stats
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -590,14 +597,44 @@ export function DashboardPage() {
         {/* A. TOP DISTRICTS */}
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm">
           <CardHeader className="p-5 pb-3 border-b border-border/40">
-            <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <CardTitle className="text-sm font-bold flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
                 <span>Hududlar / Tumanlar Kesimi</span>
               </span>
-              <Badge variant="outline" className="text-[10px]">
-                {districtData.length} ta hudud
-              </Badge>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-lg border border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setDistrictView('list')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      districtView === 'list'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Grafik / Ro‘yxat ko‘rinishi"
+                  >
+                    <LayoutList className="h-3 w-3" />
+                    <span>Ro‘yxat</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDistrictView('table')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      districtView === 'table'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Jadval ko‘rinishi"
+                  >
+                    <TableIcon className="h-3 w-3" />
+                    <span>Jadval</span>
+                  </button>
+                </div>
+                <Badge variant="outline" className="text-[10px]">
+                  {districtData.length} ta
+                </Badge>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-3">
@@ -605,6 +642,39 @@ export function DashboardPage() {
               <p className="text-xs text-muted-foreground text-center py-6">
                 Tumanlar bo‘yicha ma‘lumot kiritilmagan
               </p>
+            ) : districtView === 'table' ? (
+              <div className="overflow-x-auto -mx-5 -my-2">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-y border-border/40">
+                    <tr>
+                      <th className="py-2 px-3 w-8">#</th>
+                      <th className="py-2 px-3">Tuman / Hudud</th>
+                      <th className="py-2 px-3 text-right">Arizalar</th>
+                      <th className="py-2 px-3 text-right">Ulush</th>
+                      <th className="py-2 px-4 text-right">Zarar miqdori</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30 font-medium">
+                    {districtData.map((d, idx) => (
+                      <tr key={d.id || idx} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 px-3 font-semibold text-foreground">{d.name}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-primary">
+                          {d.count} ta
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-muted-foreground">
+                          {d.percent}%
+                        </td>
+                        <td className="py-2 px-4 text-right font-mono text-[11px] font-semibold text-foreground whitespace-nowrap">
+                          {formatCurrency(d.totalLoss)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               districtData.map((d, idx) => (
                 <div key={d.id || idx} className="space-y-1 text-xs">
@@ -636,14 +706,44 @@ export function DashboardPage() {
         {/* B. TOP CRIMES */}
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm">
           <CardHeader className="p-5 pb-3 border-b border-border/40">
-            <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <CardTitle className="text-sm font-bold flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-amber-400" />
                 <span>Jinoyat Turlari</span>
               </span>
-              <Badge variant="outline" className="text-[10px]">
-                {crimeData.length} ta tur
-              </Badge>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-lg border border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setCrimeView('list')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      crimeView === 'list'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Grafik / Ro‘yxat ko‘rinishi"
+                  >
+                    <LayoutList className="h-3 w-3" />
+                    <span>Ro‘yxat</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCrimeView('table')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      crimeView === 'table'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Jadval ko‘rinishi"
+                  >
+                    <TableIcon className="h-3 w-3" />
+                    <span>Jadval</span>
+                  </button>
+                </div>
+                <Badge variant="outline" className="text-[10px]">
+                  {crimeData.length} ta
+                </Badge>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-3">
@@ -651,6 +751,44 @@ export function DashboardPage() {
               <p className="text-xs text-muted-foreground text-center py-6">
                 Jinoyat moddalari kiritilmagan
               </p>
+            ) : crimeView === 'table' ? (
+              <div className="overflow-x-auto -mx-5 -my-2">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-y border-border/40">
+                    <tr>
+                      <th className="py-2 px-3 w-8">#</th>
+                      <th className="py-2 px-3">Jinoyat moddasi / Nomi</th>
+                      <th className="py-2 px-3 text-right">Arizalar</th>
+                      <th className="py-2 px-4 text-right">Ulush</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30 font-medium">
+                    {crimeData.map((c, idx) => (
+                      <tr key={c.id || idx} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 px-3">
+                          <div className="font-semibold text-foreground truncate max-w-[180px]">
+                            {c.article}
+                          </div>
+                          {c.title && (
+                            <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                              {c.title}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-amber-500 whitespace-nowrap">
+                          {c.count} ta
+                        </td>
+                        <td className="py-2 px-4 text-right font-mono text-muted-foreground">
+                          {c.percent}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               crimeData.map((c, idx) => (
                 <div key={c.id || idx} className="space-y-1 text-xs">
@@ -682,14 +820,44 @@ export function DashboardPage() {
         {/* C. TOP PAYMENT PROVIDERS & APPS */}
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm md:col-span-2 lg:col-span-1">
           <CardHeader className="p-5 pb-3 border-b border-border/40">
-            <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <CardTitle className="text-sm font-bold flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-rose-400" />
                 <span>To‘lov Tizimlari / Ilovalar Zarari</span>
               </span>
-              <Badge variant="outline" className="text-[10px]">
-                {providerData.length} ta tizim
-              </Badge>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-lg border border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setProviderView('list')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      providerView === 'list'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Grafik / Ro‘yxat ko‘rinishi"
+                  >
+                    <LayoutList className="h-3 w-3" />
+                    <span>Ro‘yxat</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProviderView('table')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      providerView === 'table'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Jadval ko‘rinishi"
+                  >
+                    <TableIcon className="h-3 w-3" />
+                    <span>Jadval</span>
+                  </button>
+                </div>
+                <Badge variant="outline" className="text-[10px]">
+                  {providerData.length} ta
+                </Badge>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-3">
@@ -697,6 +865,44 @@ export function DashboardPage() {
               <p className="text-xs text-muted-foreground text-center py-6">
                 To‘lov tizimlari bo‘yicha ma‘lumot yo‘q
               </p>
+            ) : providerView === 'table' ? (
+              <div className="overflow-x-auto -mx-5 -my-2">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-y border-border/40">
+                    <tr>
+                      <th className="py-2 px-3 w-8">#</th>
+                      <th className="py-2 px-3">To‘lov tizimi</th>
+                      <th className="py-2 px-3 text-right">O‘tkazmalar</th>
+                      <th className="py-2 px-3 text-right">Ulush</th>
+                      <th className="py-2 px-4 text-right">Yetkazilgan zarar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30 font-medium">
+                    {providerData.map((p, idx) => (
+                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 px-3 font-semibold text-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span>{p.name}</span>
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-foreground whitespace-nowrap">
+                          {p.count} ta
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-muted-foreground">
+                          {p.percent}%
+                        </td>
+                        <td className="py-2 px-4 text-right font-mono text-[11px] font-bold text-rose-500 whitespace-nowrap">
+                          {formatCurrency(p.totalAmount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               providerData.map((p, idx) => (
                 <div key={idx} className="space-y-1 text-xs">
