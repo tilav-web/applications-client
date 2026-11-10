@@ -128,6 +128,7 @@ export function ReferencesPage() {
 
   const [suspectFieldSearch, setSuspectFieldSearch] = useState('');
   const [suspectFieldPage, setSuspectFieldPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Modal dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
@@ -136,15 +137,17 @@ export function ReferencesPage() {
 
   // 1. Districts Query
   const { data: districtsData, isLoading: isDistrictsLoading } = useQuery({
-    queryKey: ['districts', { page: districtPage, search: districtSearch }],
-    queryFn: () => districtsApi.getAll({ page: districtPage, limit: 10, search: districtSearch }),
+    queryKey: ['districts', { page: districtPage, limit: pageSize, search: districtSearch }],
+    queryFn: () =>
+      districtsApi.getAll({ page: districtPage, limit: pageSize, search: districtSearch }),
     enabled: activeTab === 'districts',
   });
 
   // 1.1. Mahallas Query
   const { data: mahallasData, isLoading: isMahallasLoading } = useQuery({
-    queryKey: ['mahallas', { page: mahallaPage, search: mahallaSearch }],
-    queryFn: () => mahallasApi.getAll({ page: mahallaPage, limit: 10, search: mahallaSearch }),
+    queryKey: ['mahallas', { page: mahallaPage, limit: pageSize, search: mahallaSearch }],
+    queryFn: () =>
+      mahallasApi.getAll({ page: mahallaPage, limit: pageSize, search: mahallaSearch }),
     enabled: activeTab === 'mahallas',
   });
 
@@ -158,49 +161,58 @@ export function ReferencesPage() {
 
   // 2. Crimes Query
   const { data: crimesData, isLoading: isCrimesLoading } = useQuery({
-    queryKey: ['crimes', { page: crimePage, search: crimeSearch }],
-    queryFn: () => crimesApi.getAll({ page: crimePage, limit: 10, search: crimeSearch }),
+    queryKey: ['crimes', { page: crimePage, limit: pageSize, search: crimeSearch }],
+    queryFn: () => crimesApi.getAll({ page: crimePage, limit: pageSize, search: crimeSearch }),
     enabled: activeTab === 'crimes',
   });
 
   // 2.1. Crime Methods Query
   const { data: crimeMethodsData, isLoading: isCrimeMethodsLoading } = useQuery({
-    queryKey: ['crime-methods', { page: crimeMethodPage, search: crimeMethodSearch }],
+    queryKey: [
+      'crime-methods',
+      { page: crimeMethodPage, limit: pageSize, search: crimeMethodSearch },
+    ],
     queryFn: () =>
-      crimeMethodsApi.getAll({ page: crimeMethodPage, limit: 10, search: crimeMethodSearch }),
+      crimeMethodsApi.getAll({ page: crimeMethodPage, limit: pageSize, search: crimeMethodSearch }),
     enabled: activeTab === 'crime_methods',
   });
 
   // 3. Banks Query
   const { data: banksData, isLoading: isBanksLoading } = useQuery({
-    queryKey: ['banks', { page: bankPage, search: bankSearch }],
-    queryFn: () => banksApi.getAll({ page: bankPage, limit: 10, search: bankSearch }),
+    queryKey: ['banks', { page: bankPage, limit: pageSize, search: bankSearch }],
+    queryFn: () => banksApi.getAll({ page: bankPage, limit: pageSize, search: bankSearch }),
     enabled: activeTab === 'banks',
   });
 
   // 4. Payment Providers Query
   const { data: providersData, isLoading: isProvidersLoading } = useQuery({
-    queryKey: ['payment-providers', { page: providerPage, search: providerSearch }],
+    queryKey: [
+      'payment-providers',
+      { page: providerPage, limit: pageSize, search: providerSearch },
+    ],
     queryFn: () =>
-      paymentProvidersApi.getAll({ page: providerPage, limit: 10, search: providerSearch }),
+      paymentProvidersApi.getAll({ page: providerPage, limit: pageSize, search: providerSearch }),
     enabled: activeTab === 'providers',
   });
 
   // 5. Application Statuses Query
   const { data: statusesData, isLoading: isStatusesLoading } = useQuery({
-    queryKey: ['application-statuses', { page: statusPage, search: statusSearch }],
+    queryKey: ['application-statuses', { page: statusPage, limit: pageSize, search: statusSearch }],
     queryFn: () =>
-      applicationStatusesApi.getAll({ page: statusPage, limit: 10, search: statusSearch }),
+      applicationStatusesApi.getAll({ page: statusPage, limit: pageSize, search: statusSearch }),
     enabled: activeTab === 'statuses',
   });
 
   // 6. Suspect Field Configs Query
   const { data: suspectFieldsData, isLoading: isSuspectFieldsLoading } = useQuery({
-    queryKey: ['suspect-field-configs', { page: suspectFieldPage, search: suspectFieldSearch }],
+    queryKey: [
+      'suspect-field-configs',
+      { page: suspectFieldPage, limit: pageSize, search: suspectFieldSearch },
+    ],
     queryFn: () =>
       suspectFieldConfigsApi.getAll({
         page: suspectFieldPage,
-        limit: 10,
+        limit: pageSize,
         search: suspectFieldSearch,
       }),
     enabled: activeTab === 'suspect_fields',
@@ -569,10 +581,14 @@ export function ReferencesPage() {
                 page={districtsData.meta.page}
                 totalPages={districtsData.meta.totalPages}
                 total={districtsData.meta.total}
-                limit={districtsData.meta.limit}
+                limit={pageSize}
                 hasNextPage={districtsData.meta.hasNextPage}
                 hasPreviousPage={districtsData.meta.hasPreviousPage}
                 onPageChange={(p) => setDistrictPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setDistrictPage(1);
+                }}
                 isLoading={isDistrictsLoading}
               />
             )}
@@ -658,10 +674,14 @@ export function ReferencesPage() {
                 page={mahallasData.meta.page}
                 totalPages={mahallasData.meta.totalPages}
                 total={mahallasData.meta.total}
-                limit={mahallasData.meta.limit}
+                limit={pageSize}
                 hasNextPage={mahallasData.meta.hasNextPage}
                 hasPreviousPage={mahallasData.meta.hasPreviousPage}
                 onPageChange={(p) => setMahallaPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setMahallaPage(1);
+                }}
                 isLoading={isMahallasLoading}
               />
             )}
@@ -745,10 +765,14 @@ export function ReferencesPage() {
                 page={crimesData.meta.page}
                 totalPages={crimesData.meta.totalPages}
                 total={crimesData.meta.total}
-                limit={crimesData.meta.limit}
+                limit={pageSize}
                 hasNextPage={crimesData.meta.hasNextPage}
                 hasPreviousPage={crimesData.meta.hasPreviousPage}
                 onPageChange={(p) => setCrimePage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setCrimePage(1);
+                }}
                 isLoading={isCrimesLoading}
               />
             )}
@@ -851,10 +875,14 @@ export function ReferencesPage() {
                 page={crimeMethodsData.meta.page}
                 totalPages={crimeMethodsData.meta.totalPages}
                 total={crimeMethodsData.meta.total}
-                limit={crimeMethodsData.meta.limit}
+                limit={pageSize}
                 hasNextPage={crimeMethodsData.meta.hasNextPage}
                 hasPreviousPage={crimeMethodsData.meta.hasPreviousPage}
                 onPageChange={(p) => setCrimeMethodPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setCrimeMethodPage(1);
+                }}
                 isLoading={isCrimeMethodsLoading}
               />
             )}
@@ -955,10 +983,14 @@ export function ReferencesPage() {
                 page={banksData.meta.page}
                 totalPages={banksData.meta.totalPages}
                 total={banksData.meta.total}
-                limit={banksData.meta.limit}
+                limit={pageSize}
                 hasNextPage={banksData.meta.hasNextPage}
                 hasPreviousPage={banksData.meta.hasPreviousPage}
                 onPageChange={(p) => setBankPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setBankPage(1);
+                }}
                 isLoading={isBanksLoading}
               />
             )}
@@ -1044,10 +1076,14 @@ export function ReferencesPage() {
                 page={providersData.meta.page}
                 totalPages={providersData.meta.totalPages}
                 total={providersData.meta.total}
-                limit={providersData.meta.limit}
+                limit={pageSize}
                 hasNextPage={providersData.meta.hasNextPage}
                 hasPreviousPage={providersData.meta.hasPreviousPage}
                 onPageChange={(p) => setProviderPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setProviderPage(1);
+                }}
                 isLoading={isProvidersLoading}
               />
             )}
@@ -1175,10 +1211,14 @@ export function ReferencesPage() {
                 page={statusesData.meta.page}
                 totalPages={statusesData.meta.totalPages}
                 total={statusesData.meta.total}
-                limit={statusesData.meta.limit}
+                limit={pageSize}
                 hasNextPage={statusesData.meta.hasNextPage}
                 hasPreviousPage={statusesData.meta.hasPreviousPage}
                 onPageChange={(p) => setStatusPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setStatusPage(1);
+                }}
                 isLoading={isStatusesLoading}
               />
             )}
@@ -1292,10 +1332,14 @@ export function ReferencesPage() {
                 page={suspectFieldsData.meta.page}
                 totalPages={suspectFieldsData.meta.totalPages}
                 total={suspectFieldsData.meta.total}
-                limit={suspectFieldsData.meta.limit}
+                limit={pageSize}
                 hasNextPage={suspectFieldsData.meta.hasNextPage}
                 hasPreviousPage={suspectFieldsData.meta.hasPreviousPage}
                 onPageChange={(p) => setSuspectFieldPage(p)}
+                onLimitChange={(newLimit) => {
+                  setPageSize(newLimit);
+                  setSuspectFieldPage(1);
+                }}
                 isLoading={isSuspectFieldsLoading}
               />
             )}

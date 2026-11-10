@@ -11,7 +11,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  SlidersHorizontal,
   Trash2,
   User,
 } from 'lucide-react';
@@ -76,9 +75,8 @@ export function ApplicationsPage() {
   const [relationsFilter, setRelationsFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('');
 
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(25);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -373,106 +371,310 @@ export function ApplicationsPage() {
         </Button>
       </div>
 
-      {/* Filter and Search Bar */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative flex-1 w-full sm:max-w-lg lg:max-w-xl">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Ariza raqami, arizachi F.I.SH yoki tafsilot bo'yicha umumiy qidiruv..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
+      {/* Search and Top Bar */}
+      <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-2xs">
+        <CardContent className="p-3.5 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          {/* Left: General Search */}
+          <div className="relative flex-1 w-full sm:max-w-md lg:max-w-lg">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Ariza raqami yoki tafsilot bo'yicha umumiy qidiruv..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9 pr-8 h-9 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
                   setPage(1);
                 }}
-                className="pl-9 pr-8 h-9 text-xs"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('');
-                    setPage(1);
-                  }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm leading-none cursor-pointer p-0.5"
-                  title="Qidiruvni tozalash"
-                >
-                  ×
-                </button>
-              )}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm leading-none cursor-pointer p-0.5"
+                title="Qidiruvni tozalash"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Right: Ortiqcha filtr (Jinoyat turi) + Yangilash + Tozalash */}
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap font-medium hidden md:inline">
+                Jinoyat turi:
+              </span>
+              <select
+                value={crimeFilter}
+                onChange={(e) => {
+                  setCrimeFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-2xs text-primary font-medium focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer max-w-[210px] truncate"
+              >
+                <option value="">Barcha jinoyat turlari</option>
+                {allCrimes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.article || c.title}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto self-end sm:self-auto">
-              <Button
-                type="button"
-                variant={isFilterPanelOpen ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                className="h-9 text-xs gap-1.5 font-medium border-border/80 shrink-0 cursor-pointer"
-                title="Batafsil filtrlarni ko'rsatish / yashirish"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span>Batafsil filtrlar</span>
-                {activeFiltersCount > 0 && (
-                  <Badge variant="default" className="h-4.5 px-1.5 text-[10px] ml-0.5">
-                    {activeFiltersCount}
-                  </Badge>
-                )}
-                <ChevronDown
-                  className={cn(
-                    'h-3.5 w-3.5 transition-transform duration-200',
-                    isFilterPanelOpen && 'rotate-180',
-                  )}
-                />
-              </Button>
-
-              {hasActiveFilters && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClearAllFilters}
-                  className="h-9 text-xs gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0 cursor-pointer font-medium"
-                  title="Barcha filtrlarni tozalash"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Tozalash</span>
-                </Button>
-              )}
-
+            {hasActiveFilters && (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="h-9 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted/80 shrink-0 cursor-pointer"
-                title="Arizalar ro‘yxatini serverdan yangilash"
+                onClick={handleClearAllFilters}
+                className="h-9 text-xs gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0 cursor-pointer font-medium"
+                title="Barcha filtrlarni tozalash"
               >
-                <RefreshCw
-                  className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')}
-                />
-                <span className="hidden sm:inline">Yangilash</span>
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Tozalash</span>
+                {activeFiltersCount > 0 && (
+                  <Badge variant="destructive" className="h-4 px-1 text-[9px] ml-0.5">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
               </Button>
-            </div>
-          </div>
+            )}
 
-          {/* 2. Kengaytirilgan Filtrlar Paneli (Clean Responsive Grid) */}
-          {isFilterPanelOpen && (
-            <div className="pt-3 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {/* 1. Tuman (Hudud) */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Hudud / Tuman
-                </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-9 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted/80 shrink-0 cursor-pointer"
+              title="Arizalar ro‘yxatini serverdan yangilash"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')} />
+              <span className="hidden sm:inline">Yangilash</span>
+            </Button>
+          </div>
+        </CardContent>
+
+        {/* Faol filtrlar chiplari (Badges) */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 px-3.5 pb-3 pt-1 border-t border-border/40 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 mr-1">
+              <Filter className="h-3 w-3" /> Faol filtrlar:
+            </span>
+            {search && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>Qidiruv: "{search}"</span>
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {districtFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>
+                  Tuman: {allDistricts.find((d) => d.id === districtFilter)?.name || districtFilter}
+                </span>
+                <button
+                  onClick={() => {
+                    setDistrictFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {crimeFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>
+                  Modda:{' '}
+                  {allCrimes.find((c) => c.id === crimeFilter)?.article ||
+                    allCrimes.find((c) => c.id === crimeFilter)?.title ||
+                    crimeFilter}
+                </span>
+                <button
+                  onClick={() => {
+                    setCrimeFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {appNumberFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5 font-mono"
+              >
+                <span>№: {appNumberFilter}</span>
+                <button
+                  onClick={() => {
+                    setAppNumberFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {descFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>Tafsilot: "{descFilter}"</span>
+                <button
+                  onClick={() => {
+                    setDescFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {statusFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>
+                  Holat:{' '}
+                  {allApplicationStatuses.find((s) => s.id === statusFilter)?.name || statusFilter}
+                </span>
+                <button
+                  onClick={() => {
+                    setStatusFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {citizenNameFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>Arizachi: "{citizenNameFilter}"</span>
+                <button
+                  onClick={() => {
+                    setCitizenNameFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {relationsFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>
+                  Bog'liqlik:{' '}
+                  {relationsFilter === 'fraud_card' ? 'Firibgar kartasi' : 'Bog‘liqligi bor'}
+                </span>
+                <button
+                  onClick={() => {
+                    setRelationsFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+            {dateFilter && (
+              <Badge
+                variant="outline"
+                className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+              >
+                <span>Sana: {dateFilter}</span>
+                <button
+                  onClick={() => {
+                    setDateFilter('');
+                    setPage(1);
+                  }}
+                  className="hover:text-destructive cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleClearAllFilters}
+              className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/10 gap-1 ml-auto cursor-pointer"
+              title="Barcha filtrlarni tozalash"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span>Barchasini tozalash</span>
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* Applications Table */}
+      <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            {/* 1-Qator: Ustun nomlari */}
+            <TableRow className="border-b border-border bg-muted/40">
+              <TableHead className="w-[145px] whitespace-nowrap">Hudud & Jinoyat Turi</TableHead>
+              <TableHead className="w-[140px] whitespace-nowrap">Ariza Raqami</TableHead>
+              <TableHead className="min-w-[200px] whitespace-nowrap">
+                Tafsilot & Xodim Qaydlari
+              </TableHead>
+              <TableHead className="w-[135px] whitespace-nowrap">Holati</TableHead>
+              <TableHead className="w-[155px] whitespace-nowrap">Asosiy Arizachi</TableHead>
+              <TableHead className="w-[125px] whitespace-nowrap">Bog‘liqliklar</TableHead>
+              <TableHead className="w-[125px] whitespace-nowrap">Sana</TableHead>
+              <TableHead className="w-[85px] text-right whitespace-nowrap">Amallar</TableHead>
+            </TableRow>
+
+            {/* 2-Qator: Har bir ustun uchun o'zining filtri (1 filter per column) */}
+            <TableRow className="border-b border-border bg-muted/20">
+              {/* 1. Hudud (Tuman) */}
+              <TableHead className="p-1.5">
                 <select
                   value={districtFilter}
                   onChange={(e) => {
                     setDistrictFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                  className="h-7 w-full rounded border border-input bg-background px-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                 >
                   <option value="">Barcha tumanlar</option>
                   {allDistricts.map((d) => (
@@ -481,44 +683,19 @@ export function ApplicationsPage() {
                     </option>
                   ))}
                 </select>
-              </div>
+              </TableHead>
 
-              {/* 2. Jinoyat turi */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Jinoyat turi / Modda
-                </label>
-                <select
-                  value={crimeFilter}
-                  onChange={(e) => {
-                    setCrimeFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer text-primary"
-                >
-                  <option value="">Barcha moddalar</option>
-                  {allCrimes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.article || c.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 3. Ariza raqami */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Ariza raqami
-                </label>
+              {/* 2. Ariza raqami */}
+              <TableHead className="p-1.5">
                 <div className="relative">
                   <Input
-                    placeholder="№ 2026-..."
+                    placeholder="№ qidiruv..."
                     value={appNumberFilter}
                     onChange={(e) => {
                       setAppNumberFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="h-8 text-xs font-mono pr-6"
+                    className="h-7 text-[11px] font-mono px-2 pr-5"
                   />
                   {appNumberFilter && (
                     <button
@@ -527,58 +704,52 @@ export function ApplicationsPage() {
                         setAppNumberFilter('');
                         setPage(1);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
                       title="Tozalash"
                     >
                       ×
                     </button>
                   )}
                 </div>
-              </div>
+              </TableHead>
 
-              {/* 4. Asosiy arizachi */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Arizachi (F.I.SH / Pasport)
-                </label>
+              {/* 3. Tafsilot / Qaydlar */}
+              <TableHead className="p-1.5">
                 <div className="relative">
                   <Input
-                    placeholder="Fuqaro F.I.SH / Telefon..."
-                    value={citizenNameFilter}
+                    placeholder="Tafsilot..."
+                    value={descFilter}
                     onChange={(e) => {
-                      setCitizenNameFilter(e.target.value);
+                      setDescFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="h-8 text-xs pr-6"
+                    className="h-7 text-[11px] px-2 pr-5"
                   />
-                  {citizenNameFilter && (
+                  {descFilter && (
                     <button
                       type="button"
                       onClick={() => {
-                        setCitizenNameFilter('');
+                        setDescFilter('');
                         setPage(1);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
                       title="Tozalash"
                     >
                       ×
                     </button>
                   )}
                 </div>
-              </div>
+              </TableHead>
 
-              {/* 5. Holati */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Ariza holati
-                </label>
+              {/* 4. Holati */}
+              <TableHead className="p-1.5">
                 <select
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                  className="h-7 w-full rounded border border-input bg-background px-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                 >
                   <option value="">Barcha holatlar</option>
                   {allApplicationStatuses.length > 0 ? (
@@ -596,13 +767,54 @@ export function ApplicationsPage() {
                     </>
                   )}
                 </select>
-              </div>
+              </TableHead>
 
-              {/* 6. Sana */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Ariza sanasi
-                </label>
+              {/* 5. Asosiy arizachi */}
+              <TableHead className="p-1.5">
+                <div className="relative">
+                  <Input
+                    placeholder="F.I.SH..."
+                    value={citizenNameFilter}
+                    onChange={(e) => {
+                      setCitizenNameFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-7 text-[11px] px-2 pr-5"
+                  />
+                  {citizenNameFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCitizenNameFilter('');
+                        setPage(1);
+                      }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                      title="Tozalash"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </TableHead>
+
+              {/* 6. Bog‘liqliklar */}
+              <TableHead className="p-1.5">
+                <select
+                  value={relationsFilter}
+                  onChange={(e) => {
+                    setRelationsFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-7 w-full rounded border border-input bg-background px-1 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                >
+                  <option value="">Barchasi</option>
+                  <option value="with_relations">1+ bog'liq</option>
+                  <option value="fraud_card">Firibgar kartasi</option>
+                </select>
+              </TableHead>
+
+              {/* 7. Sana */}
+              <TableHead className="p-1.5">
                 <div className="relative">
                   <Input
                     type="date"
@@ -611,281 +823,29 @@ export function ApplicationsPage() {
                       setDateFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="h-8 text-xs [color-scheme:dark] pr-6"
+                    className="h-7 text-[11px] [color-scheme:dark] px-1"
                   />
-                  {dateFilter && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDateFilter('');
-                        setPage(1);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
-                      title="Sanani tozalash"
-                    >
-                      ×
-                    </button>
-                  )}
                 </div>
-              </div>
+              </TableHead>
 
-              {/* 7. Bog‘liqliklar */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Bog‘liqliklar
-                </label>
-                <select
-                  value={relationsFilter}
-                  onChange={(e) => {
-                    setRelationsFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
-                >
-                  <option value="">Barchasi</option>
-                  <option value="with_relations">Bog‘liqligi bor (1+)</option>
-                  <option value="fraud_card">Firibgar kartasi aniqlangan</option>
-                </select>
-              </div>
-
-              {/* 8. Tafsilot / Qaydlar */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Tafsilot & Qaydlar
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="Fabula yoki izoh bo'yicha..."
-                    value={descFilter}
-                    onChange={(e) => {
-                      setDescFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-8 text-xs pr-6"
-                  />
-                  {descFilter && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDescFilter('');
-                        setPage(1);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
-                      title="Tozalash"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Faol filtrlar chiplari (Badges) */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/50 text-xs">
-              <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 mr-1">
-                <Filter className="h-3 w-3" /> Faol filtrlar:
-              </span>
-              {search && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>Qidiruv: "{search}"</span>
-                  <button
-                    onClick={() => {
-                      setSearch('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
+              {/* 8. Amallar / Tozalash */}
+              <TableHead className="p-1.5 text-right">
+                {hasActiveFilters ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearAllFilters}
+                    className="h-7 px-1.5 text-[10px] text-destructive hover:bg-destructive/10 cursor-pointer"
+                    title="Barcha filtrlarni tozalash"
                   >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {districtFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>
-                    Tuman:{' '}
-                    {allDistricts.find((d) => d.id === districtFilter)?.name || districtFilter}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setDistrictFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {crimeFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>
-                    Modda:{' '}
-                    {allCrimes.find((c) => c.id === crimeFilter)?.article ||
-                      allCrimes.find((c) => c.id === crimeFilter)?.title ||
-                      crimeFilter}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setCrimeFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {appNumberFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5 font-mono"
-                >
-                  <span>№: {appNumberFilter}</span>
-                  <button
-                    onClick={() => {
-                      setAppNumberFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {descFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>Tafsilot: "{descFilter}"</span>
-                  <button
-                    onClick={() => {
-                      setDescFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {statusFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>
-                    Holat:{' '}
-                    {allApplicationStatuses.find((s) => s.id === statusFilter)?.name ||
-                      statusFilter}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setStatusFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {citizenNameFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>Arizachi: "{citizenNameFilter}"</span>
-                  <button
-                    onClick={() => {
-                      setCitizenNameFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {relationsFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>
-                    Bog'liqlik:{' '}
-                    {relationsFilter === 'fraud_card' ? 'Firibgar kartasi' : 'Bog‘liqligi bor'}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setRelationsFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {dateFilter && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
-                >
-                  <span>Sana: {dateFilter}</span>
-                  <button
-                    onClick={() => {
-                      setDateFilter('');
-                      setPage(1);
-                    }}
-                    className="hover:text-destructive cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleClearAllFilters}
-                className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/10 gap-1 ml-auto cursor-pointer"
-                title="Barcha filtrlarni tozalash"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span>Barchasini tozalash</span>
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Applications Table */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            {/* 1-Qator: Ustun nomlari */}
-            <TableRow className="border-b border-border bg-muted/40">
-              <TableHead className="whitespace-nowrap">Hudud & Jinoyat Turi</TableHead>
-              <TableHead className="whitespace-nowrap">Ariza Raqami</TableHead>
-              <TableHead className="whitespace-nowrap">Tafsilot & Xodim Qaydlari</TableHead>
-              <TableHead className="whitespace-nowrap">Holati</TableHead>
-              <TableHead className="whitespace-nowrap">Asosiy Arizachi</TableHead>
-              <TableHead className="whitespace-nowrap">Bog‘liqliklar</TableHead>
-              <TableHead className="whitespace-nowrap">Sana</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Amallar</TableHead>
+                    <RotateCcw className="h-3 w-3 mr-0.5" />
+                    Tozalash
+                  </Button>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground pr-2">—</span>
+                )}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-border">
@@ -1084,10 +1044,14 @@ export function ApplicationsPage() {
             page={data.meta.page}
             totalPages={data.meta.totalPages}
             total={data.meta.total}
-            limit={data.meta.limit}
+            limit={limit}
             hasNextPage={data.meta.hasNextPage}
             hasPreviousPage={data.meta.hasPreviousPage}
             onPageChange={(p) => setPage(p)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
             isLoading={isLoading}
           />
         )}

@@ -34,7 +34,7 @@ export function CitizensPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(25);
 
   // Dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
@@ -304,10 +304,14 @@ export function CitizensPage() {
             page={data.meta.page}
             totalPages={data.meta.totalPages}
             total={data.meta.total}
-            limit={data.meta.limit}
+            limit={limit}
             hasNextPage={data.meta.hasNextPage}
             hasPreviousPage={data.meta.hasPreviousPage}
             onPageChange={(p) => setPage(p)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
             isLoading={isLoading}
           />
         )}

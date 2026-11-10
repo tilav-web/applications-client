@@ -49,7 +49,7 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 400);
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(25);
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -409,6 +409,10 @@ export function UsersPage() {
             hasNextPage={data.meta.hasNextPage}
             hasPreviousPage={data.meta.hasPreviousPage}
             onPageChange={(p) => setPage(p)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
             isLoading={isLoading}
           />
         )}
