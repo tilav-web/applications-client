@@ -20,7 +20,23 @@ import { apiClient } from './axios';
 
 // 1. Applications API
 export const applicationsApi = {
-  getAll: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    status_id?: string;
+    district_id?: string;
+    crime_id?: string;
+    crime_method_id?: string;
+    application_number?: string;
+    citizen_name?: string;
+    description?: string;
+    date?: string;
+    date_from?: string;
+    date_to?: string;
+    relations_filter?: string;
+  }) => {
     const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });
     return res.data;
   },

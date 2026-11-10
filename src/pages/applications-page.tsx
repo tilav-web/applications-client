@@ -9,7 +9,9 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
+  SlidersHorizontal,
   Trash2,
   User,
 } from 'lucide-react';
@@ -41,7 +43,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { applicationsApi, applicationStatusesApi, documentsApi } from '@/lib/api';
+import { useDebounce } from '@/hooks/use-debounce';
+import {
+  applicationsApi,
+  applicationStatusesApi,
+  crimesApi,
+  districtsApi,
+  documentsApi,
+} from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import type { Application, ApplicationStatus, ApplicationStatusItem } from '@/types/models';
@@ -50,8 +59,24 @@ export function ApplicationsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Umumiy qidiruv (Search input)
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Ustunlar bo'yicha filterlar (Column Filters)
+  const [districtFilter, setDistrictFilter] = useState<string>('');
+  const [crimeFilter, setCrimeFilter] = useState<string>('');
+  const [appNumberFilter, setAppNumberFilter] = useState<string>('');
+  const debouncedAppNumber = useDebounce(appNumberFilter, 300);
+  const [descFilter, setDescFilter] = useState<string>('');
+  const debouncedDesc = useDebounce(descFilter, 300);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [citizenNameFilter, setCitizenNameFilter] = useState<string>('');
+  const debouncedCitizenName = useDebounce(citizenNameFilter, 300);
+  const [relationsFilter, setRelationsFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<string>('');
+
+  const [isFilterRowVisible, setIsFilterRowVisible] = useState(true);
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -90,15 +115,88 @@ export function ApplicationsPage() {
   });
   const allApplicationStatuses = statusesData?.items || [];
 
+  // Districts Query (Tumanlar filtri uchun)
+  const { data: districtsData } = useQuery({
+    queryKey: ['districts-all'],
+    queryFn: () => districtsApi.getAll({ limit: 100 }),
+  });
+  const allDistricts = districtsData?.items || [];
+
+  // Crimes Query (Jinoyat turlari filtri uchun)
+  const { data: crimesData } = useQuery({
+    queryKey: ['crimes-all'],
+    queryFn: () => crimesApi.getAll({ limit: 100 }),
+  });
+  const allCrimes = crimesData?.items || [];
+
+  // Faol filtrlar soni va mavjudligi
+  const activeFiltersCount = [
+    Boolean(districtFilter),
+    Boolean(crimeFilter),
+    Boolean(appNumberFilter),
+    Boolean(descFilter),
+    Boolean(statusFilter),
+    Boolean(citizenNameFilter),
+    Boolean(relationsFilter),
+    Boolean(dateFilter),
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = Boolean(
+    search ||
+    districtFilter ||
+    crimeFilter ||
+    appNumberFilter ||
+    descFilter ||
+    statusFilter ||
+    citizenNameFilter ||
+    relationsFilter ||
+    dateFilter,
+  );
+
+  const handleClearAllFilters = () => {
+    setSearch('');
+    setDistrictFilter('');
+    setCrimeFilter('');
+    setAppNumberFilter('');
+    setDescFilter('');
+    setStatusFilter('');
+    setCitizenNameFilter('');
+    setRelationsFilter('');
+    setDateFilter('');
+    setPage(1);
+  };
+
   // 1. Fetch Applications Query
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['applications', { page, limit, search, status: statusFilter }],
+    queryKey: [
+      'applications',
+      {
+        page,
+        limit,
+        search: debouncedSearch,
+        status: statusFilter,
+        district_id: districtFilter,
+        crime_id: crimeFilter,
+        application_number: debouncedAppNumber,
+        citizen_name: debouncedCitizenName,
+        description: debouncedDesc,
+        date: dateFilter,
+        relations_filter: relationsFilter,
+      },
+    ],
     queryFn: () =>
       applicationsApi.getAll({
         page,
         limit,
-        search,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
+        district_id: districtFilter || undefined,
+        crime_id: crimeFilter || undefined,
+        application_number: debouncedAppNumber || undefined,
+        citizen_name: debouncedCitizenName || undefined,
+        description: debouncedDesc || undefined,
+        date: dateFilter || undefined,
+        relations_filter: relationsFilter || undefined,
       }),
     placeholderData: (prev) => prev,
     staleTime: 0,
@@ -110,17 +208,53 @@ export function ApplicationsPage() {
     if (data?.meta?.hasNextPage) {
       const nextPage = page + 1;
       queryClient.prefetchQuery({
-        queryKey: ['applications', { page: nextPage, limit, search, status: statusFilter }],
+        queryKey: [
+          'applications',
+          {
+            page: nextPage,
+            limit,
+            search: debouncedSearch,
+            status: statusFilter,
+            district_id: districtFilter,
+            crime_id: crimeFilter,
+            application_number: debouncedAppNumber,
+            citizen_name: debouncedCitizenName,
+            description: debouncedDesc,
+            date: dateFilter,
+            relations_filter: relationsFilter,
+          },
+        ],
         queryFn: () =>
           applicationsApi.getAll({
             page: nextPage,
             limit,
-            search,
+            search: debouncedSearch || undefined,
             status: statusFilter || undefined,
+            district_id: districtFilter || undefined,
+            crime_id: crimeFilter || undefined,
+            application_number: debouncedAppNumber || undefined,
+            citizen_name: debouncedCitizenName || undefined,
+            description: debouncedDesc || undefined,
+            date: dateFilter || undefined,
+            relations_filter: relationsFilter || undefined,
           }),
       });
     }
-  }, [data, page, limit, search, statusFilter, queryClient]);
+  }, [
+    data,
+    page,
+    limit,
+    debouncedSearch,
+    statusFilter,
+    districtFilter,
+    crimeFilter,
+    debouncedAppNumber,
+    debouncedCitizenName,
+    debouncedDesc,
+    dateFilter,
+    relationsFilter,
+    queryClient,
+  ]);
 
   // 3. Ariza Yaratish UX Mantiqi:
   // Tugma bosilganda darhol backendda yangi qoralama ariza (draft) ochiladi va /applications/create/:id ga yo'naltiriladi
@@ -241,60 +375,257 @@ export function ApplicationsPage() {
 
       {/* Filter and Search Bar */}
       <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <div className="relative flex-1 w-full sm:max-w-lg lg:max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Ariza raqami yoki tafsilot bo'yicha qidiruv..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 h-9 text-xs"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">Barcha holatlar</option>
-              {allApplicationStatuses.length > 0 ? (
-                allApplicationStatuses.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.name}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="YANGI">Yangi</option>
-                  <option value="JARAYONDA">Jarayonda</option>
-                  <option value="HAL_QILINDI">Hal qilindi</option>
-                  <option value="RAD_ETILDI">Rad etildi</option>
-                </>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative flex-1 w-full sm:max-w-lg lg:max-w-xl">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Ariza raqami, arizachi F.I.SH yoki tafsilot bo'yicha umumiy qidiruv..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-9 pr-8 h-9 text-xs"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm leading-none cursor-pointer p-0.5"
+                  title="Qidiruvni tozalash"
+                >
+                  ×
+                </button>
               )}
-            </select>
+            </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="h-9 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted/80 shrink-0 cursor-pointer"
-              title="Arizalar ro‘yxatini serverdan yangilash"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')} />
-              <span className="hidden sm:inline">Yangilash</span>
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant={isFilterRowVisible ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => setIsFilterRowVisible(!isFilterRowVisible)}
+                className="h-9 text-xs gap-1.5 font-medium border-border/80 shrink-0 cursor-pointer"
+                title="Jadvaldagi ustun filtrlari qatorini yoqish / o'chirish"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <span>Ustun filtrlari</span>
+                {activeFiltersCount > 0 && (
+                  <Badge variant="default" className="h-4.5 px-1.5 text-[10px] ml-0.5">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="h-9 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted/80 shrink-0 cursor-pointer"
+                title="Arizalar ro‘yxatini serverdan yangilash"
+              >
+                <RefreshCw
+                  className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')}
+                />
+                <span className="hidden sm:inline">Yangilash</span>
+              </Button>
+            </div>
           </div>
+
+          {/* Faol filtrlar chiplari (Badges) */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/50 text-xs">
+              <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 mr-1">
+                <Filter className="h-3 w-3" /> Faol filtrlar:
+              </span>
+              {search && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>Qidiruv: "{search}"</span>
+                  <button
+                    onClick={() => {
+                      setSearch('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {districtFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>
+                    Tuman:{' '}
+                    {allDistricts.find((d) => d.id === districtFilter)?.name || districtFilter}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setDistrictFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {crimeFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>
+                    Modda:{' '}
+                    {allCrimes.find((c) => c.id === crimeFilter)?.article ||
+                      allCrimes.find((c) => c.id === crimeFilter)?.title ||
+                      crimeFilter}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setCrimeFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {appNumberFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5 font-mono"
+                >
+                  <span>№: {appNumberFilter}</span>
+                  <button
+                    onClick={() => {
+                      setAppNumberFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {descFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>Tafsilot: "{descFilter}"</span>
+                  <button
+                    onClick={() => {
+                      setDescFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {statusFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>
+                    Holat:{' '}
+                    {allApplicationStatuses.find((s) => s.id === statusFilter)?.name ||
+                      statusFilter}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setStatusFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {citizenNameFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>Arizachi: "{citizenNameFilter}"</span>
+                  <button
+                    onClick={() => {
+                      setCitizenNameFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {relationsFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>
+                    Bog'liqlik:{' '}
+                    {relationsFilter === 'fraud_card' ? 'Firibgar kartasi' : 'Bog‘liqligi bor'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setRelationsFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {dateFilter && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-primary/5 text-primary border-primary/20 text-[11px] py-0.5"
+                >
+                  <span>Sana: {dateFilter}</span>
+                  <button
+                    onClick={() => {
+                      setDateFilter('');
+                      setPage(1);
+                    }}
+                    className="hover:text-destructive cursor-pointer ml-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClearAllFilters}
+                className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/10 gap-1 ml-auto cursor-pointer"
+                title="Barcha filtrlarni tozalash"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>Barchasini tozalash</span>
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -302,7 +633,8 @@ export function ApplicationsPage() {
       <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-border">
+            {/* 1-Qator: Ustun nomlari */}
+            <TableRow className="border-b border-border bg-muted/40">
               <TableHead className="whitespace-nowrap">Hudud & Jinoyat Turi</TableHead>
               <TableHead className="whitespace-nowrap">Ariza Raqami</TableHead>
               <TableHead className="whitespace-nowrap">Tafsilot & Xodim Qaydlari</TableHead>
@@ -312,6 +644,229 @@ export function ApplicationsPage() {
               <TableHead className="whitespace-nowrap">Sana</TableHead>
               <TableHead className="text-right whitespace-nowrap">Amallar</TableHead>
             </TableRow>
+
+            {/* 2-Qator: Ustunlar bo'yicha filterlar (Header Filter Row) */}
+            {isFilterRowVisible && (
+              <TableRow className="bg-muted/15 border-b border-border hover:bg-muted/15">
+                {/* 1. Hudud & Jinoyat Turi */}
+                <TableHead className="p-1.5 align-top min-w-[155px]">
+                  <div className="space-y-1">
+                    <select
+                      value={districtFilter}
+                      onChange={(e) => {
+                        setDistrictFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal cursor-pointer"
+                      title="Tuman bo'yicha filter"
+                    >
+                      <option value="">Barcha tumanlar</option>
+                      {allDistricts.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={crimeFilter}
+                      onChange={(e) => {
+                        setCrimeFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal text-primary cursor-pointer"
+                      title="Jinoyat turi/moddasi bo'yicha filter"
+                    >
+                      <option value="">Barcha moddalar</option>
+                      {allCrimes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.article || c.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </TableHead>
+
+                {/* 2. Ariza Raqami */}
+                <TableHead className="p-1.5 align-top min-w-[130px]">
+                  <div className="relative">
+                    <Input
+                      placeholder="№ qidiruv..."
+                      value={appNumberFilter}
+                      onChange={(e) => {
+                        setAppNumberFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-7 text-xs px-2 pr-6 bg-background/90 font-mono"
+                    />
+                    {appNumberFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppNumberFilter('');
+                          setPage(1);
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                        title="Tozalash"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </TableHead>
+
+                {/* 3. Tafsilot & Xodim Qaydlari */}
+                <TableHead className="p-1.5 align-top min-w-[180px]">
+                  <div className="relative">
+                    <Input
+                      placeholder="Tafsilot yoki qayd..."
+                      value={descFilter}
+                      onChange={(e) => {
+                        setDescFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-7 text-xs px-2 pr-6 bg-background/90 font-normal"
+                    />
+                    {descFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDescFilter('');
+                          setPage(1);
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                        title="Tozalash"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </TableHead>
+
+                {/* 4. Holati */}
+                <TableHead className="p-1.5 align-top min-w-[125px]">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal cursor-pointer"
+                    title="Holati bo'yicha filter"
+                  >
+                    <option value="">Barcha holatlar</option>
+                    {allApplicationStatuses.length > 0 ? (
+                      allApplicationStatuses.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          {st.name}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="YANGI">Yangi</option>
+                        <option value="JARAYONDA">Jarayonda</option>
+                        <option value="HAL_QILINDI">Hal qilindi</option>
+                        <option value="RAD_ETILDI">Rad etildi</option>
+                      </>
+                    )}
+                  </select>
+                </TableHead>
+
+                {/* 5. Asosiy Arizachi */}
+                <TableHead className="p-1.5 align-top min-w-[140px]">
+                  <div className="relative">
+                    <Input
+                      placeholder="F.I.SH / Telefon..."
+                      value={citizenNameFilter}
+                      onChange={(e) => {
+                        setCitizenNameFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-7 text-xs px-2 pr-6 bg-background/90 font-normal"
+                    />
+                    {citizenNameFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCitizenNameFilter('');
+                          setPage(1);
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                        title="Tozalash"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </TableHead>
+
+                {/* 6. Bog'liqliklar */}
+                <TableHead className="p-1.5 align-top min-w-[130px]">
+                  <select
+                    value={relationsFilter}
+                    onChange={(e) => {
+                      setRelationsFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full h-7 text-[11px] rounded border border-input bg-background/90 px-1.5 focus:ring-1 focus:ring-primary focus:outline-none truncate font-normal cursor-pointer"
+                    title="Bog'liqliklar bo'yicha filter"
+                  >
+                    <option value="">Barchasi</option>
+                    <option value="with_relations">Bog‘liqligi bor (1+)</option>
+                    <option value="fraud_card">Firibgar kartasi</option>
+                  </select>
+                </TableHead>
+
+                {/* 7. Sana */}
+                <TableHead className="p-1.5 align-top min-w-[125px]">
+                  <div className="relative">
+                    <Input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => {
+                        setDateFilter(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-7 text-xs px-1.5 pr-6 bg-background/90 [color-scheme:dark]"
+                      title="Sana bo'yicha filter"
+                    />
+                    {dateFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDateFilter('');
+                          setPage(1);
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                        title="Sanani tozalash"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </TableHead>
+
+                {/* 8. Amallar */}
+                <TableHead className="p-1.5 align-top text-right min-w-[110px]">
+                  {hasActiveFilters ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearAllFilters}
+                      className="h-7 px-2 text-[11px] text-destructive hover:bg-destructive/10 border-destructive/30 gap-1 w-full justify-center cursor-pointer font-medium"
+                      title="Barcha filtrlarni tozalash"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      <span>Tozalash</span>
+                    </Button>
+                  ) : (
+                    <div className="text-center text-[10px] text-muted-foreground/60 py-1 font-mono">
+                      Filtrlar
+                    </div>
+                  )}
+                </TableHead>
+              </TableRow>
+            )}
           </TableHeader>
           <TableBody className="divide-y divide-border">
             {isLoading ? (
