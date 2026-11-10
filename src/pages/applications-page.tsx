@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Edit2,
   Eye,
+  FileSpreadsheet,
   FileText,
   Filter,
   Link2,
@@ -77,6 +78,44 @@ export function ApplicationsPage() {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      toast.info('Excel hisoboti shakllantirilmoqda, iltimos kuting...');
+      const blob = await applicationsApi.exportExcel({
+        search: debouncedSearch.trim() || undefined,
+        district_id: districtFilter || undefined,
+        crime_id: crimeFilter || undefined,
+        application_number: debouncedAppNumber.trim() || undefined,
+        citizen_name: debouncedCitizenName.trim() || undefined,
+        description: debouncedDesc.trim() || undefined,
+        status_id: statusFilter || undefined,
+        relations_filter: relationsFilter || undefined,
+        date: dateFilter || undefined,
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `Arizalar_Hisoboti_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Excel hisoboti muvaffaqiyatli yuklab olindi');
+    } catch (err) {
+      toast.error(`Excel faylini yuklab olishda xatolik: ${getErrorMessage(err)}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -455,6 +494,24 @@ export function ApplicationsPage() {
             >
               <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')} />
               <span className="hidden sm:inline">Yangilash</span>
+            </Button>
+
+            {/* Excel Eksport */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              className="h-9 text-xs gap-1.5 font-medium border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 shrink-0 cursor-pointer shadow-2xs"
+              title="Filter bo'yicha barcha arizalarni Excel (.xlsx) formatida yuklab olish"
+            >
+              {isExporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              )}
+              <span className="hidden sm:inline">Excel yuklab olish</span>
             </Button>
           </div>
         </div>

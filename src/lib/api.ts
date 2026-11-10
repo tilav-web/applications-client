@@ -66,6 +66,13 @@ export const applicationsApi = {
     const res = await apiClient.get<DashboardStatistics>('/applications/statistics', { params });
     return res.data;
   },
+  exportExcel: async (params?: Record<string, unknown>) => {
+    const res = await apiClient.get('/applications/export/excel', {
+      params,
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
 };
 
 export interface DashboardStatistics {
