@@ -1,5 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, CreditCard, Edit2, Plus, Search, Trash2, User } from 'lucide-react';
+import {
+  Building2,
+  CreditCard,
+  Edit2,
+  FileSpreadsheet,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  User,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +43,35 @@ export function CardsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      toast.info('Plastik kartalar hisoboti shakllantirilmoqda...');
+      const blob = await cardsApi.exportExcel({
+        search: search.trim() || undefined,
+      });
+      const url = window.URL.createObjectURL(
+        new Blob([blob], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `Plastik_Kartalar_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Plastik kartalar Excel faylga muvaffaqiyatli yuklab olindi');
+    } catch (err) {
+      toast.error(`Excel yuklab olishda xatolik: ${getErrorMessage(err)}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
@@ -143,10 +182,29 @@ export function CardsPage() {
           </p>
         </div>
 
-        <Button size="sm" onClick={openCreateModal} className="gap-2 shadow-md shadow-primary/25">
-          <Plus className="h-4 w-4" />
-          Yangi Karta Qo&apos;shish
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="h-9 text-xs gap-1.5 font-medium border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 shrink-0 cursor-pointer shadow-2xs"
+            title="Plastik kartalar ro'yxatini Excel (.xlsx) formatida yuklab olish"
+          >
+            {isExporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+            ) : (
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            )}
+            <span className="hidden sm:inline">Excel yuklab olish</span>
+          </Button>
+
+          <Button size="sm" onClick={openCreateModal} className="gap-2 shadow-md shadow-primary/25">
+            <Plus className="h-4 w-4" />
+            Yangi Karta Qo&apos;shish
+          </Button>
+        </div>
       </div>
 
       {/* Filter and Search */}

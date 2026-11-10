@@ -182,6 +182,13 @@ export const citizensApi = {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/citizens/${id}`);
     return res.data;
   },
+  exportExcel: async (params?: Record<string, unknown>) => {
+    const res = await apiClient.get('/citizens/export/excel', {
+      params,
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
 };
 
 // 3. Cards API
@@ -213,6 +220,13 @@ export const cardsApi = {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/cards/${id}`);
     return res.data;
   },
+  exportExcel: async (params?: Record<string, unknown>) => {
+    const res = await apiClient.get('/cards/export/excel', {
+      params,
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
 };
 
 // 4. Transfers API
@@ -243,6 +257,13 @@ export const transfersApi = {
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/transfers/${id}`);
     return res.data;
+  },
+  exportExcel: async (params?: Record<string, unknown>) => {
+    const res = await apiClient.get('/transfers/export/excel', {
+      params,
+      responseType: 'blob',
+    });
+    return res.data as Blob;
   },
 };
 
