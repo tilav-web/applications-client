@@ -1,17 +1,23 @@
 import type {
   Application,
   ApplicationRelationsData,
+  ApplicationSource,
   ApplicationStatusItem,
   Bank,
   Card,
   Citizen,
   Crime,
   CrimeMethod,
+  DecisionType,
+  DepartmentService,
   District,
   IGraphData,
   Mahalla,
+  Occupation,
+  OccupationCategory,
   PaginatedResponse,
   PaymentProvider,
+  RejectionReason,
   SuspectFieldConfig,
   Transfer,
 } from '@/types/models';
@@ -577,6 +583,7 @@ export interface UserItem {
   first_name: string | null;
   last_name: string | null;
   phone_number: string | null;
+  assigned_districts?: { id: string; name: string | null }[];
   created_at?: string;
   updated_at?: string;
 }
@@ -597,6 +604,7 @@ export const usersApi = {
     first_name?: string;
     last_name?: string;
     phone_number?: string;
+    assigned_district_ids?: string[];
   }) => {
     const res = await apiClient.post<UserItem>('/users', data);
     return res.data;
@@ -610,6 +618,7 @@ export const usersApi = {
       first_name?: string;
       last_name?: string;
       phone_number?: string;
+      assigned_district_ids?: string[];
     },
   ) => {
     const res = await apiClient.patch<UserItem>(`/users/${id}`, data);
@@ -617,6 +626,135 @@ export const usersApi = {
   },
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(`/users/${id}`);
+    return res.data;
+  },
+};
+
+// 11. Occupation Categories & Occupations API
+export const occupationCategoriesApi = {
+  getAll: async (params?: { includeInactive?: boolean }) => {
+    const res = await apiClient.get<OccupationCategory[]>('/occupation-categories', { params });
+    return res.data;
+  },
+  create: async (data: Partial<OccupationCategory>) => {
+    const res = await apiClient.post<OccupationCategory>('/occupation-categories', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<OccupationCategory>) => {
+    const res = await apiClient.put<OccupationCategory>(`/occupation-categories/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/occupation-categories/${id}`,
+    );
+    return res.data;
+  },
+};
+
+export const occupationsApi = {
+  getAll: async (params?: { category_id?: string; includeInactive?: boolean }) => {
+    const res = await apiClient.get<Occupation[]>('/occupations', { params });
+    return res.data;
+  },
+  create: async (data: Partial<Occupation> & { category_id: string }) => {
+    const res = await apiClient.post<Occupation>('/occupations', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<Occupation>) => {
+    const res = await apiClient.put<Occupation>(`/occupations/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/occupations/${id}`);
+    return res.data;
+  },
+};
+
+// 12. Application Sources API (Murojaat manbalari: 102, 112, etc.)
+export const applicationSourcesApi = {
+  getAll: async (params?: { includeInactive?: boolean }) => {
+    const res = await apiClient.get<ApplicationSource[]>('/application-sources', { params });
+    return res.data;
+  },
+  create: async (data: Partial<ApplicationSource>) => {
+    const res = await apiClient.post<ApplicationSource>('/application-sources', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<ApplicationSource>) => {
+    const res = await apiClient.put<ApplicationSource>(`/application-sources/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/application-sources/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 13. Department Services API (Sohaviy xizmatlar: UYOKK, JQK, TQK, etc.)
+export const departmentServicesApi = {
+  getAll: async (params?: { includeInactive?: boolean }) => {
+    const res = await apiClient.get<DepartmentService[]>('/department-services', { params });
+    return res.data;
+  },
+  create: async (data: Partial<DepartmentService>) => {
+    const res = await apiClient.post<DepartmentService>('/department-services', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<DepartmentService>) => {
+    const res = await apiClient.put<DepartmentService>(`/department-services/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/department-services/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 14. Rejection Reasons API (Rad etish sabablari)
+export const rejectionReasonsApi = {
+  getAll: async (params?: { includeInactive?: boolean }) => {
+    const res = await apiClient.get<RejectionReason[]>('/rejection-reasons', { params });
+    return res.data;
+  },
+  create: async (data: Partial<RejectionReason>) => {
+    const res = await apiClient.post<RejectionReason>('/rejection-reasons', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<RejectionReason>) => {
+    const res = await apiClient.put<RejectionReason>(`/rejection-reasons/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/rejection-reasons/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 15. Decision Types API (Qaror turlari)
+export const decisionTypesApi = {
+  getAll: async (params?: { includeInactive?: boolean }) => {
+    const res = await apiClient.get<DecisionType[]>('/decision-types', { params });
+    return res.data;
+  },
+  create: async (data: Partial<DecisionType>) => {
+    const res = await apiClient.post<DecisionType>('/decision-types', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<DecisionType>) => {
+    const res = await apiClient.put<DecisionType>(`/decision-types/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/decision-types/${id}`,
+    );
     return res.data;
   },
 };

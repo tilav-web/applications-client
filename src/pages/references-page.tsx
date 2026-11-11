@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
+  AlertOctagon,
   BookmarkCheck,
+  Briefcase,
   Building2,
   CheckCircle2,
   CreditCard,
@@ -9,7 +11,10 @@ import {
   Layers,
   MapPin,
   Plus,
+  Radio,
+  Scale,
   Search,
+  Shield,
   ShieldAlert,
   Trash2,
 } from 'lucide-react';
@@ -39,25 +44,37 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  applicationSourcesApi,
   applicationStatusesApi,
   banksApi,
   crimeMethodsApi,
   crimesApi,
+  decisionTypesApi,
+  departmentServicesApi,
   districtsApi,
   mahallasApi,
+  occupationCategoriesApi,
+  occupationsApi,
   paymentProvidersApi,
+  rejectionReasonsApi,
   suspectFieldConfigsApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import type {
+  ApplicationSource,
   ApplicationStatusItem,
   Bank,
   Crime,
   CrimeGravity,
   CrimeMethod,
+  DecisionType,
+  DepartmentService,
   District,
   Mahalla,
+  Occupation,
+  OccupationCategory,
   PaymentProvider,
+  RejectionReason,
   SuspectFieldConfig,
 } from '@/types/models';
 
@@ -69,7 +86,13 @@ type ReferenceItem =
   | Bank
   | PaymentProvider
   | ApplicationStatusItem
-  | SuspectFieldConfig;
+  | SuspectFieldConfig
+  | OccupationCategory
+  | Occupation
+  | ApplicationSource
+  | DepartmentService
+  | RejectionReason
+  | DecisionType;
 
 interface ReferenceFormData {
   name?: string | null;
@@ -78,15 +101,18 @@ interface ReferenceFormData {
   color?: string | null;
   description?: string | null;
   is_default?: boolean | null;
+  is_active?: boolean | null;
   sort_order?: number | null;
   article?: string | null;
   mfo?: string | null;
+  short_name?: string | null;
+  category_id?: string | null;
   gravity?: CrimeGravity | null;
   district_id?: string | null;
   group_name?: string | null;
   key?: string | null;
   label?: string | null;
-  category?: string | null;
+  category?: string | OccupationCategory | null;
   sample_value?: string | null;
   [key: string]: unknown;
 }
@@ -98,6 +124,11 @@ export function ReferencesPage() {
     | 'mahallas'
     | 'crimes'
     | 'crime_methods'
+    | 'occupations'
+    | 'sources'
+    | 'department_services'
+    | 'decision_types'
+    | 'rejection_reasons'
     | 'banks'
     | 'providers'
     | 'statuses'
@@ -129,6 +160,16 @@ export function ReferencesPage() {
   const [suspectFieldSearch, setSuspectFieldSearch] = useState('');
   const [suspectFieldPage, setSuspectFieldPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  // New References States:
+  const [occupationMode, setOccupationMode] = useState<'categories' | 'occupations'>('occupations');
+  const [occupationSearch, setOccupationSearch] = useState('');
+  const [selectedOccupCatFilter, setSelectedOccupCatFilter] = useState<string>('');
+
+  const [sourceSearch, setSourceSearch] = useState('');
+  const [deptServiceSearch, setDeptServiceSearch] = useState('');
+  const [rejectionSearch, setRejectionSearch] = useState('');
+  const [decisionSearch, setDecisionSearch] = useState('');
 
   // Modal dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
@@ -218,6 +259,58 @@ export function ReferencesPage() {
     enabled: activeTab === 'suspect_fields',
   });
 
+  // 7. Occupation Categories Query
+  const { data: categoriesData, isLoading: isCategoriesLoading } = useQuery({
+    queryKey: ['occupation-categories-all'],
+    queryFn: () => occupationCategoriesApi.getAll({ includeInactive: true }),
+    enabled: activeTab === 'occupations' || modalType === 'create' || modalType === 'edit',
+  });
+  const allCategoriesList = categoriesData || [];
+
+  // 7.1. Occupations (Kasblar) Query
+  const { data: occupationsData, isLoading: isOccupationsLoading } = useQuery({
+    queryKey: ['occupations-all', selectedOccupCatFilter],
+    queryFn: () =>
+      occupationsApi.getAll({
+        category_id: selectedOccupCatFilter || undefined,
+        includeInactive: true,
+      }),
+    enabled: activeTab === 'occupations',
+  });
+  const allOccupationsList = occupationsData || [];
+
+  // 8. Application Sources Query
+  const { data: sourcesData, isLoading: isSourcesLoading } = useQuery({
+    queryKey: ['application-sources-all'],
+    queryFn: () => applicationSourcesApi.getAll({ includeInactive: true }),
+    enabled: activeTab === 'sources',
+  });
+  const allSourcesList = sourcesData || [];
+
+  // 9. Department Services Query
+  const { data: deptServicesData, isLoading: isDeptServicesLoading } = useQuery({
+    queryKey: ['department-services-all'],
+    queryFn: () => departmentServicesApi.getAll({ includeInactive: true }),
+    enabled: activeTab === 'department_services',
+  });
+  const allDeptServicesList = deptServicesData || [];
+
+  // 10. Rejection Reasons Query
+  const { data: rejectionReasonsData, isLoading: isRejectionReasonsLoading } = useQuery({
+    queryKey: ['rejection-reasons-all'],
+    queryFn: () => rejectionReasonsApi.getAll({ includeInactive: true }),
+    enabled: activeTab === 'rejection_reasons',
+  });
+  const allRejectionReasonsList = rejectionReasonsData || [];
+
+  // 11. Decision Types Query
+  const { data: decisionTypesData, isLoading: isDecisionTypesLoading } = useQuery({
+    queryKey: ['decision-types-all'],
+    queryFn: () => decisionTypesApi.getAll({ includeInactive: true }),
+    enabled: activeTab === 'decision_types',
+  });
+  const allDecisionTypesList = decisionTypesData || [];
+
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -259,6 +352,53 @@ export function ReferencesPage() {
           description: (formData.description as string) || undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : 0,
         });
+      if (activeTab === 'occupations') {
+        if (occupationMode === 'categories') {
+          return occupationCategoriesApi.create({
+            name: formData.name || '',
+            code: formData.code || undefined,
+            sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
+            is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : true,
+          });
+        }
+        return occupationsApi.create({
+          category_id:
+            (formData.category_id as string) ||
+            selectedOccupCatFilter ||
+            allCategoriesList[0]?.id ||
+            '',
+          name: formData.name || '',
+          code: formData.code || undefined,
+          sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : true,
+        });
+      }
+      if (activeTab === 'sources') {
+        return applicationSourcesApi.create({
+          name: formData.name || '',
+          code: formData.code || undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : true,
+        });
+      }
+      if (activeTab === 'department_services') {
+        return departmentServicesApi.create({
+          name: formData.name || '',
+          short_name: (formData.short_name as string) || undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : true,
+        });
+      }
+      if (activeTab === 'rejection_reasons') {
+        return rejectionReasonsApi.create({
+          name: formData.name || '',
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : true,
+        });
+      }
+      if (activeTab === 'decision_types') {
+        return decisionTypesApi.create({
+          name: formData.name || '',
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : true,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -271,9 +411,22 @@ export function ReferencesPage() {
                 ? 'suspect-field-configs'
                 : activeTab === 'crime_methods'
                   ? 'crime-methods'
-                  : activeTab,
+                  : activeTab === 'occupations'
+                    ? 'occupations-all'
+                    : activeTab === 'sources'
+                      ? 'application-sources-all'
+                      : activeTab === 'department_services'
+                        ? 'department-services-all'
+                        : activeTab === 'rejection_reasons'
+                          ? 'rejection-reasons-all'
+                          : activeTab === 'decision_types'
+                            ? 'decision-types-all'
+                            : activeTab,
         ],
       });
+      if (activeTab === 'occupations') {
+        queryClient.invalidateQueries({ queryKey: ['occupation-categories-all'] });
+      }
       if (activeTab === 'crime_methods') {
         queryClient.invalidateQueries({ queryKey: ['crime-methods-active'] });
       }
@@ -335,6 +488,49 @@ export function ReferencesPage() {
             formData.description !== undefined ? (formData.description as string) : undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
         });
+      if (activeTab === 'occupations') {
+        if (occupationMode === 'categories') {
+          return occupationCategoriesApi.update(targetItem.id, {
+            name: formData.name || undefined,
+            code: formData.code || undefined,
+            sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+            is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+          });
+        }
+        return occupationsApi.update(targetItem.id, {
+          category_id: (formData.category_id as string) || undefined,
+          name: formData.name || undefined,
+          code: formData.code || undefined,
+          sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+        });
+      }
+      if (activeTab === 'sources') {
+        return applicationSourcesApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          code: formData.code || undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+        });
+      }
+      if (activeTab === 'department_services') {
+        return departmentServicesApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          short_name: (formData.short_name as string) || undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+        });
+      }
+      if (activeTab === 'rejection_reasons') {
+        return rejectionReasonsApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+        });
+      }
+      if (activeTab === 'decision_types') {
+        return decisionTypesApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -347,9 +543,22 @@ export function ReferencesPage() {
                 ? 'suspect-field-configs'
                 : activeTab === 'crime_methods'
                   ? 'crime-methods'
-                  : activeTab,
+                  : activeTab === 'occupations'
+                    ? 'occupations-all'
+                    : activeTab === 'sources'
+                      ? 'application-sources-all'
+                      : activeTab === 'department_services'
+                        ? 'department-services-all'
+                        : activeTab === 'rejection_reasons'
+                          ? 'rejection-reasons-all'
+                          : activeTab === 'decision_types'
+                            ? 'decision-types-all'
+                            : activeTab,
         ],
       });
+      if (activeTab === 'occupations') {
+        queryClient.invalidateQueries({ queryKey: ['occupation-categories-all'] });
+      }
       if (activeTab === 'crime_methods') {
         queryClient.invalidateQueries({ queryKey: ['crime-methods-active'] });
       }
@@ -379,6 +588,16 @@ export function ReferencesPage() {
       if (activeTab === 'providers') return paymentProvidersApi.delete(targetItem.id);
       if (activeTab === 'statuses') return applicationStatusesApi.delete(targetItem.id);
       if (activeTab === 'suspect_fields') return suspectFieldConfigsApi.delete(targetItem.id);
+      if (activeTab === 'occupations') {
+        if (occupationMode === 'categories') {
+          return occupationCategoriesApi.delete(targetItem.id);
+        }
+        return occupationsApi.delete(targetItem.id);
+      }
+      if (activeTab === 'sources') return applicationSourcesApi.delete(targetItem.id);
+      if (activeTab === 'department_services') return departmentServicesApi.delete(targetItem.id);
+      if (activeTab === 'rejection_reasons') return rejectionReasonsApi.delete(targetItem.id);
+      if (activeTab === 'decision_types') return decisionTypesApi.delete(targetItem.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -391,9 +610,22 @@ export function ReferencesPage() {
                 ? 'suspect-field-configs'
                 : activeTab === 'crime_methods'
                   ? 'crime-methods'
-                  : activeTab,
+                  : activeTab === 'occupations'
+                    ? 'occupations-all'
+                    : activeTab === 'sources'
+                      ? 'application-sources-all'
+                      : activeTab === 'department_services'
+                        ? 'department-services-all'
+                        : activeTab === 'rejection_reasons'
+                          ? 'rejection-reasons-all'
+                          : activeTab === 'decision_types'
+                            ? 'decision-types-all'
+                            : activeTab,
         ],
       });
+      if (activeTab === 'occupations') {
+        queryClient.invalidateQueries({ queryKey: ['occupation-categories-all'] });
+      }
       if (activeTab === 'crime_methods') {
         queryClient.invalidateQueries({ queryKey: ['crime-methods-active'] });
       }
@@ -463,6 +695,11 @@ export function ReferencesPage() {
               | 'mahallas'
               | 'crimes'
               | 'crime_methods'
+              | 'occupations'
+              | 'sources'
+              | 'department_services'
+              | 'decision_types'
+              | 'rejection_reasons'
               | 'banks'
               | 'providers'
               | 'statuses'
@@ -471,7 +708,7 @@ export function ReferencesPage() {
         }
         className="w-full space-y-4"
       >
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 w-full p-1 bg-muted/50 border border-border/60">
+        <TabsList className="flex flex-wrap gap-1 w-full p-1.5 bg-muted/50 border border-border/60 rounded-xl">
           <TabsTrigger value="districts" className="gap-2 text-xs">
             <MapPin className="h-3.5 w-3.5 text-primary" />
             Tumanlar
@@ -487,6 +724,26 @@ export function ReferencesPage() {
           <TabsTrigger value="crime_methods" className="gap-2 text-xs">
             <Layers className="h-3.5 w-3.5 text-primary" />
             Jinoyat Usullari
+          </TabsTrigger>
+          <TabsTrigger value="occupations" className="gap-2 text-xs">
+            <Briefcase className="h-3.5 w-3.5 text-primary" />
+            Kasb & Toifalar
+          </TabsTrigger>
+          <TabsTrigger value="sources" className="gap-2 text-xs">
+            <Radio className="h-3.5 w-3.5 text-primary" />
+            Murojaat Manbalari
+          </TabsTrigger>
+          <TabsTrigger value="department_services" className="gap-2 text-xs">
+            <Shield className="h-3.5 w-3.5 text-primary" />
+            Sohaviy Xizmatlar
+          </TabsTrigger>
+          <TabsTrigger value="decision_types" className="gap-2 text-xs">
+            <Scale className="h-3.5 w-3.5 text-primary" />
+            Qaror Turlari
+          </TabsTrigger>
+          <TabsTrigger value="rejection_reasons" className="gap-2 text-xs">
+            <AlertOctagon className="h-3.5 w-3.5 text-primary" />
+            Rad Sabablari
           </TabsTrigger>
           <TabsTrigger value="banks" className="gap-2 text-xs">
             <Building2 className="h-3.5 w-3.5 text-primary" />
@@ -1345,6 +1602,607 @@ export function ReferencesPage() {
             )}
           </Card>
         </TabsContent>
+
+        {/* 7. OCCUPATIONS & CATEGORIES TAB */}
+        <TabsContent value="occupations" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex rounded-lg border border-border p-1 bg-muted/40">
+                  <button
+                    type="button"
+                    onClick={() => setOccupationMode('occupations')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                      occupationMode === 'occupations'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Kasblar / Mutaxassisliklar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOccupationMode('categories')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                      occupationMode === 'categories'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Kasb Toifalari (Guruhlar)
+                  </button>
+                </div>
+
+                {occupationMode === 'occupations' && (
+                  <select
+                    value={selectedOccupCatFilter}
+                    onChange={(e) => setSelectedOccupCatFilter(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Barcha Toifalar bo‘yicha</option>
+                    {allCategoriesList.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="relative max-w-xs sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Qidirish..."
+                  value={occupationSearch}
+                  onChange={(e) => setOccupationSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            {occupationMode === 'categories' ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Toifa Nomi</TableHead>
+                    <TableHead>Kodi</TableHead>
+                    <TableHead>Tartib Raqami</TableHead>
+                    <TableHead>Holati</TableHead>
+                    <TableHead className="text-right">Amallar</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isCategoriesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Yuklanmoqda...
+                      </TableCell>
+                    </TableRow>
+                  ) : allCategoriesList.filter((c) =>
+                      occupationSearch
+                        ? c.name.toLowerCase().includes(occupationSearch.toLowerCase())
+                        : true,
+                    ).length ? (
+                    allCategoriesList
+                      .filter((c) =>
+                        occupationSearch
+                          ? c.name.toLowerCase().includes(occupationSearch.toLowerCase())
+                          : true,
+                      )
+                      .map((cat) => (
+                        <TableRow key={cat.id}>
+                          <TableCell className="font-semibold text-foreground">
+                            {cat.name}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {cat.code || '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{cat.sort_order ?? 0}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                cat.is_active !== false
+                                  ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
+                                  : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
+                              }
+                            >
+                              {cat.is_active !== false ? 'Faol' : 'Nofaol'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditModal(cat)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteModal(cat)}
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Toifalar topilmadi
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Kasb / Mutaxassislik</TableHead>
+                    <TableHead>Biriktirilgan Toifa</TableHead>
+                    <TableHead>Kodi</TableHead>
+                    <TableHead>Tartib</TableHead>
+                    <TableHead>Holati</TableHead>
+                    <TableHead className="text-right">Amallar</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isOccupationsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Yuklanmoqda...
+                      </TableCell>
+                    </TableRow>
+                  ) : allOccupationsList.filter((o) =>
+                      occupationSearch
+                        ? o.name.toLowerCase().includes(occupationSearch.toLowerCase())
+                        : true,
+                    ).length ? (
+                    allOccupationsList
+                      .filter((o) =>
+                        occupationSearch
+                          ? o.name.toLowerCase().includes(occupationSearch.toLowerCase())
+                          : true,
+                      )
+                      .map((occup) => (
+                        <TableRow key={occup.id}>
+                          <TableCell className="font-semibold text-foreground">
+                            {occup.name}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {occup.category?.name ||
+                              allCategoriesList.find((c) => c.id === occup.category_id)?.name ||
+                              '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {occup.code || '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {occup.sort_order ?? 0}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                occup.is_active !== false
+                                  ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
+                                  : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
+                              }
+                            >
+                              {occup.is_active !== false ? 'Faol' : 'Nofaol'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditModal(occup)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteModal(occup)}
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Kasblar ro‘yxati topilmadi
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* 8. APPLICATION SOURCES TAB */}
+        <TabsContent value="sources" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="relative max-w-md w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Murojaat manbasi bo‘yicha qidiruv (102, 112, Ishonch telefoni)..."
+                  value={sourceSearch}
+                  onChange={(e) => setSourceSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Murojaat Manbasi Nomi</TableHead>
+                  <TableHead>Kodi / Raqami</TableHead>
+                  <TableHead>Holati</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isSourcesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : allSourcesList.filter((s) =>
+                    sourceSearch ? s.name.toLowerCase().includes(sourceSearch.toLowerCase()) : true,
+                  ).length ? (
+                  allSourcesList
+                    .filter((s) =>
+                      sourceSearch
+                        ? s.name.toLowerCase().includes(sourceSearch.toLowerCase())
+                        : true,
+                    )
+                    .map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-semibold text-foreground">{item.name}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {item.code || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              item.is_active !== false
+                                ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
+                                : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
+                            }
+                          >
+                            {item.is_active !== false ? 'Faol' : 'Nofaol'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(item)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteModal(item)}
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Murojaat manbalari topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* 9. DEPARTMENT SERVICES TAB */}
+        <TabsContent value="department_services" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="relative max-w-md w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Sohaviy xizmat nomi yoki qisqartmasi (UYOKK, JQK, TQK)..."
+                  value={deptServiceSearch}
+                  onChange={(e) => setDeptServiceSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sohaviy Xizmat To‘liq Nomi</TableHead>
+                  <TableHead>Qisqartmasi (Abbreviatura)</TableHead>
+                  <TableHead>Holati</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isDeptServicesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : allDeptServicesList.filter((d) =>
+                    deptServiceSearch
+                      ? d.name.toLowerCase().includes(deptServiceSearch.toLowerCase()) ||
+                        (d.short_name &&
+                          d.short_name.toLowerCase().includes(deptServiceSearch.toLowerCase()))
+                      : true,
+                  ).length ? (
+                  allDeptServicesList
+                    .filter((d) =>
+                      deptServiceSearch
+                        ? d.name.toLowerCase().includes(deptServiceSearch.toLowerCase()) ||
+                          (d.short_name &&
+                            d.short_name.toLowerCase().includes(deptServiceSearch.toLowerCase()))
+                        : true,
+                    )
+                    .map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-semibold text-foreground">{item.name}</TableCell>
+                        <TableCell>
+                          <Badge className="font-mono text-xs bg-primary/10 text-primary border-primary/20">
+                            {item.short_name || '—'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              item.is_active !== false
+                                ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
+                                : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
+                            }
+                          >
+                            {item.is_active !== false ? 'Faol' : 'Nofaol'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(item)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteModal(item)}
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Sohaviy xizmatlar topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* 10. DECISION TYPES TAB */}
+        <TabsContent value="decision_types" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="relative max-w-md w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Qaror turi bo‘yicha qidiruv..."
+                  value={decisionSearch}
+                  onChange={(e) => setDecisionSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Qaror Turi</TableHead>
+                  <TableHead>Holati</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isDecisionTypesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : allDecisionTypesList.filter((d) =>
+                    decisionSearch
+                      ? d.name.toLowerCase().includes(decisionSearch.toLowerCase())
+                      : true,
+                  ).length ? (
+                  allDecisionTypesList
+                    .filter((d) =>
+                      decisionSearch
+                        ? d.name.toLowerCase().includes(decisionSearch.toLowerCase())
+                        : true,
+                    )
+                    .map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-semibold text-foreground">{item.name}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              item.is_active !== false
+                                ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
+                                : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
+                            }
+                          >
+                            {item.is_active !== false ? 'Faol' : 'Nofaol'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(item)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteModal(item)}
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Qaror turlari topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* 11. REJECTION REASONS TAB */}
+        <TabsContent value="rejection_reasons" className="space-y-4 mt-0">
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="relative max-w-md w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rad etish sababi bo‘yicha qidiruv..."
+                  value={rejectionSearch}
+                  onChange={(e) => setRejectionSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rad Etish Sababi Nomi</TableHead>
+                  <TableHead>Holati</TableHead>
+                  <TableHead className="text-right">Amallar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isRejectionReasonsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Yuklanmoqda...
+                    </TableCell>
+                  </TableRow>
+                ) : allRejectionReasonsList.filter((r) =>
+                    rejectionSearch
+                      ? r.name.toLowerCase().includes(rejectionSearch.toLowerCase())
+                      : true,
+                  ).length ? (
+                  allRejectionReasonsList
+                    .filter((r) =>
+                      rejectionSearch
+                        ? r.name.toLowerCase().includes(rejectionSearch.toLowerCase())
+                        : true,
+                    )
+                    .map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-semibold text-foreground">{item.name}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              item.is_active !== false
+                                ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
+                                : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
+                            }
+                          >
+                            {item.is_active !== false ? 'Faol' : 'Nofaol'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(item)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteModal(item)}
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Rad etish sabablari topilmadi
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* CREATE / EDIT DIALOG */}
@@ -1364,6 +2222,17 @@ export function ReferencesPage() {
                 'Ariza holati/statusi nomi, kodi, rangi va parametrlarini kiriting'}
               {activeTab === 'suspect_fields' &&
                 'Gumonlanuvchi parametri (Telegram, Instagram, telefon, karta va h.k.) va tizim kalitini kiriting'}
+              {activeTab === 'occupations' &&
+                (occupationMode === 'categories'
+                  ? 'Yangi kasb toifasi (guruhi) ma’lumotlarini kiriting'
+                  : 'Yangi kasb yoki mutaxassislik ma’lumotlarini kiriting')}
+              {activeTab === 'sources' &&
+                'Murojaat manbasi (102, 112, Ishonch telefoni va h.k.) ma’lumotlarini kiriting'}
+              {activeTab === 'department_services' &&
+                'Ichki ishlar sohaviy xizmati nomi va qisqartmasini kiriting'}
+              {activeTab === 'decision_types' &&
+                'Ariza yuzasidan qabul qilinadigan qaror turini kiriting'}
+              {activeTab === 'rejection_reasons' && 'Arizani rad etish sababini kiriting'}
             </DialogDescription>
           </DialogHeader>
 
@@ -1672,6 +2541,149 @@ export function ReferencesPage() {
                   />
                 </div>
               </>
+            )}
+
+            {/* Occupations form fields */}
+            {activeTab === 'occupations' && (
+              <div className="space-y-4">
+                {occupationMode === 'occupations' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Tegishli Kasb Toifasi *
+                    </label>
+                    <select
+                      value={(formData.category_id as string) || selectedOccupCatFilter || ''}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                      required
+                    >
+                      <option value="">Toifani tanlang...</option>
+                      {allCategoriesList.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Kodi (Ixtiyoriy)
+                    </label>
+                    <Input
+                      placeholder="Savdo, O'qituvchi..."
+                      value={formData.code || ''}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">Tartib raqami</label>
+                    <Input
+                      type="number"
+                      value={formData.sort_order ?? 0}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
+                      }
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active !== false}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-input text-primary"
+                  />
+                  <span>Faol holatda</span>
+                </label>
+              </div>
+            )}
+
+            {/* Sources form fields */}
+            {activeTab === 'sources' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Kodi / Qisqa raqami
+                  </label>
+                  <Input
+                    placeholder="102, 112..."
+                    value={formData.code || ''}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    className="h-10 text-xs sm:text-sm font-mono"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active !== false}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-input text-primary"
+                  />
+                  <span>Faol holatda</span>
+                </label>
+              </div>
+            )}
+
+            {/* Department Services form fields */}
+            {activeTab === 'department_services' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Qisqartmasi (Abbreviatura) *
+                  </label>
+                  <Input
+                    placeholder="UYOKK, JQK, TQK, HQPX..."
+                    value={formData.short_name || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, short_name: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs sm:text-sm font-mono uppercase font-bold"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active !== false}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-input text-primary"
+                  />
+                  <span>Faol holatda</span>
+                </label>
+              </div>
+            )}
+
+            {/* Decision Types form fields */}
+            {activeTab === 'decision_types' && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active !== false}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-input text-primary"
+                  />
+                  <span>Faol holatda</span>
+                </label>
+              </div>
+            )}
+
+            {/* Rejection Reasons form fields */}
+            {activeTab === 'rejection_reasons' && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active !== false}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-input text-primary"
+                  />
+                  <span>Faol holatda</span>
+                </label>
+              </div>
             )}
           </div>
 

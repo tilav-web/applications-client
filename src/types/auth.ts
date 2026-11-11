@@ -1,10 +1,20 @@
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'INSPECTOR' | 'OPERATOR' | 'USER' | string;
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'BOSS'
+  | 'STAFF'
+  | 'DISTRICT_OFFICER'
+  | 'ADMIN'
+  | 'INSPECTOR'
+  | 'OPERATOR'
+  | 'USER'
+  | string;
 
 export interface UserProfile {
   id?: string;
   first_name: string | null;
   last_name: string | null;
   phone_number: string | null;
+  assigned_districts?: { id: string; name: string | null }[];
   created_at?: string;
   updated_at?: string;
 }
@@ -14,6 +24,7 @@ export interface AuthUser {
   username: string;
   role: UserRole;
   profile: UserProfile | null;
+  assigned_districts?: { id: string; name: string | null }[];
   created_at?: string;
   updated_at?: string;
 }

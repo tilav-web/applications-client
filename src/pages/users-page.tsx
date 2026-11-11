@@ -4,6 +4,7 @@ import {
   Edit2,
   Loader2,
   Lock,
+  MapPin,
   Phone,
   Plus,
   Search,
@@ -37,7 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
-import { type UserItem, usersApi } from '@/lib/api';
+import { districtsApi, type UserItem, usersApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { useAuthStore } from '@/store';
 
@@ -57,14 +58,30 @@ export function UsersPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    username: string;
+    password: string;
+    role: string;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    assigned_district_ids: string[];
+  }>({
     username: '',
     password: '',
-    role: 'OPERATOR',
+    role: 'STAFF',
     first_name: '',
     last_name: '',
     phone_number: '',
+    assigned_district_ids: [],
   });
+
+  // Query: All Districts for District Officer assignment
+  const { data: districtsData } = useQuery({
+    queryKey: ['districts-for-users'],
+    queryFn: () => districtsApi.getAll({ limit: 100 }),
+  });
+  const allDistricts = districtsData?.items || [];
 
   // Query: Users list
   const { data, isLoading } = useQuery({
@@ -130,10 +147,11 @@ export function UsersPage() {
     setFormData({
       username: '',
       password: '',
-      role: 'OPERATOR',
+      role: 'STAFF',
       first_name: '',
       last_name: '',
       phone_number: '',
+      assigned_district_ids: [],
     });
   };
 
@@ -146,35 +164,79 @@ export function UsersPage() {
       first_name: user.first_name || '',
       last_name: user.last_name || '',
       phone_number: user.phone_number || '',
+      assigned_district_ids: user.assigned_districts?.map((d) => d.id) || [],
     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingUser) {
-      const updatePayload: Record<string, string> = {
+      const updatePayload: Record<string, unknown> = {
         username: formData.username,
         role: formData.role,
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone_number: formData.phone_number,
+        assigned_district_ids:
+          formData.role === 'DISTRICT_OFFICER' ? formData.assigned_district_ids : [],
       };
       if (formData.password.trim()) {
         updatePayload.password = formData.password.trim();
       }
       updateMutation.mutate({ id: editingUser.id, data: updatePayload });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate({
+        ...formData,
+        assigned_district_ids:
+          formData.role === 'DISTRICT_OFFICER' ? formData.assigned_district_ids : [],
+      });
     }
   };
 
-  const getRoleBadge = (role: string) => {
+  const getRoleBadge = (
+    role: string,
+    assignedDistricts?: { id: string; name: string | null }[],
+  ) => {
     switch (role) {
       case 'SUPER_ADMIN':
         return (
           <Badge className="bg-rose-500/10 text-rose-600 border border-rose-200 dark:border-rose-900/50 text-[10px] font-mono">
             SUPER ADMIN
           </Badge>
+        );
+      case 'BOSS':
+        return (
+          <Badge className="bg-amber-500/10 text-amber-600 border border-amber-200 dark:border-amber-900/50 text-[10px] font-mono">
+            RAHBAR (READ-ONLY)
+          </Badge>
+        );
+      case 'STAFF':
+        return (
+          <Badge className="bg-blue-500/10 text-blue-600 border border-blue-200 dark:border-blue-900/50 text-[10px] font-mono">
+            MARKAZIY XODIM
+          </Badge>
+        );
+      case 'DISTRICT_OFFICER':
+        return (
+          <div className="space-y-1">
+            <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-200 dark:border-emerald-900/50 text-[10px] font-mono">
+              HUDUDIY XODIM
+            </Badge>
+            {assignedDistricts && assignedDistricts.length > 0 ? (
+              <div className="flex flex-wrap gap-1 max-w-[200px]">
+                {assignedDistricts.map((d) => (
+                  <span
+                    key={d.id}
+                    className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium"
+                  >
+                    {d.name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="text-[10px] text-amber-600 font-medium">Tuman biriktirilmagan</div>
+            )}
+          </div>
         );
       case 'ADMIN':
         return (
@@ -339,7 +401,7 @@ export function UsersPage() {
                       </div>
                     </TableCell>
 
-                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>{getRoleBadge(user.role, user.assigned_districts)}</TableCell>
 
                     <TableCell>
                       {user.phone_number ? (
@@ -514,14 +576,101 @@ export function UsersPage() {
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="OPERATOR">Operator</option>
-                  <option value="INSPECTOR">Inspektor</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
-                  <option value="USER">Oddiy foydalanuvchi</option>
+                  <option value="SUPER_ADMIN">
+                    Super Admin (To‘liq boshqaruv, o‘chirish huquqi)
+                  </option>
+                  <option value="BOSS">Rahbar (Faqat statistika va hisobotlar, Read-Only)</option>
+                  <option value="STAFF">Markaziy Xodim / Katta tergovchi (Barcha arizalar)</option>
+                  <option value="DISTRICT_OFFICER">
+                    Hududiy Xodim (Faqat biriktirilgan tumanlar)
+                  </option>
                 </select>
               </div>
             </div>
+
+            {formData.role === 'DISTRICT_OFFICER' && (
+              <div className="space-y-2 border border-border/70 rounded-xl p-3.5 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    Biriktirilgan Tumanlar ({formData.assigned_district_ids.length} ta tanlandi) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          assigned_district_ids: allDistricts.map((d) => d.id),
+                        })
+                      }
+                      className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                    >
+                      Barchasini tanlash
+                    </button>
+                    <span className="text-muted-foreground text-xs">|</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          assigned_district_ids: [],
+                        })
+                      }
+                      className="text-[11px] text-muted-foreground hover:underline cursor-pointer"
+                    >
+                      Tozalash
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {allDistricts.map((district) => {
+                    const isChecked = formData.assigned_district_ids.includes(district.id);
+                    return (
+                      <label
+                        key={district.id}
+                        className={`flex items-center gap-2 text-xs p-2 rounded-lg border cursor-pointer transition-colors ${
+                          isChecked
+                            ? 'bg-primary/10 border-primary/40 text-primary font-semibold'
+                            : 'bg-background hover:bg-muted border-input text-foreground'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                assigned_district_ids: [
+                                  ...formData.assigned_district_ids,
+                                  district.id,
+                                ],
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                assigned_district_ids: formData.assigned_district_ids.filter(
+                                  (id) => id !== district.id,
+                                ),
+                              });
+                            }
+                          }}
+                          className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
+                        />
+                        <span className="truncate">{district.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {formData.assigned_district_ids.length === 0 && (
+                  <p className="text-[11px] text-rose-500 font-medium">
+                    Diqqat: Kamida bitta tuman biriktirilishi lozim, aks holda xodim arizalarni
+                    ko‘ra olmaydi!
+                  </p>
+                )}
+              </div>
+            )}
 
             <DialogFooter>
               <Button

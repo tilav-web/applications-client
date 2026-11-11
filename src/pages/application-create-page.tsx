@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
+  AlertOctagon,
   ArrowLeftRight,
   BookmarkCheck,
+  Briefcase,
   Building2,
   Calendar,
   CheckCircle2,
@@ -19,8 +21,11 @@ import {
   MapPin,
   Paperclip,
   Plus,
+  Radio,
   RotateCcw,
   Save,
+  Scale,
+  Shield,
   ShieldAlert,
   Sparkles,
   Trash2,
@@ -55,19 +60,25 @@ import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
   applicationsApi,
+  applicationSourcesApi,
   applicationStatusesApi,
   banksApi,
   cardsApi,
   citizensApi,
   crimeMethodsApi,
   crimesApi,
+  decisionTypesApi,
+  departmentServicesApi,
   districtsApi,
   documentsApi,
   filesApi,
   getFileDownloadUrl,
   getFileViewUrl,
   mahallasApi,
+  occupationCategoriesApi,
+  occupationsApi,
   paymentProvidersApi,
+  rejectionReasonsApi,
   type UploadedFile,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
@@ -254,6 +265,7 @@ export function ApplicationCreatePage() {
   const [suspectTree, setSuspectTree] = useState<any[]>([]);
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
   const [statusId, setStatusId] = useState<string | null>(null);
+  const [sourceId, setSourceId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
 
   // ==========================================================================
@@ -273,6 +285,10 @@ export function ApplicationCreatePage() {
   });
   const [showCitizenPopover, setShowCitizenPopover] = useState(false);
   const citizenPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Fuqaroning kasbi
+  const [occupationCategoryId, setOccupationCategoryId] = useState<string | null>(null);
+  const [occupationId, setOccupationId] = useState<string | null>(null);
 
   // Fuqaroning yashash tumani va mahallasi
   const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(null);
@@ -294,6 +310,11 @@ export function ApplicationCreatePage() {
   }>({
     article: '',
   });
+
+  // Sohaviy xizmat va yakuniy qaror
+  const [departmentServiceId, setDepartmentServiceId] = useState<string | null>(null);
+  const [decisionTypeId, setDecisionTypeId] = useState<string | null>(null);
+  const [rejectionReasonId, setRejectionReasonId] = useState<string | null>(null);
 
   // ==========================================================================
   // 4. MOLIYAVIY ZARAR VA TRANZAKSIYA SHAKLLARI
@@ -560,6 +581,49 @@ export function ApplicationCreatePage() {
   });
   const allApplicationStatuses = statusesData?.items || [];
 
+  // Murojaat manbalari
+  const { data: sourcesData } = useQuery({
+    queryKey: ['application-sources-select'],
+    queryFn: () => applicationSourcesApi.getAll(),
+  });
+  const allApplicationSources = sourcesData || [];
+
+  // Kasb toifalari
+  const { data: occupationCategoriesData } = useQuery({
+    queryKey: ['occupation-categories-select'],
+    queryFn: () => occupationCategoriesApi.getAll(),
+  });
+  const allOccupationCategories = occupationCategoriesData || [];
+
+  // Kasblar (Tanlangan toifa bo'yicha)
+  const { data: occupationsData } = useQuery({
+    queryKey: ['occupations-select', occupationCategoryId],
+    queryFn: () => occupationsApi.getAll({ category_id: occupationCategoryId || undefined }),
+    enabled: !!occupationCategoryId,
+  });
+  const availableOccupations = occupationsData || [];
+
+  // Sohaviy xizmatlar
+  const { data: departmentServicesData } = useQuery({
+    queryKey: ['department-services-select'],
+    queryFn: () => departmentServicesApi.getAll(),
+  });
+  const allDepartmentServices = departmentServicesData || [];
+
+  // Qaror turlari
+  const { data: decisionTypesData } = useQuery({
+    queryKey: ['decision-types-select'],
+    queryFn: () => decisionTypesApi.getAll(),
+  });
+  const allDecisionTypes = decisionTypesData || [];
+
+  // Rad etish sabablari
+  const { data: rejectionReasonsData } = useQuery({
+    queryKey: ['rejection-reasons-select'],
+    queryFn: () => rejectionReasonsApi.getAll(),
+  });
+  const allRejectionReasons = rejectionReasonsData || [];
+
   // ==========================================================================
   // POPULATE INITIAL DATA
   // ==========================================================================
@@ -573,6 +637,14 @@ export function ApplicationCreatePage() {
       }
       setStatus(initialApp.status || initialApp.application_status?.code || 'YANGI');
       setStatusId(initialApp.status_id || initialApp.application_status?.id || null);
+      setSourceId(initialApp.source_id || initialApp.source?.id || null);
+      setDepartmentServiceId(
+        initialApp.department_service_id || initialApp.department_service?.id || null,
+      );
+      setDecisionTypeId(initialApp.decision_type_id || initialApp.decision_type?.id || null);
+      setRejectionReasonId(
+        initialApp.rejection_reason_id || initialApp.rejection_reason?.id || null,
+      );
       if (initialApp.date) {
         setDate(new Date(initialApp.date).toISOString().substring(0, 10));
       }
@@ -584,6 +656,14 @@ export function ApplicationCreatePage() {
         );
         setCitizenMahallaId(
           initialApp.citizen.mahalla_id || initialApp.citizen.mahalla?.id || null,
+        );
+        setOccupationCategoryId(
+          initialApp.citizen.occupation_category_id ||
+            initialApp.citizen.occupation_category?.id ||
+            null,
+        );
+        setOccupationId(
+          initialApp.citizen.occupation_id || initialApp.citizen.occupation?.id || null,
         );
         setCitizenForm({
           first_name: initialApp.citizen.first_name || '',
@@ -820,6 +900,8 @@ export function ApplicationCreatePage() {
     setSelectedCitizenId(c.id);
     setCitizenDistrictId(c.district_id || c.district?.id || null);
     setCitizenMahallaId(c.mahalla_id || c.mahalla?.id || null);
+    setOccupationCategoryId(c.occupation_category_id || c.occupation_category?.id || null);
+    setOccupationId(c.occupation_id || c.occupation?.id || null);
     setCitizenForm({
       first_name: c.first_name || '',
       last_name: c.last_name || '',
@@ -840,6 +922,8 @@ export function ApplicationCreatePage() {
 
   const confirmUnlinkCitizen = () => {
     setSelectedCitizenId(null);
+    setOccupationCategoryId(null);
+    setOccupationId(null);
     setCitizenForm({
       first_name: '',
       last_name: '',
@@ -948,6 +1032,10 @@ export function ApplicationCreatePage() {
         status,
         status_id: statusId || undefined,
         date: date ? new Date(date).toISOString() : undefined,
+        source_id: sourceId || null,
+        department_service_id: departmentServiceId || null,
+        decision_type_id: decisionTypeId || null,
+        rejection_reason_id: rejectionReasonId || null,
       };
 
       // 1. Fuqaro
@@ -969,6 +1057,8 @@ export function ApplicationCreatePage() {
         address: citizenForm.address || undefined,
         district_id: citizenDistrictId || undefined,
         mahalla_id: citizenMahallaId || undefined,
+        occupation_category_id: occupationCategoryId || null,
+        occupation_id: occupationId || null,
       };
 
       if (selectedCitizenId) {
@@ -984,7 +1074,9 @@ export function ApplicationCreatePage() {
         citizenForm.gender ||
         citizenDistrictId ||
         citizenMahallaId ||
-        citizenForm.address
+        citizenForm.address ||
+        occupationCategoryId ||
+        occupationId
       ) {
         payload.citizen_data = citizenDataObj;
       }
@@ -1250,6 +1342,26 @@ export function ApplicationCreatePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Murojaat manbasi (102, 112, etc.) */}
+            <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
+              <Radio className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                Manba:
+              </span>
+              <select
+                value={sourceId || ''}
+                onChange={(e) => setSourceId(e.target.value || null)}
+                className="h-7 border-0 p-0 text-xs font-semibold bg-transparent text-foreground focus:outline-none cursor-pointer"
+              >
+                <option value="">-- MANBANI TANLANG --</option>
+                {allApplicationSources.map((src) => (
+                  <option key={src.id} value={src.id}>
+                    {src.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
               <span className="text-[11px] font-semibold text-muted-foreground">Sana:</span>
               <input
@@ -1609,6 +1721,77 @@ export function ApplicationCreatePage() {
               />
             </div>
 
+            {/* 5-Qator: Fuqaroning Kasbi (2-Bosqichli kaskadli tanlov) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {/* Kasbi — toifasi */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Briefcase className="h-3.5 w-3.5 text-primary" />
+                    Kasbi — toifasi
+                  </label>
+                  {occupationCategoryId && (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Tanlandi
+                    </Badge>
+                  )}
+                </div>
+                <select
+                  value={occupationCategoryId || ''}
+                  onChange={(e) => {
+                    const catId = e.target.value || null;
+                    setOccupationCategoryId(catId);
+                    setOccupationId(null);
+                  }}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- KASB TOIFASINI TANLANG --</option>
+                  {allOccupationCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Kasbi — turi */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    Kasbi — turi / mutaxassisligi
+                  </label>
+                  {occupationId && (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Tanlandi
+                    </Badge>
+                  )}
+                </div>
+                <select
+                  value={occupationId || ''}
+                  disabled={!occupationCategoryId}
+                  onChange={(e) => setOccupationId(e.target.value || null)}
+                  className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
+                    !occupationCategoryId
+                      ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground'
+                      : ''
+                  }`}
+                >
+                  <option value="">
+                    {occupationCategoryId
+                      ? '-- KASB / MUTAXASSISLIKNI TANLANG --'
+                      : 'AVVAL TOIFANI TANLANG...'}
+                  </option>
+                  {availableOccupations.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* Fuqaro Jonli Avtokomplit Popoveri */}
             {showCitizenPopover && !selectedCitizenId && matchedCitizens.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover text-popover-foreground border border-border shadow-2xl rounded-xl p-2 max-h-60 overflow-y-auto animate-in fade-in-50">
@@ -1825,6 +2008,101 @@ export function ApplicationCreatePage() {
                 ))}
               </select>
             </div>
+
+            {/* Sohaviy Xizmat & Qabul qilingan Qaror Turi */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 pt-1">
+              {/* Sohaviy Xizmat */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5 text-primary" />
+                    Biriktirilgan Sohaviy Xizmat
+                  </label>
+                  {departmentServiceId && (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Tanlandi
+                    </Badge>
+                  )}
+                </div>
+                <select
+                  value={departmentServiceId || ''}
+                  onChange={(e) => setDepartmentServiceId(e.target.value || null)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- SOHAVIY XIZMATNI TANLANG --</option>
+                  {allDepartmentServices.map((ds) => (
+                    <option key={ds.id} value={ds.id}>
+                      {ds.short_name ? `[${ds.short_name}] ` : ''}
+                      {ds.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Qaror Turi */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Scale className="h-3.5 w-3.5 text-primary" />
+                    Qabul qilingan Qaror Turi
+                  </label>
+                  {decisionTypeId && (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Tanlandi
+                    </Badge>
+                  )}
+                </div>
+                <select
+                  value={decisionTypeId || ''}
+                  onChange={(e) => setDecisionTypeId(e.target.value || null)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- QAROR TURINI TANLANG --</option>
+                  {allDecisionTypes.map((dt) => (
+                    <option key={dt.id} value={dt.id}>
+                      {dt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Rad Etish Sababi (Agar ariza rad etilgan bo'lsa yoki rad etish qarori tanlansa) */}
+            {(status === 'RAD_ETILDI' ||
+              allDecisionTypes
+                .find((d) => d.id === decisionTypeId)
+                ?.name.toLowerCase()
+                .includes('rad') ||
+              rejectionReasonId) && (
+              <div className="md:col-span-2 space-y-1.5 p-3.5 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/30 animate-in fade-in-50">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                    <AlertOctagon className="h-4 w-4 text-rose-600" />
+                    Arizani Rad Etish Sababi *
+                  </label>
+                  {rejectionReasonId && (
+                    <Badge className="bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-400/40 gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Sabab biriktirildi
+                    </Badge>
+                  )}
+                </div>
+                <select
+                  value={rejectionReasonId || ''}
+                  onChange={(e) => setRejectionReasonId(e.target.value || null)}
+                  className="h-10 w-full rounded-md border border-rose-300 bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                >
+                  <option value="">-- RAD ETISH SABABINI TANLANG --</option>
+                  {allRejectionReasons.map((rr) => (
+                    <option key={rr.id} value={rr.id}>
+                      {rr.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

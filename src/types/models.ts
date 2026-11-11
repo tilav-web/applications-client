@@ -104,6 +104,75 @@ export interface CrimeMethod {
   updated_at?: string;
 }
 
+export interface OccupationCategory {
+  id: string;
+  name: string;
+  code?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  occupations?: Occupation[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Occupation {
+  id: string;
+  category_id: string;
+  name: string;
+  code?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  category?: OccupationCategory | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ApplicationSource {
+  id: string;
+  name: string;
+  code?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DepartmentService {
+  id: string;
+  name: string;
+  short_name?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RejectionReason {
+  id: string;
+  name: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DecisionType {
+  id: string;
+  name: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserViewItem {
+  id: string;
+  username: string;
+  role: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  assigned_districts?: { id: string; name: string | null }[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Citizen {
   id: string;
   first_name: string | null;
@@ -119,6 +188,10 @@ export interface Citizen {
   district?: District | null;
   mahalla_id?: string | null;
   mahalla?: Mahalla | null;
+  occupation_category_id?: string | null;
+  occupation_category?: OccupationCategory | null;
+  occupation_id?: string | null;
+  occupation?: Occupation | null;
   cards?: Card[];
   created_at?: string;
   updated_at?: string;
@@ -269,6 +342,17 @@ export interface Application {
   card?: Card | null;
   transfer_id?: string | null;
   transfer?: Transfer | null;
+  source_id?: string | null;
+  source?: ApplicationSource | null;
+  department_service_id?: string | null;
+  department_service?: DepartmentService | null;
+  rejection_reason_id?: string | null;
+  rejection_reason?: RejectionReason | null;
+  decision_type_id?: string | null;
+  decision_type?: DecisionType | null;
+  created_by_id?: string | null;
+  created_by?: UserViewItem | null;
+  is_deleted?: boolean;
   suspect_tree?: SuspectTreeNode[] | null;
   custom_fields?: ApplicationCustomField[];
   documents?: {

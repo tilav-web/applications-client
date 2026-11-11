@@ -443,74 +443,74 @@ export function ReportsPage() {
             </div>
 
             {/* Scrollable multi-header operational table */}
-            <div className="relative max-h-[75vh] overflow-x-auto overflow-y-auto">
-              <table className="w-full min-w-[2200px] border-collapse text-center text-xs">
-                <thead className="sticky top-0 z-20 shadow-xs">
+            <div className="relative max-h-[75vh] overflow-x-auto overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <table className="w-full min-w-[2400px] border-collapse text-center text-xs">
+                <thead className="sticky top-0 z-30 shadow-xs">
                   {/* Header Row 1 */}
                   <tr className="border-b border-slate-300 font-bold text-slate-800 dark:border-slate-700 dark:text-slate-200">
                     <th
                       rowSpan={2}
-                      className="sticky left-0 z-30 w-12 border-r border-slate-300 bg-slate-100/95 px-2 py-2 text-center text-slate-700 dark:border-slate-700 dark:bg-slate-800"
+                      className="w-12 whitespace-nowrap border-r border-slate-300 bg-slate-100 px-2 py-2 text-center text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     >
                       №
                     </th>
                     <th
                       rowSpan={2}
-                      className="sticky left-12 z-30 w-44 border-r border-slate-300 bg-slate-100/95 px-3 py-2 text-left font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-44 whitespace-nowrap border-r border-slate-300 bg-slate-100 px-3 py-2 text-left font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     >
                       Shahar / tumanlar
                     </th>
                     <th
                       colSpan={7}
-                      className="border-r border-rose-200 bg-rose-50/90 py-1.5 text-rose-950 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200"
+                      className="whitespace-nowrap border-r border-rose-300 bg-rose-100 py-2 text-rose-950 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200"
                     >
                       1 kunda, shundan
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-sky-200 bg-sky-50/90 py-1.5 text-sky-950 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-200"
+                      className="whitespace-nowrap border-r border-sky-300 bg-sky-100 py-2 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200"
                     >
                       168-m
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-blue-200 bg-blue-50/90 py-1.5 text-blue-950 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-200"
+                      className="whitespace-nowrap border-r border-blue-300 bg-blue-100 py-2 text-blue-950 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200"
                     >
                       169-m
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-slate-100/90 py-1.5 text-slate-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-slate-200 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     >
                       boshqa
                     </th>
                     <th
                       colSpan={6}
-                      className="border-r border-amber-200 bg-amber-50/90 py-1.5 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
+                      className="whitespace-nowrap border-r border-amber-300 bg-amber-100 py-2 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
                     >
                       Murojaatlar
                     </th>
                     <th
                       colSpan={3}
-                      className="border-r border-teal-200 bg-teal-50/90 py-1.5 text-teal-950 dark:border-teal-900/50 dark:bg-teal-950/40 dark:text-teal-200"
+                      className="whitespace-nowrap border-r border-teal-300 bg-teal-100 py-2 text-teal-950 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-200"
                     >
                       Jarayonda
                     </th>
                     <th
                       colSpan={7}
-                      className="border-r border-emerald-200 bg-emerald-50/90 py-1.5 text-emerald-950 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      className="whitespace-nowrap border-r border-emerald-300 bg-emerald-100 py-2 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
                     >
                       JI qo‘zg‘atish rad etilgan
                     </th>
                     <th
                       rowSpan={2}
-                      className="w-24 border-r border-amber-300 bg-amber-100/80 px-2 py-2 text-center font-bold text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+                      className="w-28 whitespace-nowrap border-r border-amber-300 bg-amber-200 px-2 py-2 text-center font-bold text-amber-950 dark:border-amber-800 dark:bg-amber-900 dark:text-amber-100"
                     >
                       Jinoyat ishi qo‘zg‘atilgan (Х/Й)
                     </th>
                     <th
                       colSpan={3}
-                      className="border-r border-slate-300 bg-orange-50/90 py-1.5 text-orange-950 dark:border-slate-700 dark:bg-orange-950/40 dark:text-orange-200"
+                      className="whitespace-nowrap border-slate-300 bg-orange-100 py-2 text-orange-950 dark:border-slate-700 dark:bg-orange-950 dark:text-orange-200"
                     >
                       Boshqa
                     </th>
@@ -519,114 +519,114 @@ export function ReportsPage() {
                   {/* Header Row 2 */}
                   <tr className="border-b border-slate-300 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-300">
                     {/* 1 kunda */}
-                    <th className="w-18 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
-                      kunidagi
+                    <th className="w-24 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
+                      {date ? `${date} кунидаги` : 'Кунидаги'}
                     </th>
-                    <th className="w-18 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
                       Firibgarlik
                     </th>
-                    <th className="w-16 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
                       O‘g‘rilik
                     </th>
-                    <th className="w-18 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
                       Haqorat qilish
                     </th>
-                    <th className="w-18 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
                       Rasm tarqatish
                     </th>
-                    <th className="w-20 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
+                    <th className="w-24 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
                       Adashib tashlagan
                     </th>
-                    <th className="w-16 border-r border-rose-200 bg-rose-50/60 px-1 py-1 text-rose-900 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-900 dark:border-rose-900 dark:bg-rose-900/40 dark:text-rose-200">
                       Boshqa
                     </th>
 
                     {/* 168-m */}
-                    <th className="w-18 border-r border-sky-200 bg-sky-50/60 px-1 py-1 text-sky-900 dark:border-sky-900/30 dark:bg-sky-950/30 dark:text-sky-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-sky-200 bg-sky-50 px-2 py-1.5 text-sky-900 dark:border-sky-900 dark:bg-sky-900/40 dark:text-sky-200">
                       Oy boshidan
                     </th>
-                    <th className="w-18 border-r border-sky-200 bg-sky-50/60 px-1 py-1 text-sky-900 dark:border-sky-900/30 dark:bg-sky-950/30 dark:text-sky-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-sky-200 bg-sky-50 px-2 py-1.5 text-sky-900 dark:border-sky-900 dark:bg-sky-900/40 dark:text-sky-200">
                       Yil boshidan
                     </th>
 
                     {/* 169-m */}
-                    <th className="w-18 border-r border-blue-200 bg-blue-50/60 px-1 py-1 text-blue-900 dark:border-blue-900/30 dark:bg-blue-950/30 dark:text-blue-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-900 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-200">
                       Oy boshidan
                     </th>
-                    <th className="w-18 border-r border-blue-200 bg-blue-50/60 px-1 py-1 text-blue-900 dark:border-blue-900/30 dark:bg-blue-950/30 dark:text-blue-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-900 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-200">
                       Yil boshidan
                     </th>
 
                     {/* boshqa */}
-                    <th className="w-18 border-r border-slate-300 bg-slate-100/60 px-1 py-1 text-slate-800 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                       Oy boshidan
                     </th>
-                    <th className="w-18 border-r border-slate-300 bg-slate-100/60 px-1 py-1 text-slate-800 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-slate-300 bg-slate-100 px-2 py-1.5 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                       Yil boshidan
                     </th>
 
                     {/* Murojaatlar */}
-                    <th className="w-18 border-r border-amber-200 bg-amber-50/60 px-1 py-1 text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                       Oy boshidan
                     </th>
-                    <th className="w-18 border-r border-amber-200 bg-amber-50/60 px-1 py-1 text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                       Yil boshidan
                     </th>
-                    <th className="w-20 border-r border-amber-200 bg-amber-50/60 px-1 py-1 text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
+                    <th className="w-22 whitespace-nowrap border-b border-r border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                       168/169-m
                     </th>
-                    <th className="w-16 border-r border-amber-200 bg-amber-50/60 px-1 py-1 text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                       Takroriy
                     </th>
-                    <th className="w-22 border-r border-amber-200 bg-amber-50/60 px-1 py-1 text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
+                    <th className="w-24 whitespace-nowrap border-b border-r border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                       Card Block %
                     </th>
-                    <th className="w-20 border-r border-amber-200 bg-amber-50/60 px-1 py-1 text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
+                    <th className="w-22 whitespace-nowrap border-b border-r border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                       Sanksiya
                     </th>
 
                     {/* Jarayonda */}
-                    <th className="w-16 border-r border-teal-200 bg-teal-50/60 px-1 py-1 font-bold text-teal-900 dark:border-teal-900/30 dark:bg-teal-950/30 dark:text-teal-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-teal-200 bg-teal-50 px-2 py-1.5 font-bold text-teal-900 dark:border-teal-900 dark:bg-teal-900/40 dark:text-teal-200">
                       ЖАМИ
                     </th>
-                    <th className="w-18 border-r border-teal-200 bg-teal-50/60 px-1 py-1 text-teal-900 dark:border-teal-900/30 dark:bg-teal-950/30 dark:text-teal-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-teal-200 bg-teal-50 px-2 py-1.5 text-teal-900 dark:border-teal-900 dark:bg-teal-900/40 dark:text-teal-200">
                       qo‘zg‘atiladi
                     </th>
-                    <th className="w-16 border-r border-teal-200 bg-teal-50/60 px-1 py-1 text-teal-900 dark:border-teal-900/30 dark:bg-teal-950/30 dark:text-teal-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-teal-200 bg-teal-50 px-2 py-1.5 text-teal-900 dark:border-teal-900 dark:bg-teal-900/40 dark:text-teal-200">
                       boshqa
                     </th>
 
                     {/* JI rad etilgan */}
-                    <th className="w-16 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 font-bold text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 font-bold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       ЖАМИ
                     </th>
-                    <th className="w-16 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       aldangan
                     </th>
-                    <th className="w-16 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       kreditiga
                     </th>
-                    <th className="w-18 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       rasm tarqatish
                     </th>
-                    <th className="w-16 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       haqorat
                     </th>
-                    <th className="w-18 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-20 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       pul bilan
                     </th>
-                    <th className="w-16 border-r border-emerald-200 bg-emerald-50/60 px-1 py-1 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <th className="w-18 whitespace-nowrap border-b border-r border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">
                       boshqa
                     </th>
 
                     {/* Boshqa */}
-                    <th className="w-20 border-r border-slate-300 bg-orange-50/60 px-1 py-1 text-orange-900 dark:border-slate-700 dark:bg-orange-950/30 dark:text-orange-200">
+                    <th className="w-24 whitespace-nowrap border-b border-r border-slate-300 bg-orange-50 px-2 py-1.5 text-orange-900 dark:border-slate-700 dark:bg-orange-900/40 dark:text-orange-200">
                       ishlarga qo‘shilgan
                     </th>
-                    <th className="w-22 border-r border-slate-300 bg-orange-50/60 px-1 py-1 text-orange-900 dark:border-slate-700 dark:bg-orange-950/30 dark:text-orange-200">
+                    <th className="w-24 whitespace-nowrap border-b border-r border-slate-300 bg-orange-50 px-2 py-1.5 text-orange-900 dark:border-slate-700 dark:bg-orange-900/40 dark:text-orange-200">
                       hududga yuborilgan
                     </th>
-                    <th className="w-22 border-slate-300 bg-orange-50/60 px-1 py-1 text-orange-900 dark:border-slate-700 dark:bg-orange-950/30 dark:text-orange-200">
+                    <th className="w-24 whitespace-nowrap border-b border-slate-300 bg-orange-50 px-2 py-1.5 text-orange-900 dark:border-slate-700 dark:bg-orange-900/40 dark:text-orange-200">
                       materiallarga birlash.
                     </th>
                   </tr>
@@ -638,17 +638,17 @@ export function ReportsPage() {
                     return (
                       <tr
                         key={r.district_name}
-                        className={`hover:bg-slate-50/90 dark:hover:bg-slate-800/60 ${
+                        className={`hover:bg-slate-100/80 dark:hover:bg-slate-800 ${
                           isEven
                             ? 'bg-white dark:bg-slate-900'
-                            : 'bg-slate-50/40 dark:bg-slate-800/20'
+                            : 'bg-slate-50/60 dark:bg-slate-800/40'
                         }`}
                       >
-                        {/* Sticky № & District */}
-                        <td className="sticky left-0 z-10 border-r border-slate-200 bg-inherit px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                        {/* № & District */}
+                        <td className="whitespace-nowrap border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">
                           {r.index}
                         </td>
-                        <td className="sticky left-12 z-10 border-r border-slate-200 bg-inherit px-3 py-2 text-left font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-100">
+                        <td className="whitespace-nowrap border-b border-r border-slate-200 px-3 py-2 text-left font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-100">
                           {r.district_name}
                         </td>
 
@@ -773,11 +773,11 @@ export function ReportsPage() {
 
                 {/* Footer ЖАМИ row */}
                 {matrixQuery.data?.total && (
-                  <tfoot className="sticky bottom-0 z-20 border-t-2 border-slate-400 bg-amber-100/90 font-bold text-slate-900 shadow-sm dark:border-slate-600 dark:bg-amber-950/80 dark:text-amber-100">
+                  <tfoot className="sticky bottom-0 z-20 border-t-2 border-slate-400 bg-amber-100 font-bold text-slate-900 shadow-sm dark:border-slate-600 dark:bg-amber-950 dark:text-amber-100">
                     <tr>
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-30 border-r border-slate-300 bg-inherit px-3 py-2.5 text-center text-sm font-black tracking-wider text-amber-950 dark:border-slate-700 dark:text-amber-200"
+                        className="whitespace-nowrap border-r border-slate-300 bg-amber-100 px-3 py-2.5 text-center text-sm font-black tracking-wider text-amber-950 dark:border-slate-700 dark:bg-amber-950 dark:text-amber-200"
                       >
                         ЖАМИ
                       </td>
@@ -933,68 +933,68 @@ export function ReportsPage() {
               </div>
             </div>
 
-            <div className="relative max-h-[75vh] overflow-x-auto overflow-y-auto">
-              <table className="w-full min-w-[1700px] border-collapse text-center text-xs">
-                <thead className="sticky top-0 z-20 shadow-xs">
+            <div className="relative max-h-[75vh] overflow-x-auto overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <table className="w-full min-w-[1800px] border-collapse text-center text-xs">
+                <thead className="sticky top-0 z-30 shadow-xs">
                   {/* Row 1 */}
                   <tr className="border-b border-slate-300 font-bold text-slate-800 dark:border-slate-700 dark:text-slate-200">
                     <th
                       rowSpan={2}
-                      className="sticky left-0 z-30 w-12 border-r border-slate-300 bg-slate-100/95 px-2 py-2 text-center dark:border-slate-700 dark:bg-slate-800"
+                      className="w-12 whitespace-nowrap border-r border-slate-300 bg-slate-100 px-2 py-2 text-center text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     >
                       №
                     </th>
                     <th
                       rowSpan={2}
-                      className="sticky left-12 z-30 w-44 border-r border-slate-300 bg-slate-100/95 px-3 py-2 text-left font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-44 whitespace-nowrap border-r border-slate-300 bg-slate-100 px-3 py-2 text-left font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     >
                       Tuman (shahar)
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-sky-50/80 py-2 text-sky-950 dark:border-slate-700 dark:bg-sky-950/40 dark:text-sky-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-sky-100 py-2 text-sky-950 dark:border-slate-700 dark:bg-sky-950 dark:text-sky-200"
                     >
                       Uyushgan jinoyatchilikka qarshi kurashish xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-emerald-50/80 py-2 text-emerald-950 dark:border-slate-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-emerald-100 py-2 text-emerald-950 dark:border-slate-700 dark:bg-emerald-950 dark:text-emerald-200"
                     >
                       Jinoyat qidiruv xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-purple-50/80 py-2 text-purple-950 dark:border-slate-700 dark:bg-purple-950/40 dark:text-purple-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-purple-100 py-2 text-purple-950 dark:border-slate-700 dark:bg-purple-950 dark:text-purple-200"
                     >
                       Terrorizmga qarshi kurashish xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-amber-50/80 py-2 text-amber-950 dark:border-slate-700 dark:bg-amber-950/40 dark:text-amber-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-amber-100 py-2 text-amber-950 dark:border-slate-700 dark:bg-amber-950 dark:text-amber-200"
                     >
                       Huquqbuzarliklar profilaktikasi xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-teal-50/80 py-2 text-teal-950 dark:border-slate-700 dark:bg-teal-950/40 dark:text-teal-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-teal-100 py-2 text-teal-950 dark:border-slate-700 dark:bg-teal-950 dark:text-teal-200"
                     >
                       Yo‘l harakati xavfsizligi xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-indigo-50/80 py-2 text-indigo-950 dark:border-slate-700 dark:bg-indigo-950/40 dark:text-indigo-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-indigo-100 py-2 text-indigo-950 dark:border-slate-700 dark:bg-indigo-950 dark:text-indigo-200"
                     >
                       Jamoat tartibini saqlash xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-r border-slate-300 bg-rose-50/80 py-2 text-rose-950 dark:border-slate-700 dark:bg-rose-950/40 dark:text-rose-200"
+                      className="whitespace-nowrap border-r border-slate-300 bg-rose-100 py-2 text-rose-950 dark:border-slate-700 dark:bg-rose-950 dark:text-rose-200"
                     >
                       Probatsiya xizmati
                     </th>
                     <th
                       colSpan={2}
-                      className="border-slate-300 bg-slate-100/90 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
+                      className="whitespace-nowrap border-slate-300 bg-slate-200 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     >
                       Ma’naviy-ma’rifiy ishlar xizmati
                     </th>
@@ -1004,11 +1004,11 @@ export function ReportsPage() {
                   <tr className="border-b border-slate-300 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-300">
                     {Array.from({ length: 8 }).map((_, i) => (
                       <React.Fragment key={i}>
-                        <th className="w-20 border-r border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                        <th className="w-20 whitespace-nowrap border-b border-r border-slate-200 bg-slate-50 px-2 py-1.5 text-slate-800 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
                           bir kunda
                         </th>
                         <th
-                          className={`w-24 px-1 py-1 text-slate-800 dark:bg-slate-800 dark:text-slate-300 ${
+                          className={`w-24 whitespace-nowrap border-b px-2 py-1.5 text-slate-800 dark:bg-slate-800 dark:text-slate-300 ${
                             i === 7 ? '' : 'border-r border-slate-300 dark:border-slate-700'
                           } bg-slate-50`}
                         >
@@ -1025,16 +1025,16 @@ export function ReportsPage() {
                     return (
                       <tr
                         key={r.district_name}
-                        className={`hover:bg-slate-50/90 dark:hover:bg-slate-800/60 ${
+                        className={`hover:bg-slate-100/80 dark:hover:bg-slate-800 ${
                           isEven
                             ? 'bg-white dark:bg-slate-900'
-                            : 'bg-slate-50/40 dark:bg-slate-800/20'
+                            : 'bg-slate-50/60 dark:bg-slate-800/40'
                         }`}
                       >
-                        <td className="sticky left-0 z-10 border-r border-slate-200 bg-inherit px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                        <td className="whitespace-nowrap border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">
                           {r.index}
                         </td>
-                        <td className="sticky left-12 z-10 border-r border-slate-200 bg-inherit px-3 py-2 text-left font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-100">
+                        <td className="whitespace-nowrap border-b border-r border-slate-200 px-3 py-2 text-left font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-100">
                           {r.district_name}
                         </td>
 
@@ -1116,11 +1116,11 @@ export function ReportsPage() {
 
                 {/* Footer ЖАМИ */}
                 {servicesQuery.data?.total && (
-                  <tfoot className="sticky bottom-0 z-20 border-t-2 border-slate-400 bg-amber-100/90 font-bold text-slate-900 shadow-sm dark:border-slate-600 dark:bg-amber-950/80 dark:text-amber-100">
+                  <tfoot className="sticky bottom-0 z-20 border-t-2 border-slate-400 bg-amber-100 font-bold text-slate-900 shadow-sm dark:border-slate-600 dark:bg-amber-950 dark:text-amber-100">
                     <tr>
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-30 border-r border-slate-300 bg-inherit px-3 py-2.5 text-center text-sm font-black tracking-wider text-amber-950 dark:border-slate-700 dark:text-amber-200"
+                        className="whitespace-nowrap border-r border-slate-300 bg-amber-100 px-3 py-2.5 text-center text-sm font-black tracking-wider text-amber-950 dark:border-slate-700 dark:bg-amber-950 dark:text-amber-200"
                       >
                         ЖАМИ
                       </td>
@@ -1286,57 +1286,57 @@ export function ReportsPage() {
             <Card className="overflow-hidden border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
               <div className="relative max-h-[72vh] overflow-x-auto overflow-y-auto">
                 <table className="w-full min-w-[2400px] border-collapse text-left text-xs">
-                  <thead className="sticky top-0 z-20 shadow-xs">
-                    <tr className="border-b border-emerald-200 bg-emerald-100/90 font-bold text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-                      <th className="sticky left-0 z-30 w-12 border-r border-emerald-200 bg-emerald-100 px-2 py-3 text-center dark:border-emerald-900 dark:bg-emerald-950">
+                  <thead className="sticky top-0 z-30 shadow-xs">
+                    <tr className="border-b border-emerald-300 bg-emerald-100 font-bold text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+                      <th className="w-12 whitespace-nowrap border-r border-emerald-300 bg-emerald-100 px-2 py-3 text-center dark:border-emerald-900 dark:bg-emerald-950">
                         Д
                       </th>
-                      <th className="w-28 border-r border-emerald-200 px-3 py-3 text-center dark:border-emerald-900">
+                      <th className="w-28 whitespace-nowrap border-r border-emerald-300 px-3 py-3 text-center dark:border-emerald-900">
                         МУРОЖААТ МАНБАСИ
                       </th>
-                      <th className="w-40 border-r border-emerald-200 px-3 py-3 dark:border-emerald-900">
+                      <th className="w-40 whitespace-nowrap border-r border-emerald-300 px-3 py-3 dark:border-emerald-900">
                         Э-материалдаги ижрочи
                       </th>
-                      <th className="w-24 border-r border-emerald-200 px-3 py-3 text-center dark:border-emerald-900">
+                      <th className="w-24 whitespace-nowrap border-r border-emerald-300 px-3 py-3 text-center dark:border-emerald-900">
                         Сана
                       </th>
-                      <th className="w-36 border-r border-emerald-200 px-3 py-3 dark:border-emerald-900">
+                      <th className="w-36 whitespace-nowrap border-r border-emerald-300 px-3 py-3 dark:border-emerald-900">
                         Хабар тушган ҳудуд
                       </th>
-                      <th className="w-32 border-r border-emerald-200 px-3 py-3 dark:border-emerald-900">
+                      <th className="w-32 whitespace-nowrap border-r border-emerald-300 px-3 py-3 dark:border-emerald-900">
                         Э-материал рақами
                       </th>
-                      <th className="w-48 border-r border-emerald-200 px-3 py-3 dark:border-emerald-900">
+                      <th className="w-48 whitespace-nowrap border-r border-emerald-300 px-3 py-3 dark:border-emerald-900">
                         Мурожаат муаллифи (Ф.И.Ш)
                       </th>
-                      <th className="min-w-[340px] max-w-[420px] border-r border-emerald-200 px-3 py-3 dark:border-emerald-900">
+                      <th className="min-w-[340px] max-w-[420px] whitespace-nowrap border-r border-emerald-300 px-3 py-3 dark:border-emerald-900">
                         Ҳолатнинг қисқача мазмуни (Фабула)
                       </th>
-                      <th className="w-32 border-r border-sky-200 bg-sky-100/90 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                      <th className="w-32 whitespace-nowrap border-r border-sky-300 bg-sky-100 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         Мурожаат тури
                       </th>
-                      <th className="w-32 border-r border-sky-200 bg-sky-100/90 px-3 py-3 text-right text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                      <th className="w-32 whitespace-nowrap border-r border-sky-300 bg-sky-100 px-3 py-3 text-right text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         Моддий зарар миқдори (сўмда)
                       </th>
-                      <th className="w-48 border-r border-sky-200 bg-sky-100/90 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                      <th className="w-48 whitespace-nowrap border-r border-sky-300 bg-sky-100 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         Содир этиш усули
                       </th>
-                      <th className="w-44 border-r border-rose-200 bg-rose-100/90 px-3 py-3 text-rose-950 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
+                      <th className="w-44 whitespace-nowrap border-r border-rose-300 bg-rose-100 px-3 py-3 text-rose-950 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
                         Қўшимча изоҳ
                       </th>
-                      <th className="w-44 border-r border-sky-200 bg-sky-100/90 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                      <th className="w-44 whitespace-nowrap border-r border-sky-300 bg-sky-100 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         Пул ўтказилган банк карталари
                       </th>
-                      <th className="w-32 border-r border-sky-200 bg-sky-100/90 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                      <th className="w-32 whitespace-nowrap border-r border-sky-300 bg-sky-100 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         Қайси банк картаси
                       </th>
-                      <th className="w-32 border-r border-sky-200 bg-sky-100/90 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                      <th className="w-32 whitespace-nowrap border-r border-sky-300 bg-sky-100 px-3 py-3 text-sky-950 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         Қайси мобил иловадан
                       </th>
-                      <th className="w-36 border-r border-emerald-200 bg-emerald-100/90 px-3 py-3 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+                      <th className="w-36 whitespace-nowrap border-r border-emerald-300 bg-emerald-100 px-3 py-3 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
                         Аризачининг телефон рақами
                       </th>
-                      <th className="w-28 bg-emerald-100/90 px-3 py-3 text-center text-emerald-950 dark:bg-emerald-950 dark:text-emerald-200">
+                      <th className="w-28 whitespace-nowrap bg-emerald-100 px-3 py-3 text-center text-emerald-950 dark:bg-emerald-950 dark:text-emerald-200">
                         Туғилган куни
                       </th>
                     </tr>
@@ -1361,7 +1361,7 @@ export function ReportsPage() {
                                 : 'bg-slate-50/40 dark:bg-slate-800/20'
                             }`}
                           >
-                            <td className="sticky left-0 z-10 border-r border-slate-200 bg-inherit px-2 py-2.5 text-center font-bold text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                            <td className="border-r border-slate-200 bg-inherit px-2 py-2.5 text-center font-bold text-slate-500 dark:border-slate-800 dark:text-slate-400">
                               {item.index}
                             </td>
                             <td className="border-r border-slate-200 px-3 py-2.5 text-center text-slate-600 dark:border-slate-800 dark:text-slate-400">
