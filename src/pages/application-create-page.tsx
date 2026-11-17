@@ -550,7 +550,7 @@ export function ApplicationCreatePage() {
   const groupedCrimeMethods = useMemo(() => {
     const groups: Record<string, CrimeMethod[]> = {};
     for (const method of allCrimeMethods) {
-      const g = method.group_name || 'Бошқа';
+      const g = method.group_name || 'Boshqa holatlar';
       if (!groups[g]) groups[g] = [];
       groups[g].push(method);
     }
