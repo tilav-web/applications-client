@@ -845,17 +845,36 @@ export function ApplicationCreatePage() {
     }
   }, [initialApp]);
 
+  const hasUnsavedData = Boolean(
+    applicationNumber.trim() ||
+    description.trim() ||
+    officerNotes.trim() ||
+    suspectTree.length > 0 ||
+    selectedCitizenId ||
+    citizenForm.first_name.trim() ||
+    citizenForm.last_name.trim() ||
+    citizenForm.phone_number.trim() ||
+    citizenForm.passport.trim() ||
+    citizenForm.pinfl.trim() ||
+    selectedDistrictId ||
+    selectedCrimeId ||
+    selectedCrimeMethodId ||
+    hasFinancialLoss ||
+    evidenceFiles.length > 0 ||
+    customFields.length > 0,
+  );
+
   // Tab yopilishidan himoya
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!canLeave) {
+      if (!canLeave && (Boolean(id) || hasUnsavedData)) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [canLeave]);
+  }, [canLeave, id, hasUnsavedData]);
 
   // Popover tashqarisiga bosilganda yopish
   useEffect(() => {
@@ -1022,8 +1041,6 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!id) return;
-
       const payload: Record<string, unknown> = {
         application_number: applicationNumber.trim() ? applicationNumber.trim() : null,
         description: description || undefined,
@@ -1240,18 +1257,29 @@ export function ApplicationCreatePage() {
         inline_transfer: cf.inline_transfer,
       }));
 
-      return applicationsApi.update(id, payload);
+      if (id) {
+        return applicationsApi.update(id, payload);
+      }
+      return applicationsApi.create(payload);
     },
     onSuccess: async () => {
       setCanLeave(true);
-      await Promise.all([
+      const invalidations: Array<Promise<unknown>> = [
         queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['citizens'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['cards'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['transfers'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['application-draft', id], refetchType: 'all' }),
-      ]);
+      ];
+      if (id) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: ['application-draft', id],
+            refetchType: 'all',
+          }),
+        );
+      }
+      await Promise.all(invalidations);
       toast.success(
         isEditMode
           ? 'O‘zgarishlar muvaffaqiyatli saqlandi!'
@@ -2868,12 +2896,16 @@ export function ApplicationCreatePage() {
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() =>
+                  onClick={() => {
+                    if (!id) {
+                      toast.info('Rasmiy Word hujjat yaratish uchun avval arizani saqlang');
+                      return;
+                    }
                     setTemplateModalState({
                       isOpen: true,
                       initialTemplateId: 'tushuntirish-telegram',
-                    })
-                  }
+                    });
+                  }}
                   className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
                   title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
                 >
@@ -2885,7 +2917,13 @@ export function ApplicationCreatePage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => wordFileInputRef.current?.click()}
+                  onClick={() => {
+                    if (!id) {
+                      toast.info('Word faylini biriktirish uchun avval arizani saqlang');
+                      return;
+                    }
+                    wordFileInputRef.current?.click();
+                  }}
                   disabled={uploadWordMutation.isPending}
                   className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
                   title="Kompyuterdan mavjud Word (.docx / .doc) faylini yuklash"
@@ -2901,12 +2939,16 @@ export function ApplicationCreatePage() {
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() =>
+                  onClick={() => {
+                    if (!id) {
+                      toast.info('Yangi Word hujjat ochish uchun avval arizani saqlang');
+                      return;
+                    }
                     setTemplateModalState({
                       isOpen: true,
                       initialTemplateId: 'blank',
-                    })
-                  }
+                    });
+                  }}
                   className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
                   title="Yangi bo‘sh Word blank yaratish va ONLYOFFICE da tahrirlash"
                 >
@@ -3475,12 +3517,19 @@ export function ApplicationCreatePage() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-            {isEditMode ? (
+            {isEditMode || !id ? (
               <Button
                 type="button"
                 variant="outline"
                 size="default"
-                onClick={() => setIsCancelModalOpen(true)}
+                onClick={() => {
+                  if (!id && !hasUnsavedData) {
+                    setCanLeave(true);
+                    navigate('/applications');
+                    return;
+                  }
+                  setIsCancelModalOpen(true);
+                }}
                 disabled={saveMutation.isPending}
                 className="h-10 text-xs font-semibold px-4 gap-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer"
               >
@@ -3526,18 +3575,18 @@ export function ApplicationCreatePage() {
         </div>
       </div>
 
-      {/* TAHRIRLASHNI BEKOR QILISH DIALOGI (MA'LUMOTLAR BAZADA O'CHMASDAN SAQLANIB QOLADI) */}
+      {/* TAHRIRLASHNI YOKI YANGI FORMANI BEKOR QILISH DIALOGI */}
       <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold">
               <RotateCcw className="h-5 w-5 text-slate-500" />
-              <span>Tahrirlashni bekor qilish</span>
+              <span>{isEditMode ? 'Tahrirlashni bekor qilish' : 'Formadan chiqish'}</span>
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
-              Haqiqatan ham tahrirlash formasidan chiqmoqchimisiz? Kiritilgan oxirgi o‘zgarishlar
-              saqlanmaydi, ammo mavjud ariza va unga biriktirilgan barcha ma‘lumotlar bazada to‘liq
-              o‘z holicha saqlanib qoladi (o‘chirilmaydi).
+              {isEditMode
+                ? 'Haqiqatan ham tahrirlash formasidan chiqmoqchimisiz? Kiritilgan oxirgi o‘zgarishlar saqlanmaydi, ammo mavjud ariza va unga biriktirilgan barcha ma‘lumotlar bazada to‘liq o‘z holicha saqlanib qoladi (o‘chirilmaydi).'
+                : 'Haqiqatan ham ariza kiritish formasidan chiqmoqchimisiz? Kiritilgan ma‘lumotlar bazaga saqlanmaydi.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -3547,7 +3596,7 @@ export function ApplicationCreatePage() {
               onClick={() => setIsCancelModalOpen(false)}
               className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
             >
-              Yo‘q, tahrirlashda davom etish
+              Yo‘q, davom etish
             </Button>
             <Button
               variant="default"
@@ -3555,8 +3604,8 @@ export function ApplicationCreatePage() {
               onClick={() => {
                 setCanLeave(true);
                 setIsCancelModalOpen(false);
-                toast.info('Tahrirlash bekor qilindi (ariza o‘chirilmay saqlanib qoldi)');
-                if (id) {
+                if (isEditMode && id) {
+                  toast.info('Tahrirlash bekor qilindi (ariza o‘chirilmay saqlanib qoldi)');
                   navigate(`/applications/${id}`);
                 } else {
                   navigate('/applications');

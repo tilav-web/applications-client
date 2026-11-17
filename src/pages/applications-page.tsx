@@ -347,30 +347,6 @@ export function ApplicationsPage() {
       setIsBulkDeleting(false);
     }
   };
-  // Tugma bosilganda darhol backendda yangi qoralama ariza (draft) ochiladi va /applications/create/:id ga yo'naltiriladi
-  const createDraftMutation = useMutation({
-    mutationFn: async () => {
-      return applicationsApi.create({
-        status: 'YANGI',
-      });
-    },
-    onSuccess: async (newApp) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
-      ]);
-      toast.success('Yangi ariza loyihasi yaratildi', {
-        description: 'Tahrirlash formasiga yo‘naltirilmoqda...',
-      });
-      navigate(`/applications/create/${newApp.id}`);
-    },
-    onError: (err: unknown) => {
-      toast.error('Arizani yaratishda xatolik yuz berdi', {
-        description: getErrorMessage(err, 'Serverda xatolik yuz berdi'),
-      });
-    },
-  });
-
   // Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -446,21 +422,11 @@ export function ApplicationsPage() {
 
         {/* ARIZA YARATISH TUGMASI */}
         <Button
-          onClick={() => createDraftMutation.mutate()}
-          disabled={createDraftMutation.isPending}
+          onClick={() => navigate('/applications/create')}
           className="gap-2 shadow-md shadow-primary/25 self-start sm:self-auto cursor-pointer font-medium min-w-[145px]"
         >
-          {createDraftMutation.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Yaratilmoqda...</span>
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4" />
-              <span>Ariza Yaratish</span>
-            </>
-          )}
+          <Plus className="h-4 w-4" />
+          <span>Ariza Yaratish</span>
         </Button>
       </div>
 
