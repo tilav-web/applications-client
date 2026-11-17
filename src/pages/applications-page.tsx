@@ -294,7 +294,13 @@ export function ApplicationsPage() {
   const [isExportingCyberControl, setIsExportingCyberControl] = useState(false);
 
   const handleExportCyberControl = async (ids: string[]) => {
-    if (!ids.length || isExportingCyberControl) return;
+    if (isExportingCyberControl) return;
+    if (!ids.length) {
+      toast.info('Avval jadvaldan kerakli arizalarni belgilang (checkbox)', {
+        description: 'Faqat belgilangan arizalar CyberControl shablonida (.xlsx) yuklab olinadi.',
+      });
+      return;
+    }
     const toastId = toast.loading(
       `CyberControl shabloni tayyorlanmoqda (${ids.length} ta murojaat)...`,
     );
@@ -468,6 +474,36 @@ export function ApplicationsPage() {
         onExportExcel={handleExportExcel}
         isExporting={isExporting}
         gridClassName="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+        rightExtraSlot={
+          <Button
+            type="button"
+            variant={selection.selectedIds.length > 0 ? 'default' : 'outline'}
+            size="sm"
+            disabled={isExportingCyberControl}
+            onClick={() => handleExportCyberControl(selection.selectedIds)}
+            className={cn(
+              'h-8 text-xs gap-1.5 font-semibold cursor-pointer transition-all',
+              selection.selectedIds.length > 0
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-500/25'
+                : 'border-indigo-500/35 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10',
+            )}
+            title={
+              selection.selectedIds.length > 0
+                ? `Tanlangan ${selection.selectedIds.length} ta arizani CyberControl shablonida (.xlsx) yuklab olish`
+                : 'Jadvaldan arizalarni belgilab, CyberControl shablonida (.xlsx) yuklab oling'
+            }
+          >
+            {isExportingCyberControl ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+            )}
+            <span>
+              CyberControl shablon
+              {selection.selectedIds.length > 0 ? ` (${selection.selectedIds.length} ta)` : ''}
+            </span>
+          </Button>
+        }
         selectionSlot={
           <TableActionSelect
             selectedCount={selection.selectedIds.length}
