@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -24,6 +25,7 @@ interface SuspectTreeBuilderProps {
   value: SuspectFieldItem[] | any[] | null | undefined;
   onChange?: (items: any[]) => void;
   readOnly?: boolean;
+  excludeAppId?: string;
 }
 
 // Fallback parametrlar (agar API hali yuklanmagan bo'lsa)
@@ -145,7 +147,12 @@ function normalizeSuspectData(val: unknown): SuspectFieldItem[] {
   return result;
 }
 
-export function SuspectTreeBuilder({ value, onChange, readOnly = false }: SuspectTreeBuilderProps) {
+export function SuspectTreeBuilder({
+  value,
+  onChange,
+  readOnly = false,
+  excludeAppId,
+}: SuspectTreeBuilderProps) {
   // 1. Admin tomonidan yaratilgan parametrlarni API dan olish
   const { data: activeConfigsData } = useQuery({
     queryKey: ['suspect-field-configs-active'],
@@ -256,9 +263,9 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
     }
 
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-rose-500" />
+      <div className="space-y-2.5 w-full min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0" />
           <span className="text-xs font-bold tracking-wider uppercase text-foreground">
             Firibgar / Gumonlanuvchi maʼlumotlari
           </span>
@@ -267,32 +274,38 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
           </Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-2.5 w-full min-w-0">
           {items.map((it) => (
             <div
               key={it.id}
-              className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-border/70 bg-card/60 backdrop-blur-xs text-xs"
+              className="flex flex-col gap-1.5 p-3 rounded-xl border border-border/70 bg-card/60 backdrop-blur-xs text-xs w-full min-w-0 overflow-hidden"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="p-1.5 rounded-md bg-muted/60 shrink-0">
-                  {getCategoryIcon(it.field_key)}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-medium text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1.5 rounded-md bg-muted/60 shrink-0">
+                    {getCategoryIcon(it.field_key)}
+                  </div>
+                  <span className="text-[11px] font-semibold text-muted-foreground truncate">
                     {it.field_label || it.field_key}
-                  </div>
-                  <div className="font-semibold text-foreground font-mono truncate">
-                    {it.value || '—'}
-                  </div>
+                  </span>
                 </div>
+                {it.value && (
+                  <LiveRadarBadge
+                    type={it.field_key}
+                    value={it.value}
+                    excludeAppId={excludeAppId}
+                  />
+                )}
               </div>
+
+              <div className="font-bold text-foreground font-mono text-xs sm:text-sm break-all pl-0.5">
+                {it.value || '—'}
+              </div>
+
               {it.note && (
-                <span
-                  className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md shrink-0 max-w-[40%] truncate"
-                  title={it.note}
-                >
+                <div className="text-[11px] text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-md break-words w-full">
                   {it.note}
-                </span>
+                </div>
               )}
             </div>
           ))}
@@ -336,8 +349,8 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
         )}
       </div>
 
-      {/* Asosiy Ish Maydoni (Keng doska, chiziqli bog'lanish bilan) */}
-      <div className="relative w-full rounded-xl border border-border/80 bg-slate-500/[0.02] dark:bg-slate-900/30 p-3 sm:p-4 overflow-x-auto">
+      {/* Asosiy Ish Maydoni (Responsive qatorlar, ekrandan chiqib ketmaydi) */}
+      <div className="relative w-full rounded-xl border border-border/80 bg-slate-500/[0.02] dark:bg-slate-900/30 p-3 sm:p-4 overflow-hidden">
         {/* Orqa fon nuqtalari */}
         <div
           className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
@@ -371,108 +384,116 @@ export function SuspectTreeBuilder({ value, onChange, readOnly = false }: Suspec
             </Button>
           </div>
         ) : (
-          /* Qatorlar ro'yxati (Har bir qatorda 3 ta bog'langan input + amallar) */
-          <div className="relative space-y-2.5 min-w-[700px]">
+          /* Qatorlar ro'yxati (Responsive: kichik ekranda ustma-ust, katta ekranda 1 qatorda) */
+          <div className="relative space-y-3 w-full min-w-0">
             {items.map((row, index) => {
               const currentCfg = availableConfigs.find((c) => c.key === row.field_key);
 
               return (
                 <div
                   key={row.id}
-                  className="group relative flex items-center gap-0 transition-all duration-150"
+                  className="group relative flex flex-col xl:flex-row xl:items-center gap-2 xl:gap-0 p-2.5 xl:p-0 rounded-xl xl:rounded-none border xl:border-0 border-border/60 bg-background/50 xl:bg-transparent transition-all duration-150 w-full min-w-0"
                 >
-                  {/* Tartib raqami */}
-                  <span className="w-5 text-[11px] font-mono text-muted-foreground/70 shrink-0 text-right pr-2 select-none">
-                    {index + 1}.
-                  </span>
+                  <div className="flex items-center gap-2 w-full xl:w-auto shrink-0">
+                    {/* Tartib raqami */}
+                    <span className="w-5 text-[11px] font-mono text-muted-foreground/70 shrink-0 text-right pr-1 select-none">
+                      {index + 1}.
+                    </span>
 
-                  {/* 1-USTUN: SELECT (Admin qo'shgan parametrlar turi) */}
-                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card/90 shadow-2xs hover:border-primary/50 transition-colors w-[220px] shrink-0">
-                    <div className="mr-2 shrink-0">
-                      {getCategoryIcon(row.field_key, currentCfg?.category)}
+                    {/* 1-USTUN: SELECT (Admin qo'shgan parametrlar turi) */}
+                    <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card/90 shadow-2xs hover:border-primary/50 transition-colors flex-1 xl:flex-initial xl:w-[205px] min-w-0">
+                      <div className="mr-2 shrink-0">
+                        {getCategoryIcon(row.field_key, currentCfg?.category)}
+                      </div>
+                      <select
+                        value={row.field_key}
+                        onChange={(e) => handleSelectField(row.id, e.target.value)}
+                        className="w-full bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer truncate min-w-0"
+                      >
+                        {availableConfigs.map((cfg) => (
+                          <option
+                            key={cfg.id}
+                            value={cfg.key}
+                            className="bg-popover text-popover-foreground py-1"
+                          >
+                            {cfg.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <select
-                      value={row.field_key}
-                      onChange={(e) => handleSelectField(row.id, e.target.value)}
-                      className="w-full bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer truncate"
-                    >
-                      {availableConfigs.map((cfg) => (
-                        <option
-                          key={cfg.id}
-                          value={cfg.key}
-                          className="bg-popover text-popover-foreground py-1"
-                        >
-                          {cfg.label}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
-                  {/* CHIZIQLI BOG'LANMA: 1-ustundan 2-ustunga */}
-                  <div className="w-6 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
+                  {/* CHIZIQLI BOG'LANMA: 1-ustundan 2-ustunga (faqat katta ekranda) */}
+                  <div className="hidden xl:block w-4 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
 
-                  {/* 2-USTUN: VALUE (Xodim kiritadigan qiymat) */}
-                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all flex-1 min-w-[180px]">
-                    <span className="text-[11px] font-mono text-muted-foreground/60 mr-2 shrink-0 select-none">
+                  {/* 2-USTUN: VALUE (Xodim kiritadigan qiymat + Live Radar) */}
+                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all flex-1 min-w-0 gap-1.5 w-full">
+                    <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 select-none">
                       #
                     </span>
                     <input
                       type="text"
                       value={row.value}
                       onChange={(e) => handleValueChange(row.id, e.target.value)}
-                      placeholder="Qiymat (masalan: @nik, 123456, +998...)"
-                      className="w-full bg-transparent text-xs font-medium text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+                      placeholder="Qiymat (@nik, +998...)"
+                      className="w-full bg-transparent text-xs font-medium text-foreground placeholder:text-muted-foreground/45 focus:outline-none min-w-0"
                     />
+                    {row.value && (
+                      <LiveRadarBadge
+                        type={row.field_key}
+                        value={row.value}
+                        excludeAppId={excludeAppId}
+                      />
+                    )}
                   </div>
 
                   {/* CHIZIQLI BOG'LANMA: 2-ustundan 3-ustunga */}
-                  <div className="w-6 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
+                  <div className="hidden xl:block w-4 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
 
-                  {/* 3-USTUN: NOTE / IZOH (Qo'shimcha tavsif) */}
-                  <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all flex-1 min-w-[160px]">
-                    <span className="text-[11px] font-mono text-muted-foreground/60 mr-2 shrink-0 select-none">
-                      ✎
-                    </span>
-                    <input
-                      type="text"
-                      value={row.note || ''}
-                      onChange={(e) => handleNoteChange(row.id, e.target.value)}
-                      placeholder="Izoh (ixtiyoriy, masalan: Yozishma boti)"
-                      className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
-                    />
-                  </div>
+                  {/* 3-USTUN: NOTE / IZOH + TUGMALAR */}
+                  <div className="flex items-center gap-2 xl:gap-0 flex-1 min-w-0 w-full">
+                    <div className="relative flex items-center h-9 px-2.5 rounded-lg border border-border/80 bg-card shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all flex-1 min-w-0">
+                      <span className="text-[11px] font-mono text-muted-foreground/60 mr-2 shrink-0 select-none">
+                        ✎
+                      </span>
+                      <input
+                        type="text"
+                        value={row.note || ''}
+                        onChange={(e) => handleNoteChange(row.id, e.target.value)}
+                        placeholder="Izoh (ixtiyoriy)"
+                        className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/45 focus:outline-none min-w-0"
+                      />
+                    </div>
 
-                  {/* CHIZIQLI BOG'LANMA: 3-ustundan Tugmalarga */}
-                  <div className="w-4 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
+                    <div className="hidden xl:block w-3 h-[1.5px] bg-border shrink-0 transition-colors group-hover:bg-primary/40" />
 
-                  {/* HARAKATLAR: Yonidagi [+] va [Trash] */}
-                  <div className="flex items-center gap-1 shrink-0 pl-1">
-                    {/* [+] Tugmasi (shu qatordan so'ng yangi qator ochish) */}
-                    <button
-                      type="button"
-                      onClick={() => handleAddRow(index)}
-                      className="h-7 w-7 rounded-md border border-dashed border-border hover:border-primary hover:bg-primary/10 text-muted-foreground hover:text-primary flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                      title="Shu qatordan so‘ng yangi parametr qo‘shish"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+                    {/* HARAKATLAR: Yonidagi [+] va [Trash] */}
+                    <div className="flex items-center gap-1 shrink-0 xl:pl-1">
+                      <button
+                        type="button"
+                        onClick={() => handleAddRow(index)}
+                        className="h-8 w-8 xl:h-7 xl:w-7 rounded-md border border-dashed border-border hover:border-primary hover:bg-primary/10 text-muted-foreground hover:text-primary flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                        title="Shu qatordan so‘ng yangi parametr qo‘shish"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
 
-                    {/* [Trash] Tugmasi (qatorni o'chirish) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRow(row.id)}
-                      className="h-7 w-7 rounded-md border border-transparent hover:border-rose-500/30 hover:bg-rose-500/10 text-muted-foreground/60 hover:text-rose-500 flex items-center justify-center transition-all cursor-pointer"
-                      title="Qatorni o‘chirish"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRow(row.id)}
+                        className="h-8 w-8 xl:h-7 xl:w-7 rounded-md border border-transparent hover:border-rose-500/30 hover:bg-rose-500/10 text-muted-foreground/60 hover:text-rose-500 flex items-center justify-center transition-all cursor-pointer"
+                        title="Qatorni o‘chirish"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
             })}
 
             {/* Pastki qatorda qo'shimcha tezkor qo'shish */}
-            <div className="pt-2 pl-5 flex items-center gap-2">
+            <div className="pt-1 xl:pl-6 flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"

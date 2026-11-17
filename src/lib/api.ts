@@ -10,13 +10,20 @@ import type {
   CrimeMethod,
   DecisionType,
   DepartmentService,
+  DigitalIdentifierRecord,
   District,
+  EntityLinkRole,
+  FullDossierResponse,
+  GlobalSearchResponse,
   IGraphData,
+  INetworkGraph,
+  LiveRadarResponse,
   Mahalla,
   Occupation,
   OccupationCategory,
   PaginatedResponse,
   PaymentProvider,
+  PhoneRecord,
   RejectionReason,
   SuspectFieldConfig,
   Transfer,
@@ -37,6 +44,8 @@ export const applicationsApi = {
     crime_method_id?: string;
     application_number?: string;
     citizen_name?: string;
+    card_number?: string;
+    phone_number?: string;
     description?: string;
     date?: string;
     date_from?: string;
@@ -160,12 +169,16 @@ export const citizensApi = {
     page?: number;
     limit?: number;
     search?: string;
+    full_name?: string;
     first_name?: string;
     last_name?: string;
     middle_name?: string;
     passport?: string;
     phone_number?: string;
+    card_number?: string;
     pinfl?: string;
+    gender?: string;
+    district_id?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Citizen>>('/citizens', {
       params,
@@ -204,6 +217,12 @@ export const cardsApi = {
     limit?: number;
     search?: string;
     citizen_id?: string;
+    bank_id?: string;
+    owner_state?: string;
+    card_number?: string;
+    owner_name?: string;
+    phone_number?: string;
+    expire_date?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Card>>('/cards', {
       params,
@@ -242,6 +261,12 @@ export const transfersApi = {
     limit?: number;
     search?: string;
     application_id?: string;
+    status?: string;
+    payment_provider_id?: string;
+    transaction_id?: string;
+    sender_card_number?: string;
+    receiver_card_number?: string;
+    transfer_date?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Transfer>>('/transfers', {
       params,
@@ -589,7 +614,16 @@ export interface UserItem {
 }
 
 export const usersApi = {
-  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+    full_name?: string;
+    username?: string;
+    phone_number?: string;
+    district_id?: string;
+  }) => {
     const res = await apiClient.get<PaginatedResponse<UserItem>>('/users', { params });
     return res.data;
   },
@@ -1171,6 +1205,11 @@ export const reportsApi = {
   },
   getRegistryReport: async (params?: {
     search?: string;
+    applicationNumber?: string;
+    citizenName?: string;
+    cardNumber?: string;
+    phoneNumber?: string;
+    description?: string;
     districtId?: string;
     crimeId?: string;
     startDate?: string;
@@ -1185,6 +1224,11 @@ export const reportsApi = {
   },
   exportRegistryExcel: async (params?: {
     search?: string;
+    applicationNumber?: string;
+    citizenName?: string;
+    cardNumber?: string;
+    phoneNumber?: string;
+    description?: string;
     districtId?: string;
     crimeId?: string;
     startDate?: string;
@@ -1195,5 +1239,151 @@ export const reportsApi = {
       responseType: 'blob',
     });
     return res.data as Blob;
+  },
+};
+
+// ============================================================================
+// 15. Intelligence, Global Search (Ctrl+K), Live Radar & 360° Dossiers API
+// ============================================================================
+export const intelligenceApi = {
+  globalSearch: async (params: { q: string; category?: string; limit?: number }) => {
+    const res = await apiClient.get<GlobalSearchResponse>('/intelligence/search', { params });
+    return res.data;
+  },
+  checkRadar: async (params: { type: string; value: string; excludeAppId?: string }) => {
+    const res = await apiClient.get<LiveRadarResponse>('/intelligence/radar', { params });
+    return res.data;
+  },
+  expandNode: async (params: { nodeType: string; entityId: string }) => {
+    const res = await apiClient.get<INetworkGraph>('/intelligence/expand-node', { params });
+    return res.data;
+  },
+  getCitizenDossier: async (id: string) => {
+    const res = await apiClient.get<FullDossierResponse>(`/intelligence/dossier/citizen/${id}`);
+    return res.data;
+  },
+  getCardDossier: async (id: string) => {
+    const res = await apiClient.get<FullDossierResponse>(`/intelligence/dossier/card/${id}`);
+    return res.data;
+  },
+  getPhoneDossier: async (id: string) => {
+    const res = await apiClient.get<FullDossierResponse>(`/intelligence/dossier/phone/${id}`);
+    return res.data;
+  },
+  getIdentifierDossier: async (id: string) => {
+    const res = await apiClient.get<FullDossierResponse>(`/intelligence/dossier/identifier/${id}`);
+    return res.data;
+  },
+  exportDossier: async (
+    entityType: 'citizen' | 'card' | 'phone' | 'identifier',
+    id: string,
+    format: 'excel' | 'docx',
+  ) => {
+    const res = await apiClient.get(`/intelligence/dossier/${entityType}/${id}/export/${format}`, {
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
+  addPhoneToCitizen: async (
+    citizenId: string,
+    data: { phone_number: string; label?: string; notes?: string; is_primary?: boolean },
+  ) => {
+    const res = await apiClient.post<{
+      phone: PhoneRecord;
+      wasAlreadyInDatabase: boolean;
+      newlyLinkedAppsCount: number;
+    }>(`/intelligence/dossier/citizen/${citizenId}/phones`, data);
+    return res.data;
+  },
+  removePhone: async (phoneId: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/intelligence/phones/${phoneId}`,
+    );
+    return res.data;
+  },
+  addCardToCitizen: async (
+    citizenId: string,
+    data: {
+      card_number: string;
+      expire_date?: string;
+      bank_id?: string;
+      bank_name?: string;
+      full_name?: string;
+    },
+  ) => {
+    const res = await apiClient.post<{
+      card: Card;
+      wasAlreadyInDatabase: boolean;
+      newlyLinkedAppsCount: number;
+    }>(`/intelligence/dossier/citizen/${citizenId}/cards`, data);
+    return res.data;
+  },
+  unlinkCardFromCitizen: async (cardId: string) => {
+    const res = await apiClient.patch<{ success: boolean; message: string }>(
+      `/intelligence/cards/${cardId}/unlink-citizen`,
+    );
+    return res.data;
+  },
+  addIdentifierToCitizen: async (
+    citizenId: string,
+    data: { type: string; value: string; type_label?: string; notes?: string },
+  ) => {
+    const res = await apiClient.post<{
+      identifier: DigitalIdentifierRecord;
+      newlyLinkedAppsCount: number;
+    }>(`/intelligence/dossier/citizen/${citizenId}/identifiers`, data);
+    return res.data;
+  },
+  removeIdentifier: async (identifierId: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/intelligence/identifiers/${identifierId}`,
+    );
+    return res.data;
+  },
+  bindEntityToCitizen: async (data: {
+    entity_type: 'card' | 'phone' | 'identifier';
+    entity_id: string;
+    citizen_id: string;
+  }) => {
+    const res = await apiClient.post<{ success: boolean; message: string }>(
+      '/intelligence/bind-to-citizen',
+      data,
+    );
+    return res.data;
+  },
+  createTransitTransfer: async (data: {
+    sender_card_id?: string;
+    sender_card_number?: string;
+    sender_owner_name?: string;
+    receiver_card_id?: string;
+    receiver_card_number?: string;
+    receiver_owner_name?: string;
+    amount: number;
+    currency?: string;
+    transfer_date?: string;
+    transfer_time?: string;
+    payment_provider_id?: string;
+    payment_provider_name?: string;
+    transaction_id?: string;
+    application_id?: string;
+  }) => {
+    const res = await apiClient.post<Transfer>('/intelligence/transfers/transit', data);
+    return res.data;
+  },
+  linkCitizenRoleToApplication: async (data: {
+    application_id: string;
+    citizen_id: string;
+    role: EntityLinkRole;
+    note?: string;
+  }) => {
+    const res = await apiClient.post('/intelligence/application-role-link', data);
+    return res.data;
+  },
+  confirmProbableMatch: async (data: { citizen_id: string; card_id: string }) => {
+    const res = await apiClient.post<{ success: boolean; message: string }>(
+      '/intelligence/confirm-match',
+      data,
+    );
+    return res.data;
   },
 };

@@ -77,7 +77,7 @@ export const navigationConfig: NavItem[] = [
     icon: BarChart3,
     category: 'main',
     allowedRoles: ['*'],
-    description: 'Qashqadaryo viloyati IIB yig‘ma statistik hisobotlari va Excel eksport',
+    description: 'Yig‘ma statistik hisobotlar va Excel eksport',
   },
 
   // 2. Operativ & Ma'lumotnomalar

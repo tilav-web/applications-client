@@ -605,7 +605,7 @@ export function ApplicationDetailPage() {
       {/* ===================================================================== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Umumiy Zarar */}
-        <Card className="border-border/80 shadow-2xs">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 shrink-0">
               <TrendingUp className="h-5 w-5" />
@@ -620,7 +620,7 @@ export function ApplicationDetailPage() {
         </Card>
 
         {/* Kartalar / O'tkazmalar */}
-        <Card className="border-border/80 shadow-2xs">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
               <CreditCard className="h-5 w-5" />
@@ -637,7 +637,7 @@ export function ApplicationDetailPage() {
         </Card>
 
         {/* Word hujjatlari */}
-        <Card className="border-border/80 shadow-2xs">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shrink-0">
               <FileText className="h-5 w-5" />
@@ -652,7 +652,7 @@ export function ApplicationDetailPage() {
         </Card>
 
         {/* Tergov Dalillari */}
-        <Card className="border-border/80 shadow-2xs">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
               <ShieldAlert className="h-5 w-5" />
@@ -674,10 +674,10 @@ export function ApplicationDetailPage() {
         {/* ================================================================= */}
         {/* KARTA 1: ARIZACHI (JABRLANUVCHI FUQARO) MA'LUMOTLARI */}
         {/* ================================================================= */}
-        <Card className="border-border/80 shadow-2xs flex flex-col">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs flex flex-col min-w-0 overflow-hidden">
           <CardHeader className="p-4 sm:p-5 border-b border-border/60">
             <div className="flex items-center gap-2.5 text-primary">
-              <User className="h-5 w-5" />
+              <User className="h-5 w-5 shrink-0" />
               <CardTitle className="text-base font-bold text-foreground">
                 Arizachi (Fuqaro) Shaxsiy Ma‘lumotlari
               </CardTitle>
@@ -686,16 +686,28 @@ export function ApplicationDetailPage() {
               Murojaat qilgan fuqaroning rasmiy identifikatsion rekvizitlari
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-4 sm:p-5 flex-1">
+          <CardContent className="p-4 sm:p-5 flex-1 min-w-0">
             {app.citizen ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
-                    To‘liq F.I.SH:
-                  </span>
-                  <p className="font-bold text-base text-foreground">
-                    {app.citizen.last_name} {app.citizen.first_name} {app.citizen.middle_name || ''}
-                  </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs min-w-0">
+                <div
+                  onClick={() => navigate(`/citizens/${app.citizen!.id}`)}
+                  className="p-3 rounded-xl bg-muted/30 border border-border/50 hover:border-primary/50 hover:bg-primary/5 sm:col-span-2 flex flex-wrap items-center justify-between gap-2 cursor-pointer transition-all group min-w-0"
+                >
+                  <div className="min-w-0">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                      To‘liq F.I.SH:
+                    </span>
+                    <p className="font-bold text-base text-foreground group-hover:text-primary group-hover:underline break-words">
+                      {app.citizen.last_name} {app.citizen.first_name}{' '}
+                      {app.citizen.middle_name || ''}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] gap-1 text-primary border-primary/30 shrink-0"
+                  >
+                    360° Dosye <ArrowRight className="h-3 w-3" />
+                  </Badge>
                 </div>
 
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
@@ -793,10 +805,10 @@ export function ApplicationDetailPage() {
         {/* ================================================================= */}
         {/* KARTA 2: HODISA TAFSILOTLARI VA JINOYAT MALAKALANISHI */}
         {/* ================================================================= */}
-        <Card className="border-border/80 shadow-2xs flex flex-col">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs flex flex-col min-w-0 overflow-hidden">
           <CardHeader className="p-4 sm:p-5 border-b border-border/60">
             <div className="flex items-center gap-2.5 text-primary">
-              <ShieldAlert className="h-5 w-5" />
+              <ShieldAlert className="h-5 w-5 shrink-0" />
               <CardTitle className="text-base font-bold text-foreground">
                 Hodisa Tafsilotlari va Jinoyat Malakalanishi
               </CardTitle>
@@ -805,61 +817,63 @@ export function ApplicationDetailPage() {
               Murojaat mazmuni, hodisa joyi va jinoyat kodeksi moddasi
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-4 sm:p-5 flex-1 space-y-3.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+          <CardContent className="p-4 sm:p-5 flex-1 space-y-3.5 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs min-w-0">
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 min-w-0">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
                   Jinoyat Kodeksi Moddasi:
                 </span>
-                <p className="font-bold text-sm text-primary">
+                <p className="font-bold text-sm text-primary break-words">
                   {app.crime ? `${app.crime.article || ''} - ${app.crime.title || ''}` : '—'}
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 min-w-0">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
                   Hodisa Yuz Bergan Hudud:
                 </span>
-                <p className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-primary" />
+                <p className="font-bold text-foreground text-sm flex items-center gap-1.5 break-words">
+                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                   <span>{app.district?.name || '—'}</span>
                 </p>
               </div>
 
               {app.crime_method && (
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2 min-w-0">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
                     Jinoyat Sodir Etish Usuli ({app.crime_method.group_name || 'Modus operandi'}):
                   </span>
-                  <p className="font-semibold text-xs text-foreground">{app.crime_method.name}</p>
+                  <p className="font-semibold text-xs text-foreground break-words">
+                    {app.crime_method.name}
+                  </p>
                 </div>
               )}
             </div>
 
             {/* Murojaat mazmuni va bayoni */}
-            <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60 space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60 space-y-1.5 min-w-0">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">
                 Fuqaroning Murojaat Bayoni (Tavsifi):
               </span>
-              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-normal">
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words font-normal">
                 {app.description || 'Tafsilotlar kiritilmagan'}
               </p>
             </div>
 
             {/* Xodim qaydlari */}
             {app.officer_notes && (
-              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-xs space-y-1">
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-xs space-y-1 min-w-0">
                 <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
                   Xodim / Tergovchi Qaydlari:
                 </span>
-                <p className="text-foreground text-xs italic">{app.officer_notes}</p>
+                <p className="text-foreground text-xs italic break-words">{app.officer_notes}</p>
               </div>
             )}
 
             {/* Firibgar / Gumonlanuvchi Daraxti */}
             {app.suspect_tree && app.suspect_tree.length > 0 && (
               <div className="pt-2 border-t border-border/40">
-                <SuspectTreeBuilder value={app.suspect_tree} readOnly />
+                <SuspectTreeBuilder value={app.suspect_tree} readOnly excludeAppId={app.id} />
               </div>
             )}
           </CardContent>
@@ -869,7 +883,7 @@ export function ApplicationDetailPage() {
       {/* ===================================================================== */}
       {/* KARTA 3: PLASTIK KARTALAR VA PUL O'TKAZMALARI SXEMASI */}
       {/* ===================================================================== */}
-      <Card className="border-border/80 shadow-2xs">
+      <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
         <CardHeader className="p-4 sm:p-5 border-b border-border/60">
           <div className="flex items-center gap-2.5 text-primary">
             <CreditCard className="h-5 w-5" />
@@ -903,31 +917,31 @@ export function ApplicationDetailPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch text-xs min-w-0">
                     {/* Jo'natuvchi karta */}
-                    <div className="p-3 rounded-lg bg-card border border-border/60 space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
+                    <div className="p-3 rounded-lg bg-card border border-border/60 space-y-1 min-w-0 overflow-hidden">
+                      <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block break-words">
                         Jo‘natuvchi Karta (Jabrlanuvchi):
                       </span>
-                      <p className="font-mono font-bold text-sm text-foreground">
+                      <p className="font-mono font-bold text-sm text-foreground break-all">
                         {formatCardNumber(tf.senderCardNumber)}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-[11px] text-muted-foreground break-words">
                         {tf.senderBankName || 'Bank ko‘rsatilmagan'}{' '}
                         {tf.senderFullName ? `• ${tf.senderFullName}` : ''}
                       </p>
                     </div>
 
                     {/* O'tkazma yo'nalishi va summasi */}
-                    <div className="flex flex-col items-center justify-center text-center p-2 rounded-lg bg-muted/40 border border-border/40">
+                    <div className="flex flex-col items-center justify-center text-center p-2.5 rounded-lg bg-muted/40 border border-border/40 min-w-0 overflow-hidden">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground">
                         O‘tkazilgan Summa:
                       </span>
-                      <span className="font-mono font-black text-sm sm:text-base text-red-600 dark:text-red-400 my-0.5">
+                      <span className="font-mono font-black text-sm sm:text-base text-red-600 dark:text-red-400 my-0.5 break-words">
                         {formatCurrency(tf.amount, tf.currency)}
                       </span>
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                        <ArrowRight className="h-3 w-3 text-primary" />
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+                        <ArrowRight className="h-3 w-3 text-primary shrink-0" />
                         <span>
                           {formatDate(tf.transferDate)} {tf.transferTime || ''}
                         </span>
@@ -935,17 +949,17 @@ export function ApplicationDetailPage() {
                     </div>
 
                     {/* Qabul qiluvchi karta */}
-                    <div className="p-3 rounded-lg bg-card border border-red-500/30 space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 block flex items-center justify-between">
+                    <div className="p-3 rounded-lg bg-card border border-red-500/30 space-y-1 min-w-0 overflow-hidden">
+                      <span className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 flex flex-wrap items-center justify-between gap-1">
                         <span>Qabul Qiluvchi Karta (Firibgar):</span>
-                        <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[9px] py-0 px-1.5">
+                        <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[9px] py-0 px-1.5 shrink-0">
                           Dropper
                         </Badge>
                       </span>
-                      <p className="font-mono font-bold text-sm text-foreground">
+                      <p className="font-mono font-bold text-sm text-foreground break-all">
                         {formatCardNumber(tf.receiverCardNumber)}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-[11px] text-muted-foreground break-words">
                         {tf.receiverBankName || 'Bank ko‘rsatilmagan'}{' '}
                         {tf.receiverFullName ? `• ${tf.receiverFullName}` : ''}
                       </p>
@@ -966,7 +980,7 @@ export function ApplicationDetailPage() {
       {/* ===================================================================== */}
       {/* KARTA 4: RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) */}
       {/* ===================================================================== */}
-      <Card className="border-border/80 shadow-2xs">
+      <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
         <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 border border-blue-500/20">
@@ -1176,7 +1190,7 @@ export function ApplicationDetailPage() {
       {/* ===================================================================== */}
       {/* KARTA 5: TERGOV DALILLARI VA BIRIKTIRILGAN FAYLLAR (ATTACHMENTS) */}
       {/* ===================================================================== */}
-      <Card className="border-border/80 shadow-2xs">
+      <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
         <CardHeader className="p-4 sm:p-5 border-b border-border/60">
           <div className="flex items-center gap-2.5 text-primary">
             <Paperclip className="h-5 w-5" />
@@ -1261,7 +1275,7 @@ export function ApplicationDetailPage() {
       {/* KARTA 6: QO'SHIMCHA MAYDONLAR (AGAR MAVJUD BO'LSA) */}
       {/* ===================================================================== */}
       {otherCustomFields.length > 0 && (
-        <Card className="border-border/80 shadow-2xs">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardHeader className="p-4 sm:p-5 border-b border-border/60">
             <CardTitle className="text-base font-bold text-foreground">
               Qo‘shimcha Qaydlar va Maydonlar

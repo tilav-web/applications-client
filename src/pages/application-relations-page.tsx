@@ -2,10 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Building2,
   Calendar,
   CreditCard,
+  ExternalLink,
   Eye,
+  Fingerprint,
+  GitBranch,
   Layers,
   Link2,
   Loader2,
@@ -19,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { EntityNetworkGraph } from '@/components/graph/entity-network-graph';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -76,6 +81,8 @@ export function ApplicationRelationsPage() {
   const stats = data?.stats;
   const cardRelations = data?.card_relations || [];
   const citizenRelations = data?.citizen_relations || [];
+  const clueRelations = data?.clue_relations || [];
+  const multiHopChains = data?.multi_hop_chains || [];
 
   if (isLoading) {
     return (
@@ -183,25 +190,25 @@ export function ApplicationRelationsPage() {
         </div>
 
         {/* Page Title Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 min-w-0">
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1">
               <Link2 className="h-3.5 w-3.5" />
               <span>Tahliliy Bog'liqliklar Markazi</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight flex flex-wrap items-center gap-2">
               <span>Ariza Bog'liqliklari</span>
-              <span className="font-mono text-primary text-xl sm:text-2xl font-bold bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20">
+              <span className="font-mono text-primary text-base sm:text-2xl font-bold bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20 break-all">
                 № {app.application_number || 'Raqamsiz'}
               </span>
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
               Mazkur ariza bo‘yicha aniqlangan umumiy firibgar kartalar, jabrlanuvchilar va takroriy
               fuqaro profillari tahlili
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
             {renderStatusBadge(
               app.application_status?.name || app.status || 'YANGI',
               app.application_status?.color,
@@ -216,13 +223,13 @@ export function ApplicationRelationsPage() {
 
       {/* Critical Fraud Chain Alert Banner */}
       {stats?.has_fraud_card_link && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 sm:p-5 text-red-600 dark:text-red-400 flex items-start gap-3.5 shadow-sm">
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 sm:p-5 text-red-600 dark:text-red-400 flex items-start gap-3.5 shadow-sm min-w-0 overflow-hidden">
           <ShieldAlert className="h-6 w-6 text-red-500 shrink-0 mt-0.5 animate-pulse" />
-          <div className="space-y-1">
-            <h4 className="font-bold text-sm sm:text-base tracking-tight text-red-600 dark:text-red-300">
+          <div className="space-y-1 min-w-0">
+            <h4 className="font-bold text-sm sm:text-base tracking-tight text-red-600 dark:text-red-300 break-words">
               Diqqat: Xavfli Firibgarlik Zanjiri Aniqlangan!
             </h4>
-            <p className="text-xs sm:text-sm text-red-600/90 dark:text-red-400/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-red-600/90 dark:text-red-400/90 leading-relaxed break-words">
               Ushbu arizadagi <strong>pul tushgan (firibgar) plastik kartasi</strong> boshqa
               jabrlanuvchilarning arizalarida ham qabul qiluvchi sifatida aniqlandi. Mazkur
               arizalarni yagona guruhli firibgarlik jinoyati doirasida birlashtirish tavsiya
@@ -233,15 +240,15 @@ export function ApplicationRelationsPage() {
       )}
 
       {/* Analytics KPI Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Total Linked Applications */}
-        <Card className="border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden">
-          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden min-w-0">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-2 min-w-0">
+            <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Bog'langan Arizalar
               </p>
-              <div className="flex items-baseline gap-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-foreground">
                   {stats?.total_linked_applications ?? 0}
                 </span>
@@ -249,21 +256,21 @@ export function ApplicationRelationsPage() {
               </div>
               <p className="text-[11px] text-muted-foreground">Karta yoki fuqaro orqali aloqador</p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-              <Layers className="h-6 w-6" />
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+              <Layers className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
         {/* Total Loss Amount */}
-        <Card className="border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden">
-          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden min-w-0">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-2 min-w-0">
+            <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Aniqlangan Umumiy Zarar
               </p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl sm:text-2xl font-extrabold tracking-tight font-mono text-rose-500">
+              <div className="flex items-baseline gap-1 min-w-0">
+                <span className="text-lg sm:text-xl font-extrabold tracking-tight font-mono text-rose-500 break-words">
                   {formatCurrency(stats?.grand_total_loss)}
                 </span>
               </div>
@@ -271,20 +278,20 @@ export function ApplicationRelationsPage() {
                 Bog'liq barcha arizalar yig'indisi
               </p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0">
-              <TrendingUp className="h-6 w-6" />
+            <div className="h-11 w-11 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0">
+              <TrendingUp className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
         {/* Shared Cards Count */}
-        <Card className="border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden">
-          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden min-w-0">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-2 min-w-0">
+            <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Aloqador Plastik Kartalar
               </p>
-              <div className="flex items-baseline gap-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-foreground">
                   {stats?.total_cards_count ?? 0}
                 </span>
@@ -294,20 +301,20 @@ export function ApplicationRelationsPage() {
                 Tizimda takrorlangan moliyaviy rekvizitlar
               </p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-              <CreditCard className="h-6 w-6" />
+            <div className="h-11 w-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+              <CreditCard className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
         {/* Citizen Matches */}
-        <Card className="border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden">
-          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm relative overflow-hidden min-w-0">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-2 min-w-0">
+            <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Aloqador Fuqarolar
               </p>
-              <div className="flex items-baseline gap-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-foreground">
                   {stats?.total_citizens_count ?? 0}
                 </span>
@@ -317,12 +324,21 @@ export function ApplicationRelationsPage() {
                 JSHSHIR, pasport yoki tel bo'yicha
               </p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0">
-              <Users className="h-6 w-6" />
+            <div className="h-11 w-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0">
+              <Users className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Interactive Financial Flow & Structured Relations */}
+      {(data.network_graph || data.graph) && (
+        <EntityNetworkGraph
+          networkGraph={data.network_graph}
+          financialGraph={data.graph}
+          defaultMode="financial"
+        />
+      )}
 
       {/* Section 1: Plastic Cards Relations */}
       <div className="space-y-4">
@@ -359,7 +375,7 @@ export function ApplicationRelationsPage() {
               return (
                 <Card
                   key={cr.card.id}
-                  className={`border transition-all overflow-hidden ${
+                  className={`py-0 gap-0 border transition-all overflow-hidden ${
                     isReceiver
                       ? 'border-red-500/50 bg-red-500/[0.02]'
                       : 'border-border/80 bg-card/60'
@@ -379,9 +395,14 @@ export function ApplicationRelationsPage() {
 
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-base sm:text-lg font-extrabold tracking-wide text-foreground">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/cards/${cr.card.id}`)}
+                            className="font-mono text-base sm:text-lg font-extrabold tracking-wide text-foreground hover:text-primary hover:underline inline-flex items-center gap-1.5 cursor-pointer"
+                          >
                             {formatCardNumber(cr.card.card_number, cr.card.masked_number)}
-                          </span>
+                            <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                          </button>
                           {cr.card.bank_name && (
                             <Badge variant="outline" className="text-xs gap-1">
                               <Building2 className="h-3 w-3" />
@@ -540,17 +561,25 @@ export function ApplicationRelationsPage() {
         ) : (
           <div className="space-y-4">
             {citizenRelations.map((citR: CitizenRelationItem) => (
-              <Card key={citR.citizen.id} className="border-border/80 bg-card/60 overflow-hidden">
+              <Card
+                key={citR.citizen.id}
+                className="py-0 gap-0 border-border/80 bg-card/60 overflow-hidden"
+              >
                 <CardHeader className="p-4 sm:p-5 bg-muted/30 border-b flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center shrink-0">
                       <User className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-base text-foreground">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/citizens/${citR.citizen.id}`)}
+                        className="font-bold text-base text-foreground hover:text-primary hover:underline inline-flex items-center gap-1.5 cursor-pointer"
+                      >
                         {citR.citizen.last_name} {citR.citizen.first_name}{' '}
                         {citR.citizen.middle_name || ''}
-                      </h3>
+                        <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                      </button>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         {citR.citizen.phone_number && (
                           <span className="flex items-center gap-1">
@@ -645,6 +674,164 @@ export function ApplicationRelationsPage() {
           </div>
         )}
       </div>
+
+      {/* Section 3: Telefon va Raqamli Izlar (Telegram, IP, Kripto) Bog'liqliklari */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <Fingerprint className="h-5 w-5 text-purple-500" />
+            <span>Telefon va Raqamli Izlar (Telegram, IP, Kripto) Tahlili</span>
+            <Badge variant="outline" className="text-xs">
+              {clueRelations.length} ta rekvizit
+            </Badge>
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Arizadagi telefon raqamlar va firibgar belgilari boʻyicha shaxsiy bogʻliqliklar hamda
+            boshqa ishlar
+          </p>
+        </div>
+
+        {clueRelations.length === 0 ? (
+          <Card className="border-border/60 bg-muted/20">
+            <CardContent className="p-6 text-center text-muted-foreground text-sm">
+              Qoʻshimcha telefon yoki raqamli izlar kiritilmagan.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {clueRelations.map((cl) => (
+              <Card
+                key={`${cl.entity_type}-${cl.id}`}
+                className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden"
+              >
+                <CardContent className="p-4 space-y-3 min-w-0">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => navigate(cl.target_route)}
+                        className="font-mono text-sm font-extrabold text-primary hover:underline inline-flex items-center gap-1.5 cursor-pointer break-all text-left"
+                      >
+                        <span>{cl.value}</span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      </button>
+                      <p className="text-xs text-muted-foreground break-words">
+                        {cl.label} {cl.operator ? `· ${cl.operator}` : ''}
+                      </p>
+                    </div>
+                    <Badge
+                      className={
+                        cl.role_in_current_app === 'SUSPECT'
+                          ? 'bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px] shrink-0'
+                          : 'bg-blue-500/15 text-blue-600 border-blue-500/30 text-[10px] shrink-0'
+                      }
+                    >
+                      {cl.role_in_current_app}
+                    </Badge>
+                  </div>
+
+                  {cl.owner_citizen && (
+                    <div
+                      onClick={() => navigate(`/citizens/${cl.owner_citizen!.id}`)}
+                      className="p-2 rounded-lg border border-primary/20 bg-primary/5 text-xs flex flex-wrap items-center justify-between gap-2 cursor-pointer hover:bg-primary/10 min-w-0"
+                    >
+                      <span className="flex items-center gap-1.5 font-semibold min-w-0 break-words">
+                        <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="break-words">Egasi: {cl.owner_citizen.full_name}</span>
+                      </span>
+                      <span className="text-[11px] text-primary shrink-0">360° Profil ➔</span>
+                    </div>
+                  )}
+
+                  {cl.linked_applications.length > 0 ? (
+                    <div className="space-y-1 pt-1 border-t border-border/60 min-w-0">
+                      <span className="text-[10px] font-bold uppercase text-rose-500">
+                        Boshqa {cl.linked_applications.length} ta arizada ham uchragan:
+                      </span>
+                      {cl.linked_applications.map((la) => (
+                        <div
+                          key={la.id}
+                          onClick={() => navigate(`/applications/${la.id}`)}
+                          className="flex flex-wrap items-center justify-between gap-2 text-xs p-1.5 rounded hover:bg-muted cursor-pointer min-w-0"
+                        >
+                          <span className="font-mono font-bold text-primary break-all">
+                            № {la.application_number}
+                          </span>
+                          <span className="font-mono text-rose-500 shrink-0">
+                            {formatCurrency(la.transfer_amount, la.currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Boshqa arizalarda takrorlanmagan
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Section 4: Zanjirli (2-3 Qadamli Multi-Hop) Bog'liqliklar */}
+      {multiHopChains.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight flex flex-wrap items-center gap-2">
+              <GitBranch className="h-5 w-5 text-amber-500 shrink-0" />
+              <span>Zanjirli (2–3 Qadamli Bilvosita) Bogʻlangan Ishlar</span>
+              <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30 text-xs">
+                {multiHopChains.length} ta zanjir
+              </Badge>
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Karta yoki raqam egasining boshqa rekvizitlari orqali topilgan netipik zanjirli
+              bogʻliqliklar
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            {multiHopChains.map((chain, idx) => (
+              <Card
+                key={idx}
+                onClick={() => navigate(`/applications/${chain.target_application.id}`)}
+                className="py-0 gap-0 border-amber-500/40 bg-amber-500/[0.03] hover:border-amber-500 cursor-pointer transition-all min-w-0 overflow-hidden"
+              >
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono min-w-0">
+                      {chain.chain_steps.map((step, sIdx) => (
+                        <span key={sIdx} className="inline-flex items-center gap-1.5 max-w-full">
+                          <span className="px-2 py-0.5 rounded bg-background border border-border font-semibold break-all">
+                            {step}
+                          </span>
+                          {sIdx < chain.chain_steps.length - 1 && (
+                            <ArrowRight className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground break-words">
+                      {chain.target_application.description || 'Izoh mavjud emas'}
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right shrink-0">
+                    <span className="font-mono text-sm font-extrabold text-rose-500 block">
+                      {formatCurrency(chain.target_application.transfer_amount)}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {chain.target_application.district_name ||
+                        formatDate(chain.target_application.date)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

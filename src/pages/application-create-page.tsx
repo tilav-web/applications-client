@@ -2134,7 +2134,11 @@ export function ApplicationCreatePage() {
 
           {/* FIRIBGAR / GUMONLANUVCHI MA'LUMOTLARI DARAXTI (MINDMAP) */}
           <div className="pt-2 border-t border-border/50">
-            <SuspectTreeBuilder value={suspectTree} onChange={setSuspectTree} />
+            <SuspectTreeBuilder
+              value={suspectTree}
+              onChange={setSuspectTree}
+              excludeAppId={location.pathname.includes('/edit/') ? id : undefined}
+            />
           </div>
         </div>
 

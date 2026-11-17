@@ -2,20 +2,25 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CreditCard,
   Edit2,
-  FileSpreadsheet,
-  Loader2,
+  ExternalLink,
+  Eye,
+  FileText,
+  Fingerprint,
+  Hash,
   Phone,
   Plus,
-  Search,
   Trash2,
   User,
   Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import { DossierQuickDrawer } from '@/components/intelligence/dossier-quick-drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
@@ -36,24 +42,83 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { citizensApi } from '@/lib/api';
+import { FilterInput, FilterSelect, TableFilterPanel } from '@/components/ui/table-filter-panel';
+import {
+  TableActionSelect,
+  TableCheckbox,
+  useTableSelection,
+} from '@/components/ui/table-selection-bar';
+import { useDebounce } from '@/hooks/use-debounce';
+import { citizensApi, districtsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { formatUzbekName } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 import type { Citizen } from '@/types/models';
 
 export function CitizensPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+
+  // Alohida aniq filtrlar (AND mantiqida ishlaydi)
+  const [fullNameFilter, setFullNameFilter] = useState('');
+  const debouncedFullName = useDebounce(fullNameFilter, 300);
+  const [passportFilter, setPassportFilter] = useState('');
+  const debouncedPassport = useDebounce(passportFilter, 300);
+  const [pinflFilter, setPinflFilter] = useState('');
+  const debouncedPinfl = useDebounce(pinflFilter, 300);
+  const [phoneFilter, setPhoneFilter] = useState('');
+  const debouncedPhone = useDebounce(phoneFilter, 300);
+  const [cardFilter, setCardFilter] = useState('');
+  const debouncedCard = useDebounce(cardFilter, 300);
+  const [districtFilter, setDistrictFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [isExporting, setIsExporting] = useState(false);
+  const [quickPreviewId, setQuickPreviewId] = useState<string | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const activeFiltersCount = [
+    Boolean(fullNameFilter.trim()),
+    Boolean(passportFilter.trim()),
+    Boolean(pinflFilter.trim()),
+    Boolean(phoneFilter.trim()),
+    Boolean(cardFilter.trim()),
+    Boolean(districtFilter),
+    Boolean(genderFilter),
+  ].filter(Boolean).length;
+
+  const handleClearFilters = () => {
+    setFullNameFilter('');
+    setPassportFilter('');
+    setPinflFilter('');
+    setPhoneFilter('');
+    setCardFilter('');
+    setDistrictFilter('');
+    setGenderFilter('');
+    setPage(1);
+  };
+
+  const { data: districtsData } = useQuery({
+    queryKey: ['districts-all-citizens'],
+    queryFn: () => districtsApi.getAll({ limit: 100 }),
+  });
+  const allDistricts = districtsData?.items || [];
 
   const handleExportExcel = async () => {
     try {
       setIsExporting(true);
       toast.info('Fuqarolar hisoboti shakllantirilmoqda...');
       const blob = await citizensApi.exportExcel({
-        search: search.trim() || undefined,
+        full_name: debouncedFullName.trim() || undefined,
+        passport: debouncedPassport.trim() || undefined,
+        pinfl: debouncedPinfl.trim() || undefined,
+        phone_number: debouncedPhone.trim() || undefined,
+        card_number: debouncedCard.trim() || undefined,
+        district_id: districtFilter || undefined,
+        gender: genderFilter || undefined,
       });
       const url = window.URL.createObjectURL(
         new Blob([blob], {
@@ -82,21 +147,99 @@ export function CitizensPage() {
   const [formData, setFormData] = useState<Partial<Citizen>>({});
 
   // 1. Fetch Citizens Query
-  const { data, isLoading } = useQuery({
-    queryKey: ['citizens', { page, limit, search }],
-    queryFn: () => citizensApi.getAll({ page, limit, search }),
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: [
+      'citizens',
+      {
+        page,
+        limit,
+        full_name: debouncedFullName,
+        passport: debouncedPassport,
+        pinfl: debouncedPinfl,
+        phone_number: debouncedPhone,
+        card_number: debouncedCard,
+        district_id: districtFilter,
+        gender: genderFilter,
+      },
+    ],
+    queryFn: () =>
+      citizensApi.getAll({
+        page,
+        limit,
+        full_name: debouncedFullName.trim() || undefined,
+        passport: debouncedPassport.trim() || undefined,
+        pinfl: debouncedPinfl.trim() || undefined,
+        phone_number: debouncedPhone.trim() || undefined,
+        card_number: debouncedCard.trim() || undefined,
+        district_id: districtFilter || undefined,
+        gender: genderFilter || undefined,
+      }),
     placeholderData: (prev) => prev,
   });
+
+  const selection = useTableSelection(data?.items || []);
+
+  const handleBulkDelete = async () => {
+    if (selection.selectedIds.length === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      await Promise.all(selection.selectedIds.map((id) => citizensApi.delete(id)));
+      await queryClient.invalidateQueries({ queryKey: ['citizens'] });
+      toast.success(`${selection.selectedIds.length} ta fuqaro o‘chirildi`);
+      selection.clearSelection();
+      setIsBulkDeleteOpen(false);
+    } catch (err) {
+      toast.error('O‘chirishda xatolik', { description: getErrorMessage(err) });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // 2. Prefetch Next Page with React Query for instant transitions
   useEffect(() => {
     if (data?.meta?.hasNextPage) {
       queryClient.prefetchQuery({
-        queryKey: ['citizens', { page: page + 1, limit, search }],
-        queryFn: () => citizensApi.getAll({ page: page + 1, limit, search }),
+        queryKey: [
+          'citizens',
+          {
+            page: page + 1,
+            limit,
+            full_name: debouncedFullName,
+            passport: debouncedPassport,
+            pinfl: debouncedPinfl,
+            phone_number: debouncedPhone,
+            card_number: debouncedCard,
+            district_id: districtFilter,
+            gender: genderFilter,
+          },
+        ],
+        queryFn: () =>
+          citizensApi.getAll({
+            page: page + 1,
+            limit,
+            full_name: debouncedFullName.trim() || undefined,
+            passport: debouncedPassport.trim() || undefined,
+            pinfl: debouncedPinfl.trim() || undefined,
+            phone_number: debouncedPhone.trim() || undefined,
+            card_number: debouncedCard.trim() || undefined,
+            district_id: districtFilter || undefined,
+            gender: genderFilter || undefined,
+          }),
       });
     }
-  }, [data, page, limit, search, queryClient]);
+  }, [
+    data,
+    page,
+    limit,
+    debouncedFullName,
+    debouncedPassport,
+    debouncedPinfl,
+    debouncedPhone,
+    debouncedCard,
+    districtFilter,
+    genderFilter,
+    queryClient,
+  ]);
 
   // Mutations
   const preparePayload = (data: Partial<Citizen>) => ({
@@ -135,6 +278,7 @@ export function CitizensPage() {
     mutationFn: () => citizensApi.delete(targetCitizen!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['citizens'] });
+      selection.clearSelection();
       closeModal();
       toast.success('Fuqaro o‘chirildi');
     },
@@ -180,62 +324,197 @@ export function CitizensPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleExportExcel}
-            disabled={isExporting}
-            className="h-9 text-xs gap-1.5 font-medium border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 shrink-0 cursor-pointer shadow-2xs"
-            title="Fuqarolar ro'yxatini Excel (.xlsx) formatida yuklab olish"
-          >
-            {isExporting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
-            ) : (
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            )}
-            <span className="hidden sm:inline">Excel yuklab olish</span>
-          </Button>
-
-          <Button size="sm" onClick={openCreateModal} className="gap-2 shadow-md shadow-primary/25">
-            <Plus className="h-4 w-4" />
-            Yangi Fuqaro Qo&apos;shish
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          onClick={openCreateModal}
+          className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
+        >
+          <Plus className="h-4 w-4" />
+          Yangi Fuqaro Qo&apos;shish
+        </Button>
       </div>
 
-      {/* Filter and Search */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
-        <CardContent className="p-4">
-          <div className="relative max-w-lg lg:max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Ism, familiya, pasport yoki telefon bo'yicha qidiruv..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 h-9 text-xs"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* 1. ALOHIDA YUQORI FILTR VA AMALLAR PANELI */}
+      <TableFilterPanel
+        title="Fuqarolarni aniq filtrlash"
+        activeFiltersCount={activeFiltersCount}
+        onClearAll={handleClearFilters}
+        onRefresh={() => refetch()}
+        isRefreshing={isFetching}
+        onExportExcel={handleExportExcel}
+        isExporting={isExporting}
+        gridClassName="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7"
+        selectionSlot={
+          <TableActionSelect
+            selectedCount={selection.selectedIds.length}
+            singleLabel={
+              selection.singleSelected
+                ? [selection.singleSelected.last_name, selection.singleSelected.first_name]
+                    .filter(Boolean)
+                    .join(' ') || 'Fuqaro'
+                : null
+            }
+            onClear={selection.clearSelection}
+          >
+            {selection.singleSelected ? (
+              <>
+                <DropdownMenuItem
+                  onClick={() => navigate(`/citizens/${selection.singleSelected!.id}`)}
+                  className="gap-2 cursor-pointer text-xs py-2"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                  <span>360° Dosyeni ochish</span>
+                </DropdownMenuItem>
 
-      {/* Citizens Table */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+                <DropdownMenuItem
+                  onClick={() => setQuickPreviewId(selection.singleSelected!.id)}
+                  className="gap-2 cursor-pointer text-xs py-2"
+                >
+                  <Eye className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Tezkor ko‘rish</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => openEditModal(selection.singleSelected!)}
+                  className="gap-2 cursor-pointer text-xs py-2"
+                >
+                  <Edit2 className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Tahrirlash</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={() => openDeleteModal(selection.singleSelected!)}
+                  className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>O‘chirish</span>
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => setIsBulkDeleteOpen(true)}
+                className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Tanlanganlarni o‘chirish ({selection.selectedIds.length} ta)</span>
+              </DropdownMenuItem>
+            )}
+          </TableActionSelect>
+        }
+      >
+        <FilterInput
+          label="Fuqaro F.I.SH"
+          value={fullNameFilter}
+          onChange={(v) => {
+            setFullNameFilter(v);
+            setPage(1);
+          }}
+          placeholder="Familiya yoki ism..."
+          icon={<User className="h-3.5 w-3.5" />}
+        />
+
+        <FilterInput
+          label="Pasport seriya & raqami"
+          value={passportFilter}
+          onChange={(v) => {
+            setPassportFilter(v);
+            setPage(1);
+          }}
+          placeholder="AA1234567..."
+          icon={<Hash className="h-3.5 w-3.5" />}
+          mono
+        />
+
+        <FilterInput
+          label="JSHSHIR (PINFL)"
+          value={pinflFilter}
+          onChange={(v) => {
+            setPinflFilter(v);
+            setPage(1);
+          }}
+          placeholder="14 xonali raqam..."
+          icon={<Fingerprint className="h-3.5 w-3.5" />}
+          mono
+        />
+
+        <FilterInput
+          label="Telefon raqami (aniq raqam)"
+          value={phoneFilter}
+          onChange={(v) => {
+            setPhoneFilter(v);
+            setPage(1);
+          }}
+          placeholder="90 123 45 67..."
+          icon={<Phone className="h-3.5 w-3.5" />}
+          mono
+        />
+
+        <FilterInput
+          label="Karta raqami (aniq karta)"
+          value={cardFilter}
+          onChange={(v) => {
+            setCardFilter(v);
+            setPage(1);
+          }}
+          placeholder="8600 / 9860..."
+          icon={<CreditCard className="h-3.5 w-3.5" />}
+          mono
+        />
+
+        <FilterSelect
+          label="Yashash tumani"
+          value={districtFilter}
+          onChange={(v) => {
+            setDistrictFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barcha tumanlar</option>
+          {allDistricts.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Jinsi"
+          value={genderFilter}
+          onChange={(v) => {
+            setGenderFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barchasi</option>
+          <option value="male">Erkak</option>
+          <option value="female">Ayol</option>
+        </FilterSelect>
+      </TableFilterPanel>
+
+      {/* 2. ALOHIDA AJRATILGAN FUQAROLAR JADVALI */}
+      <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xs">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-11 text-center sticky left-0 z-10 bg-muted/95 backdrop-blur-xs">
+                <div className="flex items-center justify-center">
+                  <TableCheckbox
+                    checked={selection.allSelected}
+                    indeterminate={selection.someSelected}
+                    onChange={selection.toggleAll}
+                    ariaLabel="Barcha fuqarolarni tanlash"
+                  />
+                </div>
+              </TableHead>
               <TableHead>Fuqaro (F.I.O)</TableHead>
               <TableHead>Jinsi / T.Sana</TableHead>
               <TableHead>Pasport Seriya</TableHead>
               <TableHead>JShShIR (PINFL)</TableHead>
               <TableHead>Telefon Raqam</TableHead>
               <TableHead>Yashash Manzili</TableHead>
-              <TableHead>Kartalar</TableHead>
-              <TableHead className="text-right">Amallar</TableHead>
+              <TableHead>Bogʻliqliklar</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -251,15 +530,45 @@ export function CitizensPage() {
                   [citizen.last_name, citizen.first_name, citizen.middle_name]
                     .filter(Boolean)
                     .join(' ') || '—';
+                const selected = selection.isSelected(citizen.id);
 
                 return (
-                  <TableRow key={citizen.id}>
+                  <TableRow
+                    key={citizen.id}
+                    onClick={() => navigate(`/citizens/${citizen.id}`)}
+                    className={cn(
+                      'cursor-pointer transition-colors group',
+                      selected
+                        ? 'bg-primary/[0.08] hover:bg-primary/[0.12]'
+                        : 'hover:bg-primary/[0.04]',
+                    )}
+                  >
+                    <TableCell
+                      className={cn(
+                        'w-11 text-center sticky left-0 z-10 backdrop-blur-xs',
+                        selected ? 'bg-primary/[0.08]' : 'bg-card/95',
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selection.toggleOne(citizen.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-center">
+                        <TableCheckbox
+                          checked={selected}
+                          onChange={() => selection.toggleOne(citizen.id)}
+                          ariaLabel={`${fullName} ni tanlash`}
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell className="font-semibold text-foreground">
                       <div className="flex items-center gap-2">
                         <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs shrink-0">
                           <User className="h-3.5 w-3.5" />
                         </div>
-                        <span>{fullName}</span>
+                        <span className="group-hover:text-primary group-hover:underline">
+                          {fullName}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
@@ -301,10 +610,17 @@ export function CitizensPage() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {citizen.phone_number ? (
-                        <span className="flex items-center gap-1 text-foreground">
-                          <Phone className="h-3 w-3 text-muted-foreground" />
-                          {citizen.phone_number}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="flex items-center gap-1 text-foreground">
+                            <Phone className="h-3 w-3 text-muted-foreground" />
+                            {citizen.phone_number}
+                          </span>
+                          {(citizen.phones?.length || 0) > 1 && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                              +{(citizen.phones?.length || 1) - 1}
+                            </Badge>
+                          )}
+                        </div>
                       ) : (
                         '—'
                       )}
@@ -315,35 +631,29 @@ export function CitizensPage() {
                       {citizen.address || '—'}
                     </TableCell>
                     <TableCell>
-                      {citizen.cards?.length ? (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-primary/30 text-primary text-[11px]"
-                        >
-                          <CreditCard className="h-3 w-3" />
-                          {citizen.cards.length} ta karta
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditModal(citizen)}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteModal(citizen)}
-                        className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {citizen.cards?.length ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-primary/30 text-primary text-[11px]"
+                          >
+                            <CreditCard className="h-3 w-3" />
+                            {citizen.cards.length} karta
+                          </Badge>
+                        ) : null}
+                        {citizen.applications?.length ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-amber-500/30 text-amber-600 dark:text-amber-400 text-[11px]"
+                          >
+                            <FileText className="h-3 w-3" />
+                            {citizen.applications.length} ariza
+                          </Badge>
+                        ) : null}
+                        {!citizen.cards?.length && !citizen.applications?.length && (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -615,6 +925,23 @@ export function CitizensPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={isBulkDeleteOpen}
+        onOpenChange={setIsBulkDeleteOpen}
+        title={`${selection.selectedIds.length} ta fuqaroni o‘chirish`}
+        description="Tanlangan barcha fuqarolar yozuvini o‘chirishni tasdiqlaysizmi?"
+        confirmText="Ha, o‘chirilsin"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        isLoading={isBulkDeleting}
+        onConfirm={handleBulkDelete}
+      />
+
+      <DossierQuickDrawer
+        target={quickPreviewId ? { type: 'citizen', id: quickPreviewId } : null}
+        onClose={() => setQuickPreviewId(null)}
+      />
     </div>
   );
 }

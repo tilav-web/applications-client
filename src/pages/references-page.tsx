@@ -765,7 +765,7 @@ export function ReferencesPage() {
 
         {/* 1. DISTRICTS TAB */}
         <TabsContent value="districts" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -782,7 +782,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -854,7 +854,7 @@ export function ReferencesPage() {
 
         {/* 1.1. MAHALLAS TAB */}
         <TabsContent value="mahallas" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -871,7 +871,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -947,7 +947,7 @@ export function ReferencesPage() {
 
         {/* 2. CRIMES TAB */}
         <TabsContent value="crimes" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -964,7 +964,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1038,7 +1038,7 @@ export function ReferencesPage() {
 
         {/* 2.1. CRIME METHODS TAB */}
         <TabsContent value="crime_methods" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1055,7 +1055,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-border">
@@ -1148,7 +1148,7 @@ export function ReferencesPage() {
 
         {/* 3. BANKS TAB */}
         <TabsContent value="banks" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1165,7 +1165,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1256,7 +1256,7 @@ export function ReferencesPage() {
 
         {/* 4. PAYMENT PROVIDERS TAB */}
         <TabsContent value="providers" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1273,7 +1273,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1349,7 +1349,7 @@ export function ReferencesPage() {
 
         {/* 5. APPLICATION STATUSES TAB */}
         <TabsContent value="statuses" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1366,7 +1366,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1484,7 +1484,7 @@ export function ReferencesPage() {
 
         {/* 6. SUSPECT FIELD CONFIGS TAB */}
         <TabsContent value="suspect_fields" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4">
               <div className="relative max-w-md lg:max-w-lg">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1501,7 +1501,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1605,7 +1605,7 @@ export function ReferencesPage() {
 
         {/* 7. OCCUPATIONS & CATEGORIES TAB */}
         <TabsContent value="occupations" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex rounded-lg border border-border p-1 bg-muted/40">
@@ -1661,7 +1661,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             {occupationMode === 'categories' ? (
               <Table>
                 <TableHeader>
@@ -1834,7 +1834,7 @@ export function ReferencesPage() {
 
         {/* 8. APPLICATION SOURCES TAB */}
         <TabsContent value="sources" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="relative max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1848,7 +1848,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1926,7 +1926,7 @@ export function ReferencesPage() {
 
         {/* 9. DEPARTMENT SERVICES TAB */}
         <TabsContent value="department_services" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="relative max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1940,7 +1940,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -2026,7 +2026,7 @@ export function ReferencesPage() {
 
         {/* 10. DECISION TYPES TAB */}
         <TabsContent value="decision_types" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="relative max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -2040,7 +2040,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -2116,7 +2116,7 @@ export function ReferencesPage() {
 
         {/* 11. REJECTION REASONS TAB */}
         <TabsContent value="rejection_reasons" className="space-y-4 mt-0">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="relative max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -2130,7 +2130,7 @@ export function ReferencesPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -2229,7 +2229,7 @@ export function ReferencesPage() {
               {activeTab === 'sources' &&
                 'Murojaat manbasi (102, 112, Ishonch telefoni va h.k.) ma’lumotlarini kiriting'}
               {activeTab === 'department_services' &&
-                'Ichki ishlar sohaviy xizmati nomi va qisqartmasini kiriting'}
+                'Sohaviy xizmat nomi va qisqartmasini kiriting'}
               {activeTab === 'decision_types' &&
                 'Ariza yuzasidan qabul qilinadigan qaror turini kiriting'}
               {activeTab === 'rejection_reasons' && 'Arizani rad etish sababini kiriting'}

@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   Calendar,
+  CreditCard,
   FileSpreadsheet,
   FileText,
+  Hash,
   Layers,
   Loader2,
   Maximize2,
   Minimize2,
+  Phone,
   RefreshCw,
-  Search,
   Table as TableIcon,
+  User,
 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -19,6 +22,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
+import { FilterInput, FilterSelect, TableFilterPanel } from '@/components/ui/table-filter-panel';
+import { useDebounce } from '@/hooks/use-debounce';
 import { crimesApi, districtsApi, reportsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 
@@ -32,8 +37,19 @@ export function ReportsPage() {
   const [date, setDate] = useState<string>(todayStr);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [search, setSearch] = useState<string>('');
-  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+
+  // Batafsil Reestr alohida aniq filtrlari (AND mantiqida)
+  const [regAppNum, setRegAppNum] = useState<string>('');
+  const debouncedRegAppNum = useDebounce(regAppNum, 300);
+  const [regCitizen, setRegCitizen] = useState<string>('');
+  const debouncedRegCitizen = useDebounce(regCitizen, 300);
+  const [regCard, setRegCard] = useState<string>('');
+  const debouncedRegCard = useDebounce(regCard, 300);
+  const [regPhone, setRegPhone] = useState<string>('');
+  const debouncedRegPhone = useDebounce(regPhone, 300);
+  const [regDesc, setRegDesc] = useState<string>('');
+  const debouncedRegDesc = useDebounce(regDesc, 300);
+
   const [districtFilter, setDistrictFilter] = useState<string>('');
   const [crimeFilter, setCrimeFilter] = useState<string>('');
   const [page, setPage] = useState<number>(1);
@@ -41,14 +57,26 @@ export function ReportsPage() {
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  // Debounce search
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [search]);
+  const registryActiveFiltersCount = [
+    Boolean(regAppNum.trim()),
+    Boolean(regCitizen.trim()),
+    Boolean(regCard.trim()),
+    Boolean(regPhone.trim()),
+    Boolean(regDesc.trim()),
+    Boolean(districtFilter),
+    Boolean(crimeFilter),
+  ].filter(Boolean).length;
+
+  const clearRegistryFilters = () => {
+    setRegAppNum('');
+    setRegCitizen('');
+    setRegCard('');
+    setRegPhone('');
+    setRegDesc('');
+    setDistrictFilter('');
+    setCrimeFilter('');
+    setPage(1);
+  };
 
   // Master references queries
   const { data: districtsData } = useQuery({
@@ -93,7 +121,11 @@ export function ReportsPage() {
     queryKey: [
       'reports',
       'registry',
-      debouncedSearch,
+      debouncedRegAppNum,
+      debouncedRegCitizen,
+      debouncedRegCard,
+      debouncedRegPhone,
+      debouncedRegDesc,
       districtFilter,
       crimeFilter,
       startDate,
@@ -103,7 +135,11 @@ export function ReportsPage() {
     ],
     queryFn: () =>
       reportsApi.getRegistryReport({
-        search: debouncedSearch || undefined,
+        applicationNumber: debouncedRegAppNum.trim() || undefined,
+        citizenName: debouncedRegCitizen.trim() || undefined,
+        cardNumber: debouncedRegCard.trim() || undefined,
+        phoneNumber: debouncedRegPhone.trim() || undefined,
+        description: debouncedRegDesc.trim() || undefined,
         districtId: districtFilter || undefined,
         crimeId: crimeFilter || undefined,
         startDate: startDate || undefined,
@@ -171,7 +207,11 @@ export function ReportsPage() {
         filename = `Sohaviy_Xizmatlar_Tahlili_${date || todayStr}.xlsx`;
       } else {
         blob = await reportsApi.exportRegistryExcel({
-          search: debouncedSearch || undefined,
+          applicationNumber: debouncedRegAppNum.trim() || undefined,
+          citizenName: debouncedRegCitizen.trim() || undefined,
+          cardNumber: debouncedRegCard.trim() || undefined,
+          phoneNumber: debouncedRegPhone.trim() || undefined,
+          description: debouncedRegDesc.trim() || undefined,
           districtId: districtFilter || undefined,
           crimeId: crimeFilter || undefined,
           startDate: startDate || undefined,
@@ -219,8 +259,7 @@ export function ReportsPage() {
                 Statistika & Rasmiy Hisobotlar
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Qashqadaryo viloyati IIB yig‘ma operativ svodkalari, sohaviy tahlillar va Excel
-                eksport
+                Yig‘ma operativ hisobotlar, sohaviy tahlillar va Excel eksport
               </p>
             </div>
           </div>
@@ -1193,97 +1232,143 @@ export function ReportsPage() {
         {/* ========================================================= */}
         {activeTab === 'registry' && (
           <div className="space-y-4">
-            {/* Filter Bar */}
-            <Card className="border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Search */}
-                <div className="relative min-w-[280px] flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="F.I.D, fabula mazmuni, karta, e-material raqami bo‘yicha..."
-                    className="h-9 pl-9 text-xs"
-                  />
+            {/* Alohida Aniq Filtrlar Paneli */}
+            <TableFilterPanel
+              title="Reestr bo‘yicha aniq filtrlash"
+              activeFiltersCount={registryActiveFiltersCount}
+              onClearAll={clearRegistryFilters}
+              onRefresh={() => registryQuery.refetch()}
+              isRefreshing={registryQuery.isFetching}
+              gridClassName="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8"
+              rightExtraSlot={
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mr-1">
+                  <span>
+                    Topildi:{' '}
+                    <strong className="text-foreground">{registryQuery.data?.total || 0} ta</strong>
+                  </span>
+                  <span>
+                    Sahifadagi zarar:{' '}
+                    <strong className="text-rose-500 font-mono">
+                      {(
+                        registryQuery.data?.items?.reduce(
+                          (sum, it) => sum + (Number(it.loss_amount) || 0),
+                          0,
+                        ) || 0
+                      ).toLocaleString()}{' '}
+                      UZS
+                    </strong>
+                  </span>
                 </div>
+              }
+            >
+              <FilterInput
+                label="E-material / Ariza №"
+                value={regAppNum}
+                onChange={(v) => {
+                  setRegAppNum(v);
+                  setPage(1);
+                }}
+                placeholder="M0110224..."
+                icon={<Hash className="h-3.5 w-3.5" />}
+                mono
+              />
 
-                {/* District Filter */}
-                <select
-                  value={districtFilter}
-                  onChange={(e) => {
-                    setDistrictFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                >
-                  <option value="">-- Barcha Tumanlar --</option>
-                  {districts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+              <FilterInput
+                label="Arizachi F.I.SH"
+                value={regCitizen}
+                onChange={(v) => {
+                  setRegCitizen(v);
+                  setPage(1);
+                }}
+                placeholder="Familiya yoki ism..."
+                icon={<User className="h-3.5 w-3.5" />}
+              />
 
-                {/* Crime Filter */}
-                <select
-                  value={crimeFilter}
-                  onChange={(e) => {
-                    setCrimeFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                >
-                  <option value="">-- Barcha Jinoyat Turlari --</option>
-                  {crimes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title
-                        ? `${c.article ? `${c.article} - ` : ''}${c.title}`
-                        : c.article || 'Noma’lum'}
-                    </option>
-                  ))}
-                </select>
+              <FilterInput
+                label="Karta raqami"
+                value={regCard}
+                onChange={(v) => {
+                  setRegCard(v);
+                  setPage(1);
+                }}
+                placeholder="8600 / 9860..."
+                icon={<CreditCard className="h-3.5 w-3.5" />}
+                mono
+              />
 
-                {/* Page limit */}
-                <select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="h-9 rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                >
-                  <option value="25">25 tadan</option>
-                  <option value="50">50 tadan</option>
-                  <option value="100">100 tadan</option>
-                </select>
-              </div>
+              <FilterInput
+                label="Telefon raqami"
+                value={regPhone}
+                onChange={(v) => {
+                  setRegPhone(v);
+                  setPage(1);
+                }}
+                placeholder="90 123 45 67..."
+                icon={<Phone className="h-3.5 w-3.5" />}
+                mono
+              />
 
-              {/* Aggregated KPI badges */}
-              <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
-                <div>
-                  Jami topilgan yozuvlar:{' '}
-                  <strong className="text-slate-900 dark:text-slate-100">
-                    {registryQuery.data?.total || 0} ta
-                  </strong>
-                </div>
-                <div className="text-slate-300 dark:text-slate-700">•</div>
-                <div>
-                  Sahifadagi moddiy zarar:{' '}
-                  <strong className="text-rose-600 dark:text-rose-400">
-                    {(
-                      registryQuery.data?.items?.reduce(
-                        (sum, it) => sum + (Number(it.loss_amount) || 0),
-                        0,
-                      ) || 0
-                    ).toLocaleString()}{' '}
-                    UZS
-                  </strong>
-                </div>
-              </div>
-            </Card>
+              <FilterInput
+                label="Fabula / Mazmuni"
+                value={regDesc}
+                onChange={(v) => {
+                  setRegDesc(v);
+                  setPage(1);
+                }}
+                placeholder="Murojaat mazmuni..."
+                icon={<FileText className="h-3.5 w-3.5" />}
+              />
+
+              <FilterSelect
+                label="Hudud (Tuman)"
+                value={districtFilter}
+                onChange={(v) => {
+                  setDistrictFilter(v);
+                  setPage(1);
+                }}
+              >
+                <option value="">Barcha tumanlar</option>
+                {districts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </FilterSelect>
+
+              <FilterSelect
+                label="Jinoyat turi"
+                value={crimeFilter}
+                onChange={(v) => {
+                  setCrimeFilter(v);
+                  setPage(1);
+                }}
+              >
+                <option value="">Barcha jinoyat turlari</option>
+                {crimes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title
+                      ? `${c.article ? `${c.article} - ` : ''}${c.title}`
+                      : c.article || 'Noma’lum'}
+                  </option>
+                ))}
+              </FilterSelect>
+
+              <FilterSelect
+                label="Sahifada ko‘rsatish"
+                value={String(limit)}
+                onChange={(v) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+              >
+                <option value="25">25 tadan</option>
+                <option value="50">50 tadan</option>
+                <option value="100">100 tadan</option>
+              </FilterSelect>
+            </TableFilterPanel>
 
             {/* Registry Table */}
-            <Card className="overflow-hidden border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <Card className="py-0 gap-0 overflow-hidden border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
               <div className="relative max-h-[72vh] overflow-x-auto overflow-y-auto">
                 <table className="w-full min-w-[2400px] border-collapse text-left text-xs">
                   <thead className="sticky top-0 z-30 shadow-xs">

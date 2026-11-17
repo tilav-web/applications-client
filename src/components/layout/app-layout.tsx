@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { GlobalSearchModal } from '@/components/intelligence/global-search-modal';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ export function AppLayout() {
     <div className="h-screen w-screen max-h-screen max-w-full overflow-hidden flex flex-row bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
       {/* 1. SIDEBAR (Fixed window, scrollable nav list, fixed bottom logout) */}
       <AppSidebar />
+      <GlobalSearchModal />
 
       {/* 2. RIGHT CONTAINER (Header + Main) */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
@@ -36,11 +38,14 @@ export function AppLayout() {
             'flex-1 min-w-0 w-full',
             isFinancialFlow
               ? 'overflow-hidden p-1.5 sm:p-2 flex flex-col min-h-0'
-              : 'overflow-y-auto p-3 sm:p-4 lg:p-5',
+              : 'overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-5',
           )}
         >
           <div
-            className={cn('w-full', isFinancialFlow ? 'h-full flex-1 flex flex-col min-h-0' : '')}
+            className={cn(
+              'w-full min-w-0',
+              isFinancialFlow ? 'h-full flex-1 flex flex-col min-h-0' : '',
+            )}
           >
             <Outlet />
           </div>

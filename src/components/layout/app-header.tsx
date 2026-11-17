@@ -1,6 +1,7 @@
-import { ChevronDown, LogOut, Moon, RefreshCw, Sun, User as UserIcon } from 'lucide-react';
+import { ChevronDown, LogOut, Moon, RefreshCw, Search, Sun, User as UserIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { openGlobalSearchModal } from '@/components/intelligence/global-search-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,21 +37,40 @@ export function AppHeader() {
   const userInitial = fullName.charAt(0).toUpperCase();
 
   return (
-    <header className="h-16 px-4 sm:px-6 border-b border-border/80 bg-background/80 backdrop-blur-md flex items-center justify-between shrink-0 z-20 select-none">
+    <header className="h-16 px-3 sm:px-6 border-b border-border/80 bg-background/80 backdrop-blur-md flex items-center justify-between gap-2 shrink-0 z-20 select-none overflow-hidden">
       {/* Left: Page Title & Breadcrumb */}
-      <div className="flex items-center gap-3">
-        <div className="flex flex-col">
-          <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-2">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex flex-col min-w-0">
+          <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground truncate">
             {currentItem?.title || 'Boshqaruv Paneli'}
           </h1>
-          <span className="text-[11px] text-muted-foreground hidden sm:block">
+          <span className="text-[11px] text-muted-foreground hidden md:block truncate">
             {currentItem?.description || 'Arizalar bazasi boshqaruv paneli'}
           </span>
         </div>
       </div>
 
-      {/* Right: Theme Toggle & User Info Small Card */}
-      <div className="flex items-center gap-3">
+      {/* Right: Global Search (Ctrl+K), Theme Toggle & User Info Small Card */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Global Search Trigger (Ctrl + K) */}
+        <button
+          type="button"
+          onClick={() => openGlobalSearchModal()}
+          className="flex items-center justify-center sm:justify-between gap-2.5 h-9 w-9 sm:w-auto sm:px-3 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted/80 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-all cursor-pointer md:w-[240px] lg:w-[290px] shadow-2xs shrink-0"
+          title="Tizim bo'yicha 360° qidiruv (Ctrl + K)"
+        >
+          <span className="flex items-center gap-2 text-xs min-w-0">
+            <Search className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="hidden md:inline truncate">
+              Karta, telefon, F.I.O, @nik qidiruv...
+            </span>
+            <span className="hidden sm:inline md:hidden">Qidiruv...</span>
+          </span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground shrink-0">
+            Ctrl K
+          </kbd>
+        </button>
+
         {/* Theme Toggle */}
         <Button
           variant="ghost"
