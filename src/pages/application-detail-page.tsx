@@ -9,6 +9,7 @@ import {
   Download,
   Edit2,
   Eye,
+  FileSpreadsheet,
   FileText,
   Link2,
   Loader2,
@@ -88,6 +89,33 @@ export function ApplicationDetailPage() {
   const queryClient = useQueryClient();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isExportingCyberControl, setIsExportingCyberControl] = useState(false);
+
+  const handleExportCyberControl = async () => {
+    if (!id || isExportingCyberControl) return;
+    const toastId = toast.loading('CyberControl shabloni tayyorlanmoqda...');
+    try {
+      setIsExportingCyberControl(true);
+      const blob = await applicationsApi.exportCyberControlExcel([id]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.download = `murojaat_shablon_${dateStr}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Murojaat CyberControl shablonida (.xlsx) yuklab olindi', { id: toastId });
+    } catch (err) {
+      toast.error('CyberControl shablonini yuklab olishda xatolik', {
+        id: toastId,
+        description: getErrorMessage(err),
+      });
+    } finally {
+      setIsExportingCyberControl(false);
+    }
+  };
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [activeEditingDocId, setActiveEditingDocId] = useState<string | null>(null);
   const [docToDelete, setDocToDelete] = useState<{ id: string; title: string } | null>(null);
@@ -499,6 +527,24 @@ export function ApplicationDetailPage() {
           >
             <Link2 className="h-3.5 w-3.5 text-primary" />
             <span>Bog‘liqliklar</span>
+          </Button>
+
+          {/* CyberControl shablonida (.xlsx) yuklash */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isExportingCyberControl}
+            onClick={handleExportCyberControl}
+            className="h-9 px-3 text-xs gap-1.5 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 font-semibold cursor-pointer"
+            title="Mazkur murojaatni CyberControl import shablonida (.xlsx) yuklab olish"
+          >
+            {isExportingCyberControl ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+            )}
+            <span>CyberControl (.xlsx)</span>
           </Button>
 
           {/* Yangilash */}

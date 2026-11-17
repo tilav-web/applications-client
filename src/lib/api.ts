@@ -88,6 +88,14 @@ export const applicationsApi = {
     });
     return res.data as Blob;
   },
+  exportCyberControlExcel: async (ids: string[]) => {
+    const res = await apiClient.post(
+      '/applications/export/cybercontrol-template',
+      { ids },
+      { responseType: 'blob' },
+    );
+    return res.data as Blob;
+  },
 };
 
 export interface DashboardStatistics {

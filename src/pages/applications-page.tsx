@@ -3,6 +3,7 @@ import {
   CreditCard,
   Edit2,
   Eye,
+  FileSpreadsheet,
   FileText,
   Hash,
   Link2,
@@ -290,6 +291,37 @@ export function ApplicationsPage() {
 
   // 3. Ariza Yaratish UX Mantiqi:
   const selection = useTableSelection(data?.items || []);
+  const [isExportingCyberControl, setIsExportingCyberControl] = useState(false);
+
+  const handleExportCyberControl = async (ids: string[]) => {
+    if (!ids.length || isExportingCyberControl) return;
+    const toastId = toast.loading(
+      `CyberControl shabloni tayyorlanmoqda (${ids.length} ta murojaat)...`,
+    );
+    try {
+      setIsExportingCyberControl(true);
+      const blob = await applicationsApi.exportCyberControlExcel(ids);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.download = `murojaat_shablon_${dateStr}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`${ids.length} ta murojaat CyberControl shablonida (.xlsx) yuklab olindi`, {
+        id: toastId,
+      });
+    } catch (err) {
+      toast.error('CyberControl shablonini yuklab olishda xatolik', {
+        id: toastId,
+        description: getErrorMessage(err),
+      });
+    } finally {
+      setIsExportingCyberControl(false);
+    }
+  };
 
   const handleBulkDelete = async () => {
     if (selection.selectedIds.length === 0) return;
@@ -479,6 +511,15 @@ export function ApplicationsPage() {
                   <span>Tahrirlash</span>
                 </DropdownMenuItem>
 
+                <DropdownMenuItem
+                  disabled={isExportingCyberControl}
+                  onClick={() => handleExportCyberControl([selection.singleSelected!.id])}
+                  className="gap-2 cursor-pointer text-xs py-2 font-semibold text-emerald-600 dark:text-emerald-400"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>CyberControl shablonida yuklash (.xlsx)</span>
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
 
                 {selection.singleSelected.documents?.map((doc) => (
@@ -514,13 +555,26 @@ export function ApplicationsPage() {
                 </DropdownMenuItem>
               </>
             ) : (
-              <DropdownMenuItem
-                onClick={() => setIsBulkDeleteOpen(true)}
-                className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>Tanlanganlarni o‘chirish ({selection.selectedIds.length} ta)</span>
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem
+                  disabled={isExportingCyberControl}
+                  onClick={() => handleExportCyberControl(selection.selectedIds)}
+                  className="gap-2 cursor-pointer text-xs py-2 font-semibold text-emerald-600 dark:text-emerald-400"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>CyberControl shablonida yuklash ({selection.selectedIds.length} ta)</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={() => setIsBulkDeleteOpen(true)}
+                  className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Tanlanganlarni o‘chirish ({selection.selectedIds.length} ta)</span>
+                </DropdownMenuItem>
+              </>
             )}
           </TableActionSelect>
         }
