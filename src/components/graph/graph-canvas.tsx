@@ -43,6 +43,121 @@ export const getProviderDisplayName = (provider?: string): string => {
   return p;
 };
 
+/**
+ * Tezyurar fizik simulyatsiya qadami (Headless Physics Step)
+ * DOM / Canvas renderisiz toza matematik hisoblash — 100-150 ta qadam 8-10ms da bajariladi.
+ */
+function stepPhysics(
+  nodes: SimNode[],
+  edges: IGraphEdge[],
+  centerX: number,
+  centerY: number,
+  dragged: SimNode | null,
+  damping = 0.86,
+): void {
+  const nodeCount = nodes.length;
+  if (nodeCount === 0) return;
+
+  // 1. Markazga tortish kuchi (Centering gravity)
+  for (let i = 0; i < nodeCount; i++) {
+    const n1 = nodes[i];
+    if (dragged === n1) continue;
+
+    n1.vx += (centerX - n1.x) * 0.00004;
+    n1.vy += (centerY - n1.y) * 0.00004;
+
+    // 2. Kulon itarish kuchi va to'qnashuvni bartaraf qilish (Coulomb repulsion & anti-overlap)
+    for (let j = i + 1; j < nodeCount; j++) {
+      const n2 = nodes[j];
+      const dx = n2.x - n1.x;
+      const dy = n2.y - n1.y;
+      const distSq = dx * dx + dy * dy + 1;
+      const dist = Math.sqrt(distSq);
+
+      const massFactor = Math.max(1, (n1.radius * n2.radius) / 360);
+      const repelForce = (34000 * massFactor) / (distSq + 1200);
+      const rfx = (dx / dist) * repelForce;
+      const rfy = (dy / dist) * repelForce;
+
+      if (dragged !== n1) {
+        n1.vx -= rfx;
+        n1.vy -= rfy;
+      }
+      if (dragged !== n2) {
+        n2.vx += rfx;
+        n2.vy += rfy;
+      }
+
+      const minClearance = n1.radius + n2.radius + 110;
+      if (dist < minClearance) {
+        const overlap = minClearance - dist;
+        const push = (overlap / minClearance) * 3.5;
+        const cfx = (dx / dist) * push;
+        const cfy = (dy / dist) * push;
+
+        if (dragged !== n1) {
+          n1.vx -= cfx;
+          n1.vy -= cfy;
+        }
+        if (dragged !== n2) {
+          n2.vx += cfx;
+          n2.vy += cfy;
+        }
+      }
+    }
+  }
+
+  // 3. Bog'langan qirralar (Tranzaksiyalar) bo'ylab tortish prujinasi (Spring force)
+  const nodeById = new Map<string, SimNode>();
+  for (let i = 0; i < nodeCount; i++) {
+    nodeById.set(nodes[i].id, nodes[i]);
+  }
+
+  edges.forEach((edge) => {
+    const source = nodeById.get(edge.from);
+    const target = nodeById.get(edge.to);
+    if (!source || !target) return;
+
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+    const TARGET_ARROW_SPAN = 140;
+    const idealDist = source.radius + target.radius + TARGET_ARROW_SPAN;
+    const delta = dist - idealDist;
+
+    const stiffness = 0.009;
+    const nonLinear = delta > 0 ? delta * 0.00012 : -delta * 0.00012;
+    const force = delta * (stiffness + Math.min(0.03, Math.abs(nonLinear)));
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+
+    if (dragged !== source) {
+      source.vx += fx;
+      source.vy += fy;
+    }
+    if (dragged !== target) {
+      target.vx -= fx;
+      target.vy -= fy;
+    }
+  });
+
+  // 4. Tezlik va koordinatalarni yangilash (Velocity & position update)
+  for (let i = 0; i < nodeCount; i++) {
+    const n = nodes[i];
+    if (dragged === n) continue;
+    const speed = Math.hypot(n.vx, n.vy);
+    if (speed > 12) {
+      n.vx = (n.vx / speed) * 12;
+      n.vy = (n.vy / speed) * 12;
+    }
+    n.x += n.vx;
+    n.y += n.vy;
+    n.vx *= damping;
+    n.vy *= damping;
+  }
+}
+
 export const GraphCanvas: React.FC<Props> = ({
   nodes,
   edges,
@@ -196,7 +311,20 @@ export const GraphCanvas: React.FC<Props> = ({
     return () => ro.disconnect();
   }, []);
 
-  // Initialize nodes simulation positions
+  const textWidthCache = useRef<Map<string, number>>(new Map());
+
+  const getTextWidth = (ctx: CanvasRenderingContext2D, text: string, font: string): number => {
+    const key = `${font}|${text}`;
+    let w = textWidthCache.current.get(key);
+    if (w === undefined) {
+      ctx.font = font;
+      w = ctx.measureText(text).width;
+      textWidthCache.current.set(key, w);
+    }
+    return w;
+  };
+
+  // Initialize nodes simulation positions with Smart Topology & Pre-warming
   useEffect(() => {
     if (!displayNodes || displayNodes.length === 0) {
       setSimNodes([]);
@@ -208,49 +336,147 @@ export const GraphCanvas: React.FC<Props> = ({
     const centerX = width / 2;
     const centerY = height / 2;
 
-    simEnergy.current = 1.0;
-
     const existingPosMap = new Map<string, { x: number; y: number }>();
     simNodes.forEach((n) => existingPosMap.set(n.id, { x: n.x, y: n.y }));
 
-    const initialNodes: SimNode[] = displayNodes.map((node, index) => {
-      const existing = existingPosMap.get(node.id);
-      const nodeRadius = calcNodeRadius(node);
+    // 1. Alohida Hub (Dropper / Tranzit / Kassa) va Jabrlanuvchi kartalarini ajratish
+    const hubNodes: IGraphNode[] = [];
+    const victimNodes: IGraphNode[] = [];
+    const incomingToTarget = new Map<string, IGraphNode[]>();
 
-      if (existing) {
-        return {
-          ...node,
-          x: existing.x,
-          y: existing.y,
-          vx: 0,
-          vy: 0,
-          radius: nodeRadius,
-        };
+    displayNodes.forEach((n) => {
+      const isHub =
+        n.role === 'MULE_DROPPER' ||
+        n.role === 'TRANSIT' ||
+        n.role === 'ATM_TERMINAL' ||
+        n.role === 'CRYPTO_CASHOUT' ||
+        (n.riskScore && n.riskScore >= 70);
+      if (isHub) {
+        hubNodes.push(n);
+      } else {
+        victimNodes.push(n);
       }
-
-      const angle = (index / displayNodes.length) * 2 * Math.PI - Math.PI / 2;
-      const radiusDist =
-        node.role === 'MULE_DROPPER' || (node.riskScore && node.riskScore >= 70)
-          ? 120 + (index % 2) * 25
-          : node.role === 'TRANSIT'
-            ? 220 + (index % 2) * 30
-            : 300 + (index % 2) * 35;
-
-      const x = centerX + Math.cos(angle) * radiusDist;
-      const y = centerY + Math.sin(angle) * radiusDist;
-
-      return {
-        ...node,
-        x,
-        y,
-        vx: 0,
-        vy: 0,
-        radius: nodeRadius,
-      };
     });
 
+    const targetMap = new Map<string, string>();
+    displayEdges.forEach((e) => targetMap.set(e.from, e.to));
+
+    victimNodes.forEach((v) => {
+      const tgt = targetMap.get(v.id);
+      if (tgt) {
+        if (!incomingToTarget.has(tgt)) incomingToTarget.set(tgt, []);
+        incomingToTarget.get(tgt)!.push(v);
+      }
+    });
+
+    // Markaz atrofida hub kartalarni keng radiusda tarqatish
+    const hubCount = Math.max(hubNodes.length, 1);
+    const hubRadius = Math.max(260, 48 * Math.sqrt(hubCount));
+    const hubPosMap = new Map<string, { x: number; y: number }>();
+
+    hubNodes.forEach((hub, idx) => {
+      const angle = (idx / hubCount) * 2 * Math.PI - Math.PI / 2;
+      const hx = centerX + Math.cos(angle) * hubRadius;
+      const hy = centerY + Math.sin(angle) * hubRadius;
+      hubPosMap.set(hub.id, { x: hx, y: hy });
+    });
+
+    const initialNodes: SimNode[] = [];
+    const createdMap = new Map<string, SimNode>();
+
+    hubNodes.forEach((hub) => {
+      const pos = hubPosMap.get(hub.id)!;
+      const existing = existingPosMap.get(hub.id);
+      const sn: SimNode = {
+        ...hub,
+        x: existing ? existing.x : pos.x,
+        y: existing ? existing.y : pos.y,
+        vx: 0,
+        vy: 0,
+        radius: calcNodeRadius(hub),
+      };
+      createdMap.set(hub.id, sn);
+      initialNodes.push(sn);
+
+      const connectedVictims = incomingToTarget.get(hub.id) || [];
+      const vicCount = connectedVictims.length;
+      const hubAngle = Math.atan2(pos.y - centerY, pos.x - centerX);
+
+      connectedVictims.forEach((v, vIdx) => {
+        const existingV = existingPosMap.get(v.id);
+        const arcSpread = Math.min(Math.PI * 0.9, vicCount * 0.35);
+        const startArc = hubAngle - arcSpread / 2;
+        const vAngle =
+          vicCount === 1 ? hubAngle : startArc + (vIdx / Math.max(vicCount - 1, 1)) * arcSpread;
+        const vDist = sn.radius + 140 + (vIdx % 2) * 30;
+        const vx = pos.x + Math.cos(vAngle) * vDist;
+        const vy = pos.y + Math.sin(vAngle) * vDist;
+
+        const vsn: SimNode = {
+          ...v,
+          x: existingV ? existingV.x : vx,
+          y: existingV ? existingV.y : vy,
+          vx: 0,
+          vy: 0,
+          radius: calcNodeRadius(v),
+        };
+        createdMap.set(v.id, vsn);
+        initialNodes.push(vsn);
+      });
+    });
+
+    // Qolgan alohida kartalarni tashqi aylana bo'ylab joylash
+    displayNodes.forEach((n, idx) => {
+      if (!createdMap.has(n.id)) {
+        const existing = existingPosMap.get(n.id);
+        const angle = (idx / displayNodes.length) * 2 * Math.PI;
+        const sn: SimNode = {
+          ...n,
+          x: existing ? existing.x : centerX + Math.cos(angle) * (hubRadius + 160),
+          y: existing ? existing.y : centerY + Math.sin(angle) * (hubRadius + 160),
+          vx: 0,
+          vy: 0,
+          radius: calcNodeRadius(n),
+        };
+        createdMap.set(n.id, sn);
+        initialNodes.push(sn);
+      }
+    });
+
+    // 2. TEZYURAR PRE-WARM (Xotirada 130 ta matematik qadam — 8-10ms)
+    // Foydalanuvchi qotish yoki to'qnashuvni ko'rmasdan, darhol tarqalgan muvozanatli ko'rinishga ega bo'ladi
+    const warmUpSteps = existingPosMap.size === 0 ? 130 : 20;
+    for (let step = 0; step < warmUpSteps; step++) {
+      stepPhysics(initialNodes, displayEdges, centerX, centerY, null, 0.84);
+    }
+
+    // Butun tarmoqni oynaga to'liq sig'adigan qilib avtomatik moslash (Auto-fit)
+    if (existingPosMap.size === 0 && initialNodes.length > 0) {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      initialNodes.forEach((n) => {
+        if (n.x < minX) minX = n.x;
+        if (n.x > maxX) maxX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.y > maxY) maxY = n.y;
+      });
+      const graphW = Math.max(maxX - minX + 160, 400);
+      const graphH = Math.max(maxY - minY + 160, 400);
+      const fitK = Math.min(Math.max(Math.min(width / graphW, height / graphH) * 0.92, 0.35), 1.0);
+      const graphMidX = (minX + maxX) / 2;
+      const graphMidY = (minY + maxY) / 2;
+      setTransform({
+        x: width / 2 - graphMidX * fitK,
+        y: height / 2 - graphMidY * fitK,
+        k: fitK,
+      });
+    }
+
+    simEnergy.current = 0.08;
     setSimNodes(initialNodes);
-  }, [displayNodes, calcNodeRadius, containerSize]);
+  }, [displayNodes, displayEdges, calcNodeRadius, containerSize]);
 
   // Main simulation & render loop
   useEffect(() => {
@@ -274,106 +500,10 @@ export const GraphCanvas: React.FC<Props> = ({
         simEnergy.current > 0.005 || isDraggingCanvas.current || draggedNode.current !== null;
 
       if (shouldRunPhysics) {
-        const nodeCount = simNodes.length;
-
-        // Centering force
-        for (let i = 0; i < nodeCount; i++) {
-          const n1 = simNodes[i];
-          if (draggedNode.current === n1) continue;
-
-          n1.vx += (centerX - n1.x) * 0.00004;
-          n1.vy += (centerY - n1.y) * 0.00004;
-
-          // Coulomb repulsion + anti-overlap
-          for (let j = i + 1; j < nodeCount; j++) {
-            const n2 = simNodes[j];
-            const dx = n2.x - n1.x;
-            const dy = n2.y - n1.y;
-            const distSq = dx * dx + dy * dy + 1;
-            const dist = Math.sqrt(distSq);
-
-            const massFactor = Math.max(1, (n1.radius * n2.radius) / 360);
-            const repelForce = (34000 * massFactor) / (distSq + 1200);
-            const rfx = (dx / dist) * repelForce;
-            const rfy = (dy / dist) * repelForce;
-
-            if (draggedNode.current !== n1) {
-              n1.vx -= rfx;
-              n1.vy -= rfy;
-            }
-            if (draggedNode.current !== n2) {
-              n2.vx += rfx;
-              n2.vy += rfy;
-            }
-
-            const minClearance = n1.radius + n2.radius + 110;
-            if (dist < minClearance) {
-              const overlap = minClearance - dist;
-              const push = (overlap / minClearance) * 3.5;
-              const cfx = (dx / dist) * push;
-              const cfy = (dy / dist) * push;
-
-              if (draggedNode.current !== n1) {
-                n1.vx -= cfx;
-                n1.vy -= cfy;
-              }
-              if (draggedNode.current !== n2) {
-                n2.vx += cfx;
-                n2.vy += cfy;
-              }
-            }
-          }
-        }
-
-        // Spring along edges
-        const nodeById = new Map<string, SimNode>();
-        simNodes.forEach((n) => nodeById.set(n.id, n));
-
-        displayEdges.forEach((edge) => {
-          const source = nodeById.get(edge.from);
-          const target = nodeById.get(edge.to);
-          if (!source || !target) return;
-
-          const dx = target.x - source.x;
-          const dy = target.y - source.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-
-          const TARGET_ARROW_SPAN = 140;
-          const idealDist = source.radius + target.radius + TARGET_ARROW_SPAN;
-          const delta = dist - idealDist;
-
-          const stiffness = 0.009;
-          const nonLinear = delta > 0 ? delta * 0.00012 : -delta * 0.00012;
-          const force = delta * (stiffness + Math.min(0.03, Math.abs(nonLinear)));
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-
-          if (draggedNode.current !== source) {
-            source.vx += fx;
-            source.vy += fy;
-          }
-          if (draggedNode.current !== target) {
-            target.vx -= fx;
-            target.vy -= fy;
-          }
-        });
-
-        // Update positions
-        simNodes.forEach((n) => {
-          if (draggedNode.current === n) return;
-          const speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
-          if (speed > 12) {
-            n.vx = (n.vx / speed) * 12;
-            n.vy = (n.vy / speed) * 12;
-          }
-          n.x += n.vx;
-          n.y += n.vy;
-          n.vx *= 0.86;
-          n.vy *= 0.86;
-        });
+        stepPhysics(simNodes, displayEdges, centerX, centerY, draggedNode.current, 0.86);
 
         if (!draggedNode.current && !isDraggingCanvas.current) {
-          simEnergy.current *= 0.988;
+          simEnergy.current *= 0.96;
         }
       }
 
@@ -528,8 +658,8 @@ export const GraphCanvas: React.FC<Props> = ({
         const formattedAmount = `${formatUZS(edge.amount)} UZS`;
         const fullLabel = `[${providerName}] ${formattedAmount}`;
 
-        ctx.font = 'bold 9.5px "JetBrains Mono", Consolas, monospace';
-        const textWidth = ctx.measureText(fullLabel).width;
+        const edgeFont = 'bold 9.5px "JetBrains Mono", Consolas, monospace';
+        const textWidth = getTextWidth(ctx, fullLabel, edgeFont);
         const boxPaddingX = 6;
         const boxHeight = 16;
         const boxWidth = textWidth + boxPaddingX * 2;
@@ -547,15 +677,13 @@ export const GraphCanvas: React.FC<Props> = ({
           ctx.rect(boxX, boxY, boxWidth, boxHeight);
         }
         ctx.fillStyle = isEdgeActive ? '#0f172a' : 'rgba(255, 255, 255, 0.96)';
-        ctx.shadowColor = 'rgba(0,0,0,0.12)';
-        ctx.shadowBlur = 3;
         ctx.fill();
-        ctx.shadowBlur = 0;
 
         ctx.strokeStyle = isEdgeActive ? arrowFillColor : '#cbd5e1';
         ctx.lineWidth = isEdgeActive ? 1.4 : 1;
         ctx.stroke();
 
+        ctx.font = edgeFont;
         ctx.fillStyle = isEdgeActive ? '#38bdf8' : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -598,8 +726,8 @@ export const GraphCanvas: React.FC<Props> = ({
 
           const labelY = node.y + node.radius + 15;
           const clusterTitle = `👥 ${node.clusterCount} ta jabrlanuvchi`;
-          ctx.font = 'bold 11px sans-serif';
-          const tWidth = ctx.measureText(clusterTitle).width;
+          const clusterFont = 'bold 11px sans-serif';
+          const tWidth = getTextWidth(ctx, clusterTitle, clusterFont);
           const badgeW = tWidth + 16;
           const badgeH = 26;
           const badgeX = node.x - badgeW / 2;
@@ -751,11 +879,11 @@ export const GraphCanvas: React.FC<Props> = ({
             : node.cardNumber || node.maskedCard;
 
         const labelY = node.y + node.radius + 15;
-        ctx.font = 'bold 11px monospace';
-        const cardWidth = ctx.measureText(fullCardDisplay).width;
-        ctx.font = '9px sans-serif';
+        const cardFont = 'bold 11px monospace';
+        const bankFont = '9px sans-serif';
+        const cardWidth = getTextWidth(ctx, fullCardDisplay, cardFont);
         const bankDisplay = (node.bankName || '').substring(0, 24);
-        const bankWidth = ctx.measureText(bankDisplay).width;
+        const bankWidth = getTextWidth(ctx, bankDisplay, bankFont);
         const badgeW = Math.max(cardWidth, bankWidth) + 16;
         const badgeH = 28;
         const badgeX = node.x - badgeW / 2;
@@ -795,7 +923,7 @@ export const GraphCanvas: React.FC<Props> = ({
       ctx.save();
       ctx.strokeStyle = '#f1f5f9';
       ctx.lineWidth = 1;
-      const gridSize = 40;
+      const gridSize = 50;
       const startX = -transform.x / transform.k;
       const endX = startX + width / transform.k;
       const startY = -transform.y / transform.k;

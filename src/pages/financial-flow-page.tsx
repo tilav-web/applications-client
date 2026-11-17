@@ -21,7 +21,7 @@ export function FinancialFlowPage() {
   const [searchCard, setSearchCard] = useState('');
   const [riskLevel, setRiskLevel] = useState('ALL');
   const [minAmount, setMinAmount] = useState(0);
-  const [clusteringEnabled, setClusteringEnabled] = useState(false);
+  const [clusteringEnabled, setClusteringEnabled] = useState(true);
   const [selectedNode, setSelectedNode] = useState<IGraphNode | null>(null);
 
   // Butun tizimdagi barcha kartalar va o'tkazmalar grafigi
