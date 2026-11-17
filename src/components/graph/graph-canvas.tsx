@@ -443,9 +443,9 @@ export const GraphCanvas: React.FC<Props> = ({
       }
     });
 
-    // 2. TEZYURAR PRE-WARM (Xotirada 130 ta matematik qadam — 8-10ms)
+    // 2. TEZYURAR PRE-WARM (Xotirada 200 ta matematik qadam — 12-15ms)
     // Foydalanuvchi qotish yoki to'qnashuvni ko'rmasdan, darhol tarqalgan muvozanatli ko'rinishga ega bo'ladi
-    const warmUpSteps = existingPosMap.size === 0 ? 130 : 20;
+    const warmUpSteps = existingPosMap.size === 0 ? 200 : 30;
     for (let step = 0; step < warmUpSteps; step++) {
       stepPhysics(initialNodes, displayEdges, centerX, centerY, null, 0.84);
     }
@@ -474,7 +474,7 @@ export const GraphCanvas: React.FC<Props> = ({
       });
     }
 
-    simEnergy.current = 0.08;
+    simEnergy.current = 0.45;
     setSimNodes(initialNodes);
   }, [displayNodes, displayEdges, calcNodeRadius, containerSize]);
 
@@ -496,14 +496,15 @@ export const GraphCanvas: React.FC<Props> = ({
       const centerX = width / 2;
       const centerY = height / 2;
 
-      const shouldRunPhysics =
-        simEnergy.current > 0.005 || isDraggingCanvas.current || draggedNode.current !== null;
+      // Faqat energiya mavjud bo'lganda yoki biror karta sichqoncha bilan surilayotganda fizika ishlaydi.
+      // Ekranni shunchaki ushlab turish (canvas drag) fizikani noo'rin qo'zg'atmaydi.
+      const shouldRunPhysics = simEnergy.current > 0.005 || draggedNode.current !== null;
 
       if (shouldRunPhysics) {
         stepPhysics(simNodes, displayEdges, centerX, centerY, draggedNode.current, 0.86);
 
-        if (!draggedNode.current && !isDraggingCanvas.current) {
-          simEnergy.current *= 0.96;
+        if (!draggedNode.current) {
+          simEnergy.current *= 0.985;
         }
       }
 
@@ -1081,7 +1082,33 @@ export const GraphCanvas: React.FC<Props> = ({
   };
 
   const handleResetCenter = () => {
-    setTransform({ x: 0, y: 0, k: 1 });
+    const width = containerSize.width;
+    const height = containerSize.height;
+    if (simNodes.length > 0) {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      simNodes.forEach((n) => {
+        if (n.x < minX) minX = n.x;
+        if (n.x > maxX) maxX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.y > maxY) maxY = n.y;
+      });
+      const graphW = Math.max(maxX - minX + 160, 400);
+      const graphH = Math.max(maxY - minY + 160, 400);
+      const fitK = Math.min(Math.max(Math.min(width / graphW, height / graphH) * 0.92, 0.35), 1.0);
+      const graphMidX = (minX + maxX) / 2;
+      const graphMidY = (minY + maxY) / 2;
+      setTransform({
+        x: width / 2 - graphMidX * fitK,
+        y: height / 2 - graphMidY * fitK,
+        k: fitK,
+      });
+    } else {
+      setTransform({ x: 0, y: 0, k: 1 });
+    }
+    simEnergy.current = 0.35;
   };
 
   const handlePanTo = (gx: number, gy: number) => {
