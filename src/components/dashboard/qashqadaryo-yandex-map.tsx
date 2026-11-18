@@ -50,7 +50,11 @@ interface Props {
 }
 
 const YANDEX_API_KEY = '0faa0d3b-2049-4fbc-b77e-437de12c50a3';
-const DEFAULT_CENTER = [38.75, 66.05];
+const PROVINCE_BOUNDS: [[number, number], [number, number]] = [
+  [38.0075, 64.3777],
+  [39.57, 67.6851],
+];
+const DEFAULT_CENTER: [number, number] = [38.7888, 66.0314];
 const DEFAULT_ZOOM = 8;
 
 const formatUZS = (val?: number | null) => {
@@ -170,6 +174,14 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     setCustomCenters({});
     setLastMovedDistrict(null);
     setIsMoveMode(false);
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setBounds(PROVINCE_BOUNDS, {
+        checkZoomRange: true,
+        zoomMargin: [25, 25, 45, 25],
+        duration: 600,
+        timingFunction: 'ease-in-out',
+      });
+    }
   }, []);
 
   // Foydalanuvchi tomonidan surilgan mahallalar koordinatalari (localStorage da saqlanadi)
@@ -324,34 +336,62 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       if (!map || !window.ymaps) return;
 
       if (!districtName) {
-        // Viloyat umumiy ko'rinishiga qaytish (Zoom: 8)
-        map.setCenter(DEFAULT_CENTER, DEFAULT_ZOOM, {
+        // Viloyat umumiy ko'rinishiga markazlashgan holda qaytish
+        map.setBounds(PROVINCE_BOUNDS, {
+          checkZoomRange: true,
+          zoomMargin: [25, 25, 45, 25],
           duration: 600,
           timingFunction: 'ease-in-out',
         });
         return;
       }
 
-      // Tanlangan tuman markaziga silliq yaqinlashish (Maksimal Zoom: 10)
+      // Tanlangan tumanning aniq geometrik chegaralariga (Bounds) silliq yaqinlashish
       const feat = (realDistrictsData as any).features.find(
         (f: any) => f.properties.name.toLowerCase() === districtName.toLowerCase(),
       );
 
-      if (feat && feat.properties.center) {
-        const targetCenter = customCenters[districtName] || feat.properties.center;
-        map.setCenter(targetCenter, 10, {
-          duration: 600,
-          timingFunction: 'ease-in-out',
-        });
+      if (feat) {
+        let minLat = 999,
+          maxLat = -999,
+          minLng = 999,
+          maxLng = -999;
+        const walk = (c: any) => {
+          if (typeof c[0] === 'number') {
+            const lat = c[0] > 50 ? c[1] : c[0];
+            const lng = c[0] > 50 ? c[0] : c[1];
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+          } else {
+            c.forEach(walk);
+          }
+        };
+        walk(feat.geometry.coordinates);
+
+        if (minLat !== 999) {
+          const districtBounds: [[number, number], [number, number]] = [
+            [minLat, minLng],
+            [maxLat, maxLng],
+          ];
+
+          map.setBounds(districtBounds, {
+            checkZoomRange: true,
+            zoomMargin: [50, 50, 50, 50],
+            duration: 600,
+            timingFunction: 'ease-in-out',
+          });
+        }
       }
     },
-    [onDistrictSelect, customCenters],
+    [onDistrictSelect],
   );
 
   const handleZoomIn = () => {
     if (mapInstanceRef.current) {
       const cur = mapInstanceRef.current.getZoom();
-      mapInstanceRef.current.setZoom(Math.min(10, cur + 1), {
+      mapInstanceRef.current.setZoom(Math.min(14, cur + 1), {
         duration: 250,
         timingFunction: 'ease-out',
       });
@@ -361,7 +401,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   const handleZoomOut = () => {
     if (mapInstanceRef.current) {
       const cur = mapInstanceRef.current.getZoom();
-      mapInstanceRef.current.setZoom(Math.max(8, cur - 1), {
+      mapInstanceRef.current.setZoom(Math.max(7, cur - 1), {
         duration: 250,
         timingFunction: 'ease-out',
       });
@@ -378,16 +418,22 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         mapContainerRef.current,
         {
           center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM, // Default 8 (Qashqadaryo viloyati to'liq ko'rinishi)
+          zoom: DEFAULT_ZOOM,
           controls: ['zoomControl', 'typeSelector'],
-          type: 'yandex#map', // To'liq ko'chalar, shaharlar va qishloqlar ko'rinishi
+          type: 'yandex#map',
         },
         {
           suppressMapOpenBlock: true,
-          minZoom: 8, // Maximum uzoqlashtirish: 8
-          maxZoom: 10, // Maximum yaqinlashtirish: 10 (tumanni ko'rish)
+          minZoom: 7,
+          maxZoom: 14,
         },
       );
+
+      // Viloyatni butun ekran bo'ylab markazlashtirib joylashtirish
+      map.setBounds(PROVINCE_BOUNDS, {
+        checkZoomRange: true,
+        zoomMargin: [25, 25, 45, 25],
+      });
 
       // Barcha zoom va pan imo-ishoralarini yoqish
       map.behaviors.enable('scrollZoom');
@@ -417,7 +463,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [isYmapsReady]);
+  }, [isYmapsReady, handleSelectDistrict]);
 
   // 5. CHEGARALARNI CHIZISH (YUZASINI BO'YAMASDAN - FAQAT TINIQ BORDERLAR BILAN)
   useEffect(() => {
