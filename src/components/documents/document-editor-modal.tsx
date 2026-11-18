@@ -319,39 +319,41 @@ export function DocumentEditorModal({
             <DocumentEditor
               id={editorId}
               documentServerUrl={documentServerUrl}
-              config={{
-                documentType: configData.documentType,
-                document: {
-                  ...configData.document,
-                  permissions: {
-                    comment: true,
-                    copy: true,
-                    download: true,
-                    edit: true,
-                    fillForms: true,
-                    modifyContentControl: true,
-                    modifyFilter: true,
-                    print: true,
-                    review: true,
-                    chat: false,
-                    ...configData.document?.permissions,
+              config={
+                {
+                  documentType: configData.documentType,
+                  document: {
+                    ...configData.document,
+                    permissions: {
+                      comment: true,
+                      copy: true,
+                      download: true,
+                      edit: true,
+                      fillForms: true,
+                      modifyContentControl: true,
+                      modifyFilter: true,
+                      print: true,
+                      review: true,
+                      chat: false,
+                      ...configData.document?.permissions,
+                    },
                   },
-                },
-                editorConfig: {
-                  ...configData.editorConfig,
-                  mode: 'edit',
-                  lang: 'ru',
-                  customization: {
-                    ...configData.editorConfig?.customization,
-                    uiTheme: 'theme-classic-light',
-                    forcesave: true,
-                    autosave: true,
-                    compactHeader: false,
-                    toolbarNoTabs: false,
-                    feedback: false,
+                  editorConfig: {
+                    ...configData.editorConfig,
+                    mode: 'edit',
+                    lang: 'ru',
+                    customization: {
+                      ...configData.editorConfig?.customization,
+                      uiTheme: 'theme-classic-light',
+                      forcesave: true,
+                      autosave: true,
+                      compactHeader: false,
+                      toolbarNoTabs: false,
+                      feedback: false,
+                    },
                   },
-                },
-              }}
+                } as any
+              }
               events_onDocumentReady={handleDocumentReady}
               events_onDocumentStateChange={handleDocumentStateChange}
               height="100%"

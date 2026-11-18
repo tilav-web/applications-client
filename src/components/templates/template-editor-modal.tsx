@@ -303,13 +303,15 @@ export function TemplateEditorModal({
               <DocumentEditor
                 id={editorId}
                 documentServerUrl={documentServerUrl}
-                config={{
-                  ...configData,
-                  events: {
-                    onDocumentReady: handleDocumentReady,
-                    onDocumentStateChange: handleDocumentStateChange,
-                  },
-                }}
+                config={
+                  {
+                    ...configData,
+                    events: {
+                      onDocumentReady: handleDocumentReady,
+                      onDocumentStateChange: handleDocumentStateChange,
+                    },
+                  } as any
+                }
               />
             </div>
           )}
