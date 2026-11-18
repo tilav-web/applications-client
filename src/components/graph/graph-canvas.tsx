@@ -183,6 +183,19 @@ export const GraphCanvas: React.FC<Props> = ({
   const simEnergy = useRef(1.0);
   const mouseDownClientPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const isNodeHitOnDown = useRef(false);
+  const wakeFrames = useRef(0);
+  const isLoopRunning = useRef(false);
+  const runSimulationStepRef = useRef<() => void>(() => {});
+
+  const requestRender = useCallback((frames = 20) => {
+    wakeFrames.current = Math.max(wakeFrames.current, frames);
+    if (!isLoopRunning.current) {
+      isLoopRunning.current = true;
+      animFrameId.current = requestAnimationFrame(() => {
+        runSimulationStepRef.current();
+      });
+    }
+  }, []);
 
   const formatUZS = useCallback((val: number) => {
     if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
@@ -476,9 +489,10 @@ export const GraphCanvas: React.FC<Props> = ({
 
     simEnergy.current = 0.45;
     setSimNodes(initialNodes);
-  }, [displayNodes, displayEdges, calcNodeRadius, containerSize]);
+    requestRender(120);
+  }, [displayNodes, displayEdges, calcNodeRadius, containerSize, requestRender]);
 
-  // Main simulation & render loop
+  // Main simulation & render loop (Adaptive / On-Demand: 60 FPS under action -> 0% CPU Sleep)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -487,34 +501,34 @@ export const GraphCanvas: React.FC<Props> = ({
 
     let active = true;
 
-    const runSimulationStep = () => {
-      if (!active) return;
-      pulsePhase.current = (pulsePhase.current + 0.04) % (Math.PI * 2);
+    const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+      ctx.save();
+      ctx.strokeStyle = '#f1f5f9';
+      ctx.lineWidth = 1;
+      const gridSize = 50;
+      const startX = -transform.x / transform.k;
+      const endX = startX + width / transform.k;
+      const startY = -transform.y / transform.k;
+      const endY = startY + height / transform.k;
 
-      const width = canvas.width / (window.devicePixelRatio || 1);
-      const height = canvas.height / (window.devicePixelRatio || 1);
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      // Faqat energiya mavjud bo'lganda yoki biror karta sichqoncha bilan surilayotganda fizika ishlaydi.
-      // Ekranni shunchaki ushlab turish (canvas drag) fizikani noo'rin qo'zg'atmaydi.
-      const shouldRunPhysics = simEnergy.current > 0.005 || draggedNode.current !== null;
-
-      if (shouldRunPhysics) {
-        stepPhysics(simNodes, displayEdges, centerX, centerY, draggedNode.current, 0.86);
-
-        if (!draggedNode.current) {
-          simEnergy.current *= 0.985;
-        }
+      ctx.beginPath();
+      for (let x = Math.floor(startX / gridSize) * gridSize; x < endX; x += gridSize) {
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
       }
-
-      renderGraph(ctx, width, height);
-
-      animFrameId.current = requestAnimationFrame(runSimulationStep);
+      for (let y = Math.floor(startY / gridSize) * gridSize; y < endY; y += gridSize) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+      }
+      ctx.stroke();
+      ctx.restore();
     };
 
     const renderGraph = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-      // 1. Oq fon bilan tozalash (Dark bo'lib qolmasligi uchun)
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // 1. Oq fon bilan tozalash
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
@@ -527,6 +541,12 @@ export const GraphCanvas: React.FC<Props> = ({
 
       // 2. Chiroyli nozik katakchali to'r (Grid)
       drawGrid(ctx, width, height);
+
+      // Viewport Frustum Culling (ekrandan tashqaridagi ob'ektlarni chizishdan saqlash)
+      const viewMinX = -transform.x / transform.k - 120;
+      const viewMaxX = (width - transform.x) / transform.k + 120;
+      const viewMinY = -transform.y / transform.k - 120;
+      const viewMaxY = (height - transform.y) / transform.k + 120;
 
       const connectedNodeIds = new Set<string>();
       if (selectedNode) {
@@ -542,6 +562,16 @@ export const GraphCanvas: React.FC<Props> = ({
         const src = nodeById.get(edge.from);
         const tgt = nodeById.get(edge.to);
         if (!src || !tgt) return;
+
+        // Frustum culling
+        if (
+          (src.x < viewMinX && tgt.x < viewMinX) ||
+          (src.x > viewMaxX && tgt.x > viewMaxX) ||
+          (src.y < viewMinY && tgt.y < viewMinY) ||
+          (src.y > viewMaxY && tgt.y > viewMaxY)
+        ) {
+          return;
+        }
 
         const isHighlighted = selectedNode
           ? edge.from === selectedNode.id || edge.to === selectedNode.id
@@ -637,18 +667,25 @@ export const GraphCanvas: React.FC<Props> = ({
         ctx.lineWidth = 1.2;
         ctx.stroke();
 
-        // Animated pulse particle
-        if (isHighlighted) {
+        // Animated pulse particle (faqat diqqat markazidagi kartalar qirralarida nurlanadi)
+        const isFocusedEdge =
+          (selectedNode && (edge.from === selectedNode.id || edge.to === selectedNode.id)) ||
+          (hoveredNode.current &&
+            (edge.from === hoveredNode.current.id || edge.to === hoveredNode.current.id));
+
+        if (isFocusedEdge) {
           const pulseOffset = (pulsePhase.current / (Math.PI * 2) + (edge.amount % 10) * 0.1) % 1;
           const px = startX + (lineEndX - startX) * pulseOffset;
           const py = startY + (lineEndY - startY) * pulseOffset;
           ctx.beginPath();
+          ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = `${arrowFillColor}40`;
+          ctx.fill();
+
+          ctx.beginPath();
           ctx.arc(px, py, 2.5, 0, Math.PI * 2);
           ctx.fillStyle = arrowFillColor;
-          ctx.shadowColor = arrowFillColor;
-          ctx.shadowBlur = 4;
           ctx.fill();
-          ctx.shadowBlur = 0;
         }
 
         // Amount label & provider badge on edge
@@ -693,6 +730,15 @@ export const GraphCanvas: React.FC<Props> = ({
 
       // 3. Draw Nodes
       simNodes.forEach((node) => {
+        // Frustum culling
+        if (
+          node.x + node.radius + 60 < viewMinX ||
+          node.x - node.radius - 60 > viewMaxX ||
+          node.y + node.radius + 60 < viewMinY ||
+          node.y - node.radius - 60 > viewMaxY
+        ) {
+          return;
+        }
         const isSelected = selectedNode?.id === node.id;
         const isHovered = hoveredNode.current?.id === node.id;
         const isConnected = selectedNode ? connectedNodeIds.has(node.id) : true;
@@ -920,36 +966,80 @@ export const GraphCanvas: React.FC<Props> = ({
       ctx.restore();
     };
 
-    const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-      ctx.save();
-      ctx.strokeStyle = '#f1f5f9';
-      ctx.lineWidth = 1;
-      const gridSize = 50;
-      const startX = -transform.x / transform.k;
-      const endX = startX + width / transform.k;
-      const startY = -transform.y / transform.k;
-      const endY = startY + height / transform.k;
+    const runSimulationStep = () => {
+      if (!active) {
+        isLoopRunning.current = false;
+        return;
+      }
 
-      ctx.beginPath();
-      for (let x = Math.floor(startX / gridSize) * gridSize; x < endX; x += gridSize) {
-        ctx.moveTo(x, startY);
-        ctx.lineTo(x, endY);
+      // Brauzer vkladkasi minimallashgan yoki orqa fonda bo'lsa darhol to'xtatish (0% CPU)
+      if (typeof document !== 'undefined' && document.hidden) {
+        isLoopRunning.current = false;
+        return;
       }
-      for (let y = Math.floor(startY / gridSize) * gridSize; y < endY; y += gridSize) {
-        ctx.moveTo(startX, y);
-        ctx.lineTo(endX, y);
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.width / dpr;
+      const height = canvas.height / dpr;
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      // Faqat energiya mavjud bo'lganda yoki biror karta sichqoncha bilan surilayotganda fizika ishlaydi
+      const isPhysicsActive = simEnergy.current > 0.005 || draggedNode.current !== null;
+
+      if (isPhysicsActive) {
+        stepPhysics(simNodes, displayEdges, centerX, centerY, draggedNode.current, 0.86);
+
+        if (!draggedNode.current) {
+          simEnergy.current *= 0.982;
+          if (simEnergy.current <= 0.005) {
+            simEnergy.current = 0;
+          }
+        }
       }
-      ctx.stroke();
-      ctx.restore();
+
+      if (isPhysicsActive || wakeFrames.current > 0 || draggedNode.current !== null) {
+        pulsePhase.current = (pulsePhase.current + 0.04) % (Math.PI * 2);
+      }
+
+      renderGraph(ctx, width, height);
+
+      if (wakeFrames.current > 0) {
+        wakeFrames.current--;
+      }
+
+      const shouldContinue =
+        isPhysicsActive ||
+        draggedNode.current !== null ||
+        isDraggingCanvas.current ||
+        wakeFrames.current > 0;
+
+      if (shouldContinue) {
+        animFrameId.current = requestAnimationFrame(runSimulationStep);
+      } else {
+        isLoopRunning.current = false;
+      }
     };
 
-    animFrameId.current = requestAnimationFrame(runSimulationStep);
+    runSimulationStepRef.current = runSimulationStep;
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        requestRender(60);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Dastlabki render
+    requestRender(100);
 
     return () => {
       active = false;
+      isLoopRunning.current = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
     };
-  }, [simNodes, displayEdges, transform, selectedNode, calcNodeRadius, formatUZS]);
+  }, [simNodes, displayEdges, transform, selectedNode, calcNodeRadius, formatUZS, requestRender]);
 
   // Screen coordinate to graph coordinate
   const screenToGraph = useCallback(
@@ -996,6 +1086,7 @@ export const GraphCanvas: React.FC<Props> = ({
       isDraggingCanvas.current = true;
       dragStart.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
     }
+    requestRender(45);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1010,6 +1101,7 @@ export const GraphCanvas: React.FC<Props> = ({
       draggedNode.current.vx = 0;
       draggedNode.current.vy = 0;
       simEnergy.current = 0.4;
+      requestRender(30);
       return;
     }
 
@@ -1019,12 +1111,14 @@ export const GraphCanvas: React.FC<Props> = ({
         x: e.clientX - dragStart.current.x,
         y: e.clientY - dragStart.current.y,
       }));
+      requestRender(10);
       return;
     }
 
     const hit = getNodeAtPos(gx, gy);
     if (hit !== hoveredNode.current) {
       hoveredNode.current = hit;
+      requestRender(25);
     }
   };
 
@@ -1051,6 +1145,7 @@ export const GraphCanvas: React.FC<Props> = ({
 
     draggedNode.current = null;
     isDraggingCanvas.current = false;
+    requestRender(40);
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1066,6 +1161,7 @@ export const GraphCanvas: React.FC<Props> = ({
     const newY = mouseY - (mouseY - transform.y) * (newK / transform.k);
 
     setTransform({ x: newX, y: newY, k: newK });
+    requestRender(20);
   };
 
   const handleZoom = (factor: number) => {
@@ -1079,6 +1175,7 @@ export const GraphCanvas: React.FC<Props> = ({
     const newY = centerY - (centerY - transform.y) * (newK / transform.k);
 
     setTransform({ x: newX, y: newY, k: newK });
+    requestRender(30);
   };
 
   const handleResetCenter = () => {
@@ -1109,6 +1206,7 @@ export const GraphCanvas: React.FC<Props> = ({
       setTransform({ x: 0, y: 0, k: 1 });
     }
     simEnergy.current = 0.35;
+    requestRender(70);
   };
 
   const handlePanTo = (gx: number, gy: number) => {
@@ -1119,6 +1217,7 @@ export const GraphCanvas: React.FC<Props> = ({
       y: height / 2 - gy * transform.k,
       k: transform.k,
     });
+    requestRender(25);
   };
 
   return (

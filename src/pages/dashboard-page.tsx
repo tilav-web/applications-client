@@ -37,6 +37,7 @@ import {
   YAxis,
 } from 'recharts';
 
+import { QashqadaryoYandexMap } from '@/components/dashboard/qashqadaryo-yandex-map';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -147,6 +148,7 @@ export function DashboardPage() {
   const timelineData = data?.timeline || [];
   const statusData = data?.byStatus || [];
   const districtData = data?.byDistrict || [];
+  const mahallaData = data?.byMahalla || [];
   const crimeData = data?.byCrime || [];
   const providerData = data?.byPaymentProvider || [];
   const recentApps = data?.recentApplications || [];
@@ -385,17 +387,17 @@ export function DashboardPage() {
 
         {/* Card 4: Jami Moliyaviy Zarar */}
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm hover:border-rose-500/40 transition">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
+          <CardContent className="p-5 flex items-center justify-between gap-2">
+            <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Yetkazilgan Zarar
               </p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-xl sm:text-2xl font-black tracking-tight text-rose-400 font-mono truncate max-w-[200px]">
+                <h3 className="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-rose-400 font-mono whitespace-nowrap">
                   {isLoading ? '...' : formatCurrency(summary.totalLoss)}
                 </h3>
               </div>
-              <p className="text-[11px] text-muted-foreground truncate">
+              <p className="text-[11px] text-muted-foreground whitespace-nowrap">
                 O‘rtacha: {formatCurrency(summary.avgLoss)}
               </p>
             </div>
@@ -407,7 +409,29 @@ export function DashboardPage() {
       </div>
 
       {/* ===================================================================== */}
-      {/* 2. DYNAMIC CHARTS (TIMELINE & STATUS PIE) */}
+      {/* 2. QASHQADARYO VILOYATI INTERAKTIV YANDEX XARITASI */}
+      {/* ===================================================================== */}
+      <QashqadaryoYandexMap
+        districtsData={districtData}
+        mahallasData={mahallaData}
+        isLoading={isLoading}
+        periodLabel={
+          period === 'today'
+            ? 'Bugun'
+            : period === 'week'
+              ? 'Haftalik'
+              : period === 'month'
+                ? 'Oylik'
+                : period === 'year'
+                  ? 'Yillik'
+                  : period === 'custom'
+                    ? `${startDate} — ${endDate}`
+                    : 'Barcha davr'
+        }
+      />
+
+      {/* ===================================================================== */}
+      {/* 3. DYNAMIC CHARTS (TIMELINE & STATUS PIE) */}
       {/* ===================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* TIMELINE AREA CHART (2 COLS) */}

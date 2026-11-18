@@ -142,6 +142,15 @@ export interface DashboardStatistics {
     percent: number;
     totalLoss: number;
   }>;
+  byMahalla?: Array<{
+    id: string;
+    name: string;
+    district_id: string;
+    district_name: string | null;
+    count: number;
+    totalLoss: number;
+    percent: number;
+  }>;
   byCrime: Array<{
     id: string;
     article: string;
