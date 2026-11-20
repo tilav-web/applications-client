@@ -1608,3 +1608,165 @@ export const auditApi = {
     return res.data;
   },
 };
+
+// =========================================================================
+// 16. NOTIFICATIONS & TELEGRAM BOT API
+// =========================================================================
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  type:
+    | 'HIGH_VALUE_ALERT'
+    | 'CROSS_CASE_MATCH'
+    | 'SLA_WARNING'
+    | 'SLA_OVERDUE'
+    | 'NEW_APPLICATION'
+    | 'STATUS_CHANGED'
+    | 'SECURITY_ALERT'
+    | 'DAILY_DIGEST'
+    | 'SYSTEM';
+  priority: 'CRITICAL' | 'WARNING' | 'INFO';
+  title: string;
+  message: string;
+  link_url: string | null;
+  metadata?: Record<string, unknown> | null;
+  is_read: boolean;
+  read_at: string | null;
+  sent_to_telegram: boolean;
+  created_at: string;
+}
+
+export interface NotificationPrefs {
+  telegram_enabled: boolean;
+  high_value: boolean;
+  cross_case: boolean;
+  sla: boolean;
+  new_application: boolean;
+  status_changed: boolean;
+  daily_digest: boolean;
+  security: boolean;
+}
+
+export interface MyNotificationPrefsResponse {
+  telegram_connected: boolean;
+  telegram_username: string | null;
+  telegram_first_name: string | null;
+  bot_available: boolean;
+  bot_username: string | null;
+  bot_name: string | null;
+  prefs: NotificationPrefs;
+}
+
+export interface TelegramBotConfigView {
+  is_configured: boolean;
+  enabled: boolean;
+  polling_active: boolean;
+  bot_id: string | null;
+  bot_username: string | null;
+  bot_name: string | null;
+  token_masked: string | null;
+}
+
+export interface NotificationAdminSettingsResponse {
+  bot: TelegramBotConfigView;
+  linkedUsersCount: number;
+  rules: {
+    high_value_threshold: number;
+    sla_days: number;
+    daily_digest_enabled: boolean;
+    daily_digest_hour: number;
+  };
+}
+
+export const notificationsApi = {
+  getMine: async (params?: { page?: number; limit?: number }) => {
+    const res = await apiClient.get<{
+      items: NotificationItem[];
+      unreadCount: number;
+      meta: { total: number; page: number; limit: number; totalPages: number };
+    }>('/notifications', { params });
+    return res.data;
+  },
+  markRead: async (id: string) => {
+    const res = await apiClient.patch<{ success: boolean }>(`/notifications/${id}/read`);
+    return res.data;
+  },
+  markAllRead: async () => {
+    const res = await apiClient.post<{ success: boolean }>('/notifications/read-all');
+    return res.data;
+  },
+  getPreferences: async () => {
+    const res = await apiClient.get<MyNotificationPrefsResponse>('/notifications/preferences');
+    return res.data;
+  },
+  updatePreferences: async (data: Partial<NotificationPrefs>) => {
+    const res = await apiClient.patch<MyNotificationPrefsResponse>(
+      '/notifications/preferences',
+      data,
+    );
+    return res.data;
+  },
+  generateTelegramLink: async () => {
+    const res = await apiClient.post<{
+      available: boolean;
+      deep_link?: string;
+      bot_username?: string;
+      expires_in_minutes?: number;
+      message?: string;
+    }>('/notifications/telegram/link-token');
+    return res.data;
+  },
+  unlinkTelegram: async () => {
+    const res = await apiClient.delete<{ success: boolean }>('/notifications/telegram/unlink');
+    return res.data;
+  },
+  sendTest: async () => {
+    const res = await apiClient.post<{ success: boolean; sentToTelegram: boolean }>(
+      '/notifications/test',
+    );
+    return res.data;
+  },
+  getAdminSettings: async () => {
+    const res = await apiClient.get<NotificationAdminSettingsResponse>(
+      '/notifications/admin/settings',
+    );
+    return res.data;
+  },
+  updateAdminRules: async (data: {
+    high_value_threshold?: number;
+    sla_days?: number;
+    daily_digest_enabled?: boolean;
+    daily_digest_hour?: number;
+  }) => {
+    const res = await apiClient.patch<NotificationAdminSettingsResponse>(
+      '/notifications/admin/settings',
+      data,
+    );
+    return res.data;
+  },
+  configureTelegramBot: async (data: { token: string; enabled?: boolean }) => {
+    const res = await apiClient.post<TelegramBotConfigView>(
+      '/notifications/admin/telegram/configure',
+      data,
+    );
+    return res.data;
+  },
+  toggleTelegramBot: async (enabled: boolean) => {
+    const res = await apiClient.post<TelegramBotConfigView>(
+      '/notifications/admin/telegram/toggle',
+      {
+        enabled,
+      },
+    );
+    return res.data;
+  },
+  removeTelegramBot: async () => {
+    const res = await apiClient.delete<TelegramBotConfigView>('/notifications/admin/telegram');
+    return res.data;
+  },
+  sendDigestNow: async () => {
+    const res = await apiClient.post<{ sentCount: number }>('/notifications/admin/digest/send-now');
+    return res.data;
+  },
+};

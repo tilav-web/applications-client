@@ -2,6 +2,7 @@ import { ChevronDown, LogOut, Moon, RefreshCw, Search, Sun, User as UserIcon } f
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { openGlobalSearchModal } from '@/components/intelligence/global-search-modal';
+import { NotificationBell } from '@/components/layout/notification-bell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,6 +71,9 @@ export function AppHeader() {
             Ctrl K
           </kbd>
         </button>
+
+        {/* Notifications Bell */}
+        <NotificationBell />
 
         {/* Theme Toggle */}
         <Button

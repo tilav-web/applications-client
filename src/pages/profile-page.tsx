@@ -15,6 +15,7 @@ import {
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 
+import { TelegramProfileCard } from '@/components/notifications/telegram-profile-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -479,6 +480,7 @@ export function ProfilePage() {
         <TabsList className="grid grid-cols-2 w-full sm:max-w-md mb-4">
           <TabsTrigger value="personal">Shaxsiy ma&apos;lumotlar</TabsTrigger>
           <TabsTrigger value="password">Xavfsizlik & Parol</TabsTrigger>
+          <TabsTrigger value="notifications">Bildirishnomalar & Telegram</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Personal Info Form */}
@@ -503,6 +505,11 @@ export function ProfilePage() {
           ) : (
             <div className="p-8 text-center text-muted-foreground text-xs">Yuklanmoqda...</div>
           )}
+        </TabsContent>
+
+        {/* Tab 3: Notifications & Telegram Bot */}
+        <TabsContent value="notifications" className="mt-0">
+          <TelegramProfileCard />
         </TabsContent>
       </Tabs>
     </div>
