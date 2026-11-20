@@ -45,6 +45,7 @@ import {
   useTableSelection,
 } from '@/components/ui/table-selection-bar';
 import { useDebounce } from '@/hooks/use-debounce';
+import { usePermissions } from '@/hooks/use-permissions';
 import { cardsApi, paymentProvidersApi, transfersApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
@@ -53,6 +54,7 @@ import type { Transfer, TransferStatus } from '@/types/models';
 export function TransfersPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { canWrite } = usePermissions();
 
   // Alohida aniq filtrlar (AND mantiqida birgalikda ishlaydi)
   const [txIdFilter, setTxIdFilter] = useState('');
@@ -325,14 +327,16 @@ export function TransfersPage() {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={openCreateModal}
-          className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          Yangi O&apos;tkazma Kiritish
-        </Button>
+        {canWrite && (
+          <Button
+            size="sm"
+            onClick={openCreateModal}
+            className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Yangi O&apos;tkazma Kiritish
+          </Button>
+        )}
       </div>
 
       {/* 1. ALOHIDA YUQORI FILTR VA AMALLAR PANELI */}
@@ -347,7 +351,9 @@ export function TransfersPage() {
         gridClassName="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6"
         selectionSlot={
           <TableActionSelect
-            selectedCount={selection.selectedIds.length}
+            selectedCount={
+              canWrite ? selection.selectedIds.length : selection.singleSelected ? 1 : 0
+            }
             singleLabel={
               selection.singleSelected
                 ? selection.singleSelected.transaction_id ||
@@ -390,25 +396,29 @@ export function TransfersPage() {
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuItem
-                  onClick={() => openEditModal(selection.singleSelected!)}
-                  className="gap-2 cursor-pointer text-xs py-2"
-                >
-                  <Edit2 className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Tahrirlash</span>
-                </DropdownMenuItem>
+                {canWrite && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => openEditModal(selection.singleSelected!)}
+                      className="gap-2 cursor-pointer text-xs py-2"
+                    >
+                      <Edit2 className="h-3.5 w-3.5 text-blue-500" />
+                      <span>Tahrirlash</span>
+                    </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                    <DropdownMenuSeparator />
 
-                <DropdownMenuItem
-                  onClick={() => openDeleteModal(selection.singleSelected!)}
-                  className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>O‘chirish</span>
-                </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => openDeleteModal(selection.singleSelected!)}
+                      className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>O‘chirish</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </>
-            ) : (
+            ) : canWrite ? (
               <DropdownMenuItem
                 onClick={() => setIsBulkDeleteOpen(true)}
                 className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
@@ -416,7 +426,7 @@ export function TransfersPage() {
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Tanlanganlarni o‘chirish ({selection.selectedIds.length} ta)</span>
               </DropdownMenuItem>
-            )}
+            ) : null}
           </TableActionSelect>
         }
       >

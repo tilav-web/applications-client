@@ -44,6 +44,7 @@ export interface MahallaStat {
 interface Props {
   districtsData: DistrictStat[];
   mahallasData?: MahallaStat[];
+  allowedDistrictNames?: string[];
   isLoading?: boolean;
   periodLabel?: string;
   onDistrictSelect?: (districtName: string | null) => void;
@@ -95,6 +96,7 @@ function getRiskBadgeColor(count: number, maxCount: number) {
 export const QashqadaryoYandexMap: React.FC<Props> = ({
   districtsData,
   mahallasData = [],
+  allowedDistrictNames,
   isLoading = false,
   onDistrictSelect,
 }) => {
@@ -247,6 +249,48 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     return Math.max(...districtsData.map((d) => d.count), 1);
   }, [districtsData]);
 
+  // Tuman xodimi (DISTRICT_OFFICER) uchun faqat ruxsat etilgan tumanlar chegaralari
+  const visibleDistrictFeatures = useMemo(() => {
+    const allFeatures = (realDistrictsData as any).features as any[];
+    if (!allowedDistrictNames) return allFeatures;
+    const normalize = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/['`‘’]/g, '')
+        .trim();
+    const allowedSet = new Set(allowedDistrictNames.map(normalize));
+    return allFeatures.filter((feat: any) => allowedSet.has(normalize(feat.properties.name || '')));
+  }, [allowedDistrictNames]);
+
+  // Xarita uchun standart chegaralar (DISTRICT_OFFICER bo'lsa biriktirilgan tumanlarga yaqinlashadi)
+  const defaultMapBounds = useMemo<[[number, number], [number, number]]>(() => {
+    if (!allowedDistrictNames || visibleDistrictFeatures.length === 0) {
+      return PROVINCE_BOUNDS;
+    }
+    let minLat = 999,
+      maxLat = -999,
+      minLng = 999,
+      maxLng = -999;
+    const walk = (c: any) => {
+      if (typeof c[0] === 'number') {
+        const lat = c[0] > 50 ? c[1] : c[0];
+        const lng = c[0] > 50 ? c[0] : c[1];
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+      } else if (Array.isArray(c)) {
+        c.forEach(walk);
+      }
+    };
+    visibleDistrictFeatures.forEach((feat: any) => walk(feat.geometry.coordinates));
+    if (minLat === 999) return PROVINCE_BOUNDS;
+    return [
+      [minLat, minLng],
+      [maxLat, maxLng],
+    ];
+  }, [allowedDistrictNames, visibleDistrictFeatures]);
+
   // Tuman nomlari xaritasi
   const districtStatsMap = useMemo(() => {
     const map = new Map<string, DistrictStat>();
@@ -336,10 +380,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       if (!map || !window.ymaps) return;
 
       if (!districtName) {
-        // Viloyat umumiy ko'rinishiga markazlashgan holda qaytish
-        map.setBounds(PROVINCE_BOUNDS, {
+        // Umumiy ko'rinishga markazlashgan holda qaytish (tuman xodimi uchun o'z tumanlariga)
+        map.setBounds(defaultMapBounds, {
           checkZoomRange: true,
-          zoomMargin: [25, 25, 45, 25],
+          zoomMargin: allowedDistrictNames ? [50, 50, 50, 50] : [25, 25, 45, 25],
           duration: 600,
           timingFunction: 'ease-in-out',
         });
@@ -347,7 +391,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       }
 
       // Tanlangan tumanning aniq geometrik chegaralariga (Bounds) silliq yaqinlashish
-      const feat = (realDistrictsData as any).features.find(
+      const feat = visibleDistrictFeatures.find(
         (f: any) => f.properties.name.toLowerCase() === districtName.toLowerCase(),
       );
 
@@ -385,7 +429,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         }
       }
     },
-    [onDistrictSelect],
+    [onDistrictSelect, defaultMapBounds, allowedDistrictNames, visibleDistrictFeatures],
   );
 
   const handleZoomIn = () => {
@@ -514,8 +558,17 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       districtPolygonsRef.current.push(provincePolygon);
     }
 
-    // Barcha 16 ta tuman chegaralari (Yagona border-1 nozik chiziq bilan - butun viloyatni tumanlar to'liq qoplaydi)
-    (realDistrictsData as any).features.forEach((feat: any) => {
+    // Tuman xodimi uchun xarita avtomatik o'z tuman(lar)iga markazlashadi
+    if (!isZoomedIn && allowedDistrictNames && visibleDistrictFeatures.length > 0) {
+      map.setBounds(defaultMapBounds, {
+        checkZoomRange: true,
+        zoomMargin: [50, 50, 50, 50],
+        duration: 400,
+      });
+    }
+
+    // Ruxsat etilgan tuman chegaralari (DISTRICT_OFFICER uchun faqat biriktirilgan tumanlar)
+    visibleDistrictFeatures.forEach((feat: any) => {
       const dName = feat.properties.name;
       const isSelected = selectedDistrictName?.toLowerCase() === dName.toLowerCase();
 
@@ -706,6 +759,9 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     customCenters,
     isMoveMode,
     handleUpdateDistrictCenter,
+    visibleDistrictFeatures,
+    allowedDistrictNames,
+    defaultMapBounds,
   ]);
 
   // 6. TANLANGAN TUMAN ICHIDA MAHALLALARNI KO'RSATISH

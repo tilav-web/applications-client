@@ -419,6 +419,7 @@ export function DashboardPage() {
           <QashqadaryoYandexMap
             districtsData={districtData}
             mahallasData={mahallaData}
+            allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
             isLoading={isLoading}
             periodLabel={
               period === 'today'

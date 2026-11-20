@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
@@ -21,4 +22,25 @@ export function ProtectedRoute() {
   }
 
   return <Outlet />;
+}
+
+interface RoleRouteProps {
+  allowedRoles?: string[];
+  disallowedRoles?: string[];
+  children: ReactNode;
+}
+
+export function RoleRoute({ allowedRoles, disallowedRoles, children }: RoleRouteProps) {
+  const role = useAuthStore((state) => state.user?.role);
+
+  if (role) {
+    if (disallowedRoles && disallowedRoles.includes(role)) {
+      return <Navigate to="/" replace />;
+    }
+    if (allowedRoles && !allowedRoles.includes('*') && !allowedRoles.includes(role)) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  return <>{children}</>;
 }

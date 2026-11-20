@@ -40,6 +40,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { toast } from '@/components/ui/sonner';
+import { usePermissions } from '@/hooks/use-permissions';
 import {
   applicationsApi,
   applicationStatusesApi,
@@ -86,6 +87,7 @@ export function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { canWrite } = usePermissions();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -455,38 +457,40 @@ export function ApplicationDetailPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Holatni tezkor o'zgartirish dropdown */}
-          <select
-            value={app.status_id || app.status || 'YANGI'}
-            onChange={(e) => {
-              const val = e.target.value;
-              const found = allApplicationStatuses.find((s) => s.id === val || s.code === val);
-              if (found) {
-                updateStatusMutation.mutate({
-                  status: found.code || found.name,
-                  status_id: found.id,
-                });
-              } else {
-                updateStatusMutation.mutate({ status: val });
-              }
-            }}
-            disabled={updateStatusMutation.isPending}
-            className="h-9 rounded-lg border border-input bg-card px-3 py-1 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary font-medium cursor-pointer"
-          >
-            {allApplicationStatuses.length > 0 ? (
-              allApplicationStatuses.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name}
-                </option>
-              ))
-            ) : (
-              <>
-                <option value="YANGI">Yangi (Qabul qilindi)</option>
-                <option value="JARAYONDA">Jarayonda (Tergovda)</option>
-                <option value="HAL_QILINDI">Hal qilindi</option>
-                <option value="RAD_ETILDI">Rad etildi</option>
-              </>
-            )}
-          </select>
+          {canWrite && (
+            <select
+              value={app.status_id || app.status || 'YANGI'}
+              onChange={(e) => {
+                const val = e.target.value;
+                const found = allApplicationStatuses.find((s) => s.id === val || s.code === val);
+                if (found) {
+                  updateStatusMutation.mutate({
+                    status: found.code || found.name,
+                    status_id: found.id,
+                  });
+                } else {
+                  updateStatusMutation.mutate({ status: val });
+                }
+              }}
+              disabled={updateStatusMutation.isPending}
+              className="h-9 rounded-lg border border-input bg-card px-3 py-1 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary font-medium cursor-pointer"
+            >
+              {allApplicationStatuses.length > 0 ? (
+                allApplicationStatuses.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="YANGI">Yangi (Qabul qilindi)</option>
+                  <option value="JARAYONDA">Jarayonda (Tergovda)</option>
+                  <option value="HAL_QILINDI">Hal qilindi</option>
+                  <option value="RAD_ETILDI">Rad etildi</option>
+                </>
+              )}
+            </select>
+          )}
 
           {/* Bog'liqliklar tugmasi */}
           <Button
@@ -527,28 +531,32 @@ export function ApplicationDetailPage() {
             <span>Chop etish</span>
           </Button>
 
-          {/* Tahrirlash */}
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => navigate(`/applications/edit/${app.id}`)}
-            className="h-9 px-3.5 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs cursor-pointer"
-          >
-            <Edit2 className="h-3.5 w-3.5" />
-            <span>Tahrirlash</span>
-          </Button>
+          {canWrite && (
+            <>
+              {/* Tahrirlash */}
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => navigate(`/applications/edit/${app.id}`)}
+                className="h-9 px-3.5 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs cursor-pointer"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                <span>Tahrirlash</span>
+              </Button>
 
-          {/* O'chirish */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
-            title="Arizani o‘chirish"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+              {/* O'chirish */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                title="Arizani o‘chirish"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1016,54 +1024,58 @@ export function ApplicationDetailPage() {
               }}
             />
 
-            <Button
-              type="button"
-              size="sm"
-              onClick={() =>
-                setTemplateModalState({
-                  isOpen: true,
-                  initialTemplateId: 'tushuntirish-telegram',
-                })
-              }
-              className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
-              title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Shablondan yaratish</span>
-            </Button>
+            {canWrite && (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    setTemplateModalState({
+                      isOpen: true,
+                      initialTemplateId: 'tushuntirish-telegram',
+                    })
+                  }
+                  className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+                  title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Shablondan yaratish</span>
+                </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => wordFileInputRef.current?.click()}
-              disabled={uploadWordMutation.isPending}
-              className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
-              title="Kompyuterdan Word (.docx / .doc) faylini yuklash"
-            >
-              {uploadWordMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
-              )}
-              <span>Kompyuterdan yuklash</span>
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => wordFileInputRef.current?.click()}
+                  disabled={uploadWordMutation.isPending}
+                  className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
+                  title="Kompyuterdan Word (.docx / .doc) faylini yuklash"
+                >
+                  {uploadWordMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+                  )}
+                  <span>Kompyuterdan yuklash</span>
+                </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              onClick={() =>
-                setTemplateModalState({
-                  isOpen: true,
-                  initialTemplateId: 'blank',
-                })
-              }
-              className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
-              title="Yangi Word blank yaratish va ONLYOFFICE da tahrirlash"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Yangi Word</span>
-            </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    setTemplateModalState({
+                      isOpen: true,
+                      initialTemplateId: 'blank',
+                    })
+                  }
+                  className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
+                  title="Yangi Word blank yaratish va ONLYOFFICE da tahrirlash"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Yangi Word</span>
+                </Button>
+              </>
+            )}
           </div>
         </CardHeader>
 
@@ -1099,16 +1111,18 @@ export function ApplicationDetailPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setActiveEditingDocId(doc.id)}
-                      className="h-7 px-2.5 text-xs font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer shadow-2xs"
-                      title="ONLYOFFICE da ochish, tahrirlash va saqlash"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                      <span>Tahrirlash</span>
-                    </Button>
+                    {canWrite && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setActiveEditingDocId(doc.id)}
+                        className="h-7 px-2.5 text-xs font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer shadow-2xs"
+                        title="ONLYOFFICE da ochish, tahrirlash va saqlash"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Tahrirlash</span>
+                      </Button>
+                    )}
 
                     <Button
                       type="button"
@@ -1123,18 +1137,20 @@ export function ApplicationDetailPage() {
                       <Download className="h-3.5 w-3.5" />
                     </Button>
 
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })
-                      }
-                      className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
-                      title="O‘chirish"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canWrite && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })
+                        }
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                        title="O‘chirish"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1151,33 +1167,35 @@ export function ApplicationDetailPage() {
                 Ushbu arizaga yangi rasmiy Word blank yaratishingiz yoki kompyuteringizdagi mavjud
                 .docx faylni yuklab, tizim ichida tahrirlashingiz mumkin.
               </p>
-              <div className="flex items-center gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => wordFileInputRef.current?.click()}
-                  className="text-xs gap-1.5 cursor-pointer"
-                >
-                  <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
-                  <span>Kompyuterdan yuklash</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() =>
-                    setWordDialogState({
-                      isOpen: true,
-                      mode: 'create',
-                      file: null,
-                    })
-                  }
-                  className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Yangi Word yaratish</span>
-                </Button>
-              </div>
+              {canWrite && (
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => wordFileInputRef.current?.click()}
+                    className="text-xs gap-1.5 cursor-pointer"
+                  >
+                    <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Kompyuterdan yuklash</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      setWordDialogState({
+                        isOpen: true,
+                        mode: 'create',
+                        file: null,
+                      })
+                    }
+                    className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Yangi Word yaratish</span>
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

@@ -88,7 +88,7 @@ export const navigationConfig: NavItem[] = [
     path: '/templates',
     icon: FileCode2,
     category: 'operations',
-    allowedRoles: ['*'],
+    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'INSPECTOR', 'STAFF', 'DISTRICT_OFFICER'],
     description: 'Dinamik rasmiy hujjatlar va tushuntirish xatlari shablonlari',
   },
   {

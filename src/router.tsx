@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
-import { ProtectedRoute } from '@/components/auth/protected-route';
+import { ProtectedRoute, RoleRoute } from '@/components/auth/protected-route';
 import { PublicRoute } from '@/components/auth/public-route';
 import { AppLayout } from '@/components/layout/app-layout';
 import { PageSkeleton } from '@/components/ui/page-skeletons';
@@ -96,15 +96,27 @@ export const router = createBrowserRouter([
           },
           {
             path: 'applications/create',
-            element: <ApplicationCreatePage />,
+            element: (
+              <RoleRoute disallowedRoles={['BOSS']}>
+                <ApplicationCreatePage />
+              </RoleRoute>
+            ),
           },
           {
             path: 'applications/create/:id',
-            element: <ApplicationCreatePage />,
+            element: (
+              <RoleRoute disallowedRoles={['BOSS']}>
+                <ApplicationCreatePage />
+              </RoleRoute>
+            ),
           },
           {
             path: 'applications/edit/:id',
-            element: <ApplicationCreatePage />,
+            element: (
+              <RoleRoute disallowedRoles={['BOSS']}>
+                <ApplicationCreatePage />
+              </RoleRoute>
+            ),
           },
           {
             path: 'applications/:id/relations',
@@ -148,11 +160,19 @@ export const router = createBrowserRouter([
           },
           {
             path: 'references',
-            element: <ReferencesPage />,
+            element: (
+              <RoleRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'INSPECTOR']}>
+                <ReferencesPage />
+              </RoleRoute>
+            ),
           },
           {
             path: 'templates',
-            element: <TemplatesPage />,
+            element: (
+              <RoleRoute disallowedRoles={['BOSS']}>
+                <TemplatesPage />
+              </RoleRoute>
+            ),
           },
           // Redirect old routes to unified references page
           {
@@ -165,11 +185,19 @@ export const router = createBrowserRouter([
           },
           {
             path: 'users',
-            element: <UsersPage />,
+            element: (
+              <RoleRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <UsersPage />
+              </RoleRoute>
+            ),
           },
           {
             path: 'audit',
-            element: <AuditPage />,
+            element: (
+              <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+                <AuditPage />
+              </RoleRoute>
+            ),
           },
           {
             path: 'profile',

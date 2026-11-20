@@ -42,6 +42,7 @@ import {
   useTableSelection,
 } from '@/components/ui/table-selection-bar';
 import { useDebounce } from '@/hooks/use-debounce';
+import { usePermissions } from '@/hooks/use-permissions';
 import {
   applicationsApi,
   applicationStatusesApi,
@@ -56,6 +57,7 @@ import type { Application, ApplicationStatus, ApplicationStatusItem } from '@/ty
 export function ApplicationsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { canWrite } = usePermissions();
 
   // Alohida aniq maydonlar bo'yicha filtrlar (AND mantiqida birgalikda ishlaydi)
   const [districtFilter, setDistrictFilter] = useState<string>('');
@@ -422,13 +424,15 @@ export function ApplicationsPage() {
         </div>
 
         {/* ARIZA YARATISH TUGMASI */}
-        <Button
-          onClick={() => navigate('/applications/create')}
-          className="gap-2 shadow-md shadow-primary/25 self-start sm:self-auto cursor-pointer font-medium min-w-[145px]"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Ariza Yaratish</span>
-        </Button>
+        {canWrite && (
+          <Button
+            onClick={() => navigate('/applications/create')}
+            className="gap-2 shadow-md shadow-primary/25 self-start sm:self-auto cursor-pointer font-medium min-w-[145px]"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Ariza Yaratish</span>
+          </Button>
+        )}
       </div>
 
       {/* 1. ALOHIDA YUQORI FILTR VA AMALLAR PANELI */}
@@ -506,13 +510,15 @@ export function ApplicationsPage() {
                   </span>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => navigate(`/applications/edit/${selection.singleSelected!.id}`)}
-                  className="gap-2 cursor-pointer text-xs py-2"
-                >
-                  <Edit2 className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Tahrirlash</span>
-                </DropdownMenuItem>
+                {canWrite && (
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/applications/edit/${selection.singleSelected!.id}`)}
+                    className="gap-2 cursor-pointer text-xs py-2"
+                  >
+                    <Edit2 className="h-3.5 w-3.5 text-blue-500" />
+                    <span>Tahrirlash</span>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem
                   disabled={isExportingCyberControl}
@@ -523,7 +529,9 @@ export function ApplicationsPage() {
                   <span>CyberControl shablonida yuklash (.xlsx)</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                {(Boolean(selection.singleSelected.documents?.length) || canWrite) && (
+                  <DropdownMenuSeparator />
+                )}
 
                 {selection.singleSelected.documents?.map((doc) => (
                   <DropdownMenuItem
@@ -539,23 +547,27 @@ export function ApplicationsPage() {
                   </DropdownMenuItem>
                 ))}
 
-                <DropdownMenuItem
-                  onClick={() => setCreateWordForApp(selection.singleSelected)}
-                  className="gap-2 cursor-pointer text-xs py-2 font-medium text-[#185abd] dark:text-blue-400"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Yangi Word hujjat yaratish...</span>
-                </DropdownMenuItem>
+                {canWrite && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => setCreateWordForApp(selection.singleSelected)}
+                      className="gap-2 cursor-pointer text-xs py-2 font-medium text-[#185abd] dark:text-blue-400"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Yangi Word hujjat yaratish...</span>
+                    </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                    <DropdownMenuSeparator />
 
-                <DropdownMenuItem
-                  onClick={() => setDeleteTargetId(selection.singleSelected!.id)}
-                  className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Arizani o‘chirish</span>
-                </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setDeleteTargetId(selection.singleSelected!.id)}
+                      className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Arizani o‘chirish</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -568,15 +580,19 @@ export function ApplicationsPage() {
                   <span>CyberControl shablonida yuklash ({selection.selectedIds.length} ta)</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                {canWrite && (
+                  <>
+                    <DropdownMenuSeparator />
 
-                <DropdownMenuItem
-                  onClick={() => setIsBulkDeleteOpen(true)}
-                  className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Tanlanganlarni o‘chirish ({selection.selectedIds.length} ta)</span>
-                </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setIsBulkDeleteOpen(true)}
+                      className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Tanlanganlarni o‘chirish ({selection.selectedIds.length} ta)</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </>
             )}
           </TableActionSelect>

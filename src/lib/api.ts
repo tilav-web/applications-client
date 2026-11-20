@@ -178,6 +178,7 @@ export interface DashboardStatistics {
     crime_article: string | null;
     amount: number | null;
   }>;
+  scopedDistrictNames?: string[] | null;
 }
 
 // 2. Citizens API
