@@ -322,6 +322,7 @@ export function DocumentEditorModal({
               config={
                 {
                   documentType: configData.documentType,
+                  token: (configData as { token?: string }).token,
                   document: {
                     ...configData.document,
                     permissions: {

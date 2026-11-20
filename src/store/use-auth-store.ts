@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { apiClient, setAuthClearCallback, setTokenUpdateCallback } from '@/lib/axios';
+import {
+  apiClient,
+  setAuthClearCallback,
+  setInMemoryAccessToken,
+  setTokenUpdateCallback,
+} from '@/lib/axios';
 import type { AuthUser } from '@/types/auth';
 
 interface AuthState {
@@ -17,14 +22,15 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
 
       setAuth: (token: string, user: AuthUser) => {
-        localStorage.setItem('auth_token', token);
+        setInMemoryAccessToken(token);
+        localStorage.removeItem('auth_token');
         set({
           token,
           user,
@@ -38,13 +44,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchProfile: async () => {
-        const token = get().token || localStorage.getItem('auth_token');
-        if (!token) {
-          localStorage.removeItem('auth_token');
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
-          return null;
-        }
-
         try {
           set({ isLoading: true });
           const { data } = await apiClient.get<AuthUser>('/auth/me');
@@ -55,6 +54,7 @@ export const useAuthStore = create<AuthState>()(
           });
           return data;
         } catch {
+          setInMemoryAccessToken(null);
           localStorage.removeItem('auth_token');
           set({
             user: null,
@@ -72,6 +72,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           // Ignore network errors on logout
         } finally {
+          setInMemoryAccessToken(null);
           localStorage.removeItem('auth_token');
           set({
             user: null,
@@ -84,8 +85,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Xavfsizlik: JWT token localStorage da saqlanmaydi (faqat HttpOnly cookie + in-memory)
       partialize: (state) => ({
-        token: state.token,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
@@ -95,6 +96,7 @@ export const useAuthStore = create<AuthState>()(
 
 // Axios interceptorlaridan keladigan yangilanishlarni Zustand holatiga sinxronlash
 setAuthClearCallback(() => {
+  setInMemoryAccessToken(null);
   useAuthStore.setState({
     user: null,
     token: null,
@@ -104,6 +106,7 @@ setAuthClearCallback(() => {
 });
 
 setTokenUpdateCallback((newToken: string) => {
+  setInMemoryAccessToken(newToken);
   useAuthStore.setState({
     token: newToken,
   });

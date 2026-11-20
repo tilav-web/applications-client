@@ -13,12 +13,20 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor: Attach authorization header if token exists
+// Access token faqat xotirada (in-memory) saqlanadi — localStorage XSS xavfini bartaraf etish uchun
+let inMemoryAccessToken: string | null = null;
+
+export const setInMemoryAccessToken = (token: string | null) => {
+  inMemoryAccessToken = token;
+};
+
+export const getInMemoryAccessToken = (): string | null => inMemoryAccessToken;
+
+// Request interceptor: Attach authorization header if in-memory token exists (HttpOnly cookie also sent via withCredentials)
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('auth_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (inMemoryAccessToken && config.headers) {
+      config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
     }
     return config;
   },
@@ -64,7 +72,10 @@ apiClient.interceptors.response.use(
     // Check for new access token in headers
     const newAccessToken = response.headers['x-new-access-token'];
     if (newAccessToken && typeof newAccessToken === 'string') {
-      localStorage.setItem('auth_token', newAccessToken);
+      inMemoryAccessToken = newAccessToken;
+      if (tokenUpdateCallback) {
+        tokenUpdateCallback(newAccessToken);
+      }
     }
     return response;
   },
@@ -103,7 +114,7 @@ apiClient.interceptors.response.use(
         );
 
         const newAccessToken = data.access_token;
-        localStorage.setItem('auth_token', newAccessToken);
+        inMemoryAccessToken = newAccessToken;
         if (tokenUpdateCallback) {
           tokenUpdateCallback(newAccessToken);
         }
@@ -115,6 +126,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
+        inMemoryAccessToken = null;
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth-storage');
         if (authClearCallback) {
