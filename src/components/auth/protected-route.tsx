@@ -6,18 +6,17 @@ import { useAuthStore } from '@/store';
 
 export function ProtectedRoute() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const token = useAuthStore((state) => state.token);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
   const hasFetched = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated && token && !hasFetched.current) {
+    if (isAuthenticated && !hasFetched.current) {
       hasFetched.current = true;
       fetchProfile();
     }
-  }, [isAuthenticated, token, fetchProfile]);
+  }, [isAuthenticated, fetchProfile]);
 
-  if (!isAuthenticated || !token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

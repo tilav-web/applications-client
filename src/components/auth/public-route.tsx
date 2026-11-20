@@ -4,9 +4,8 @@ import { useAuthStore } from '@/store';
 
 export function PublicRoute() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const token = useAuthStore((state) => state.token);
 
-  if (isAuthenticated && token) {
+  if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 

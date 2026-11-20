@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { TelegramProfileCard } from '@/components/notifications/telegram-profile-card';
 import { Badge } from '@/components/ui/badge';
@@ -409,6 +410,14 @@ function PasswordChangeForm({ onSuccess }: { onSuccess: (updated: AuthUser) => v
 
 export function ProfilePage() {
   const { user, setUser, fetchProfile, isLoading } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const rawTab = searchParams.get('tab');
+  const activeTab = rawTab === 'password' || rawTab === 'notifications' ? rawTab : 'personal';
+
+  const handleTabChange = (val: string) => {
+    setSearchParams({ tab: val }, { replace: true });
+  };
 
   const handleSuccess = async (updated: AuthUser) => {
     setUser(updated);
@@ -476,8 +485,8 @@ export function ProfilePage() {
       </div>
 
       {/* Tabs for Profile Editing */}
-      <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid grid-cols-2 w-full sm:max-w-md mb-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid grid-cols-3 w-full sm:max-w-xl mb-4">
           <TabsTrigger value="personal">Shaxsiy ma&apos;lumotlar</TabsTrigger>
           <TabsTrigger value="password">Xavfsizlik & Parol</TabsTrigger>
           <TabsTrigger value="notifications">Bildirishnomalar & Telegram</TabsTrigger>

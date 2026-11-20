@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck, Send, Settings } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ function formatRelativeTime(iso: string): string {
 export function NotificationBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['my-notifications'],
@@ -55,13 +57,14 @@ export function NotificationBell() {
     if (!item.is_read) {
       markReadMut.mutate(item.id);
     }
+    setOpen(false);
     if (item.link_url) {
       navigate(item.link_url);
     }
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -163,7 +166,10 @@ export function NotificationBell() {
         <div className="border-t border-border bg-muted/20 px-3.5 py-2 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => navigate('/profile')}
+            onClick={() => {
+              setOpen(false);
+              navigate('/profile?tab=notifications');
+            }}
             className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline cursor-pointer"
           >
             <Settings className="h-3.5 w-3.5" />
