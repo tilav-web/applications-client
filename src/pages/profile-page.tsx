@@ -1,5 +1,7 @@
 import {
   AlertCircle,
+  Bell,
+  Bot,
   Calendar,
   CheckCircle2,
   Eye,
@@ -16,6 +18,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { TelegramAdminSettingsPanel } from '@/components/notifications/telegram-admin-settings-panel';
 import { TelegramProfileCard } from '@/components/notifications/telegram-profile-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -411,9 +414,13 @@ function PasswordChangeForm({ onSuccess }: { onSuccess: (updated: AuthUser) => v
 export function ProfilePage() {
   const { user, setUser, fetchProfile, isLoading } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const rawTab = searchParams.get('tab');
-  const activeTab = rawTab === 'password' || rawTab === 'notifications' ? rawTab : 'personal';
+  const activeTab =
+    rawTab === 'password' || rawTab === 'notifications' || (rawTab === 'bot' && isSuperAdmin)
+      ? rawTab
+      : 'personal';
 
   const handleTabChange = (val: string) => {
     setSearchParams({ tab: val }, { replace: true });
@@ -484,12 +491,39 @@ export function ProfilePage() {
         </div>
       </div>
 
-      {/* Tabs for Profile Editing */}
+      {/* Tabs for Settings */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full sm:max-w-xl mb-4">
-          <TabsTrigger value="personal">Shaxsiy ma&apos;lumotlar</TabsTrigger>
-          <TabsTrigger value="password">Xavfsizlik & Parol</TabsTrigger>
-          <TabsTrigger value="notifications">Bildirishnomalar & Telegram</TabsTrigger>
+        <TabsList className="inline-flex flex-wrap h-auto w-auto max-w-full items-center gap-1 p-1 mb-4 rounded-xl bg-muted/60 border border-border/60">
+          <TabsTrigger
+            value="personal"
+            className="gap-1.5 px-3.5 py-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer"
+          >
+            <User className="h-3.5 w-3.5 shrink-0" />
+            <span>Shaxsiy ma&apos;lumotlar</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="password"
+            className="gap-1.5 px-3.5 py-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer"
+          >
+            <Lock className="h-3.5 w-3.5 shrink-0" />
+            <span>Xavfsizlik & Parol</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="notifications"
+            className="gap-1.5 px-3.5 py-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer"
+          >
+            <Bell className="h-3.5 w-3.5 shrink-0" />
+            <span>Bildirishnomalar & Telegram</span>
+          </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger
+              value="bot"
+              className="gap-1.5 px-3.5 py-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer"
+            >
+              <Bot className="h-3.5 w-3.5 shrink-0" />
+              <span>Telegram Bot (Admin)</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab 1: Personal Info Form */}
@@ -520,6 +554,13 @@ export function ProfilePage() {
         <TabsContent value="notifications" className="mt-0">
           <TelegramProfileCard />
         </TabsContent>
+
+        {/* Tab 4: Super Admin Telegram Bot & Rules */}
+        {isSuperAdmin && (
+          <TabsContent value="bot" className="mt-0">
+            <TelegramAdminSettingsPanel />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

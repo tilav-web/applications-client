@@ -29,7 +29,6 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 
-import { TelegramAdminSettingsPanel } from '@/components/notifications/telegram-admin-settings-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,7 +134,7 @@ export function AuditPage() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'logs' | 'traffic' | 'telegram'>('logs');
+  const [activeTab, setActiveTab] = useState<'logs' | 'traffic'>('logs');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [search, setSearch] = useState('');
@@ -349,10 +348,7 @@ export function AuditPage() {
       </div>
 
       {/* Tablar */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as 'logs' | 'traffic' | 'telegram')}
-      >
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'logs' | 'traffic')}>
         <TabsList>
           <TabsTrigger value="logs" className="gap-1.5">
             <Clock className="h-4 w-4" />
@@ -361,10 +357,6 @@ export function AuditPage() {
           <TabsTrigger value="traffic" className="gap-1.5">
             <Shield className="h-4 w-4" />
             Trafik & CrowdSec Monitoringi
-          </TabsTrigger>
-          <TabsTrigger value="telegram" className="gap-1.5">
-            <Activity className="h-4 w-4" />
-            Telegram Bot & Bildirishnomalar
           </TabsTrigger>
         </TabsList>
 
@@ -921,11 +913,6 @@ export function AuditPage() {
               ))}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* TAB 3: TELEGRAM BOT & BILDIRISHNOMALAR */}
-        <TabsContent value="telegram" className="space-y-4 mt-4">
-          <TelegramAdminSettingsPanel />
         </TabsContent>
       </Tabs>
 
