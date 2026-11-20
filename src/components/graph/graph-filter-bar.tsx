@@ -1,4 +1,4 @@
-import { Boxes, Filter, RefreshCw, RotateCcw, Search } from 'lucide-react';
+import { Boxes, Filter, Maximize2, Minimize2, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ interface Props {
   onResetFilters: () => void;
   onRefresh?: () => void;
   isFetching?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const GraphFilterBar: React.FC<Props> = ({
@@ -30,6 +32,8 @@ export const GraphFilterBar: React.FC<Props> = ({
   onResetFilters,
   onRefresh,
   isFetching,
+  isFullscreen,
+  onToggleFullscreen,
 }) => {
   return (
     <div className="bg-white border border-[#d2d6de] p-2 shadow-xs">
@@ -122,6 +126,30 @@ export const GraphFilterBar: React.FC<Props> = ({
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
+
+          {onToggleFullscreen && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onToggleFullscreen}
+              className={`h-8 px-2.5 text-xs font-medium border rounded-none cursor-pointer gap-1 ${
+                isFullscreen
+                  ? 'bg-[#2874a6] text-white border-[#2874a6] hover:bg-[#1f5f8b]'
+                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+              }`}
+              title={isFullscreen ? 'Kichraytirish (Esc)' : 'To‘liq ekranda ko‘rish'}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-3.5 h-3.5" />
+              ) : (
+                <Maximize2 className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {isFullscreen ? 'Kichraytirish' : 'To‘liq ekran'}
+              </span>
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   TrendingUp,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { GraphCanvas } from '@/components/graph/graph-canvas';
 import { GraphFilterBar } from '@/components/graph/graph-filter-bar';
@@ -18,11 +18,54 @@ import { financialFlowApi } from '@/lib/api';
 import type { IGraphNode } from '@/types/models';
 
 export function FinancialFlowPage() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [searchCard, setSearchCard] = useState('');
   const [riskLevel, setRiskLevel] = useState('ALL');
   const [minAmount, setMinAmount] = useState(0);
   const [clusteringEnabled, setClusteringEnabled] = useState(true);
   const [selectedNode, setSelectedNode] = useState<IGraphNode | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+      window.dispatchEvent(new Event('resize'));
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen && !document.fullscreenElement) {
+        setIsFullscreen(false);
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  const toggleFullscreen = useCallback(async () => {
+    const el = containerRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement && !isFullscreen) {
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else {
+          setIsFullscreen(true);
+        }
+      } else if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        setIsFullscreen(false);
+      }
+    } catch {
+      setIsFullscreen((prev) => !prev);
+    } finally {
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+    }
+  }, [isFullscreen]);
 
   // Butun tizimdagi barcha kartalar va o'tkazmalar grafigi
   const {
@@ -62,74 +105,89 @@ export function FinancialFlowPage() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden gap-1.5 select-none min-h-0">
-      {/* 1. Summary Stat Cards (5 ta ixcham blok) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 shrink-0">
-        {/* Total Cards */}
-        <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
-          <div className="p-1.5 bg-blue-50 text-[#2874a6] border border-blue-200 shrink-0">
-            <CreditCard className="w-3.5 h-3.5" />
+    <div
+      ref={containerRef}
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-50 flex flex-col h-screen w-screen overflow-hidden gap-1.5 select-none bg-[#f4f6f9] p-2'
+          : 'flex flex-col h-full w-full overflow-hidden gap-1.5 select-none min-h-0'
+      }
+    >
+      {/* 1. Summary Stat Cards (5 ta ixcham blok — to'liq ekranda maksimal joy uchun yashiriladi) */}
+      {!isFullscreen && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 shrink-0">
+          {/* Total Cards */}
+          <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
+            <div className="p-1.5 bg-blue-50 text-[#2874a6] border border-blue-200 shrink-0">
+              <CreditCard className="w-3.5 h-3.5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-[9.5px] text-gray-500 block leading-tight">Jami Kartalar</span>
+              <span className="text-xs sm:text-sm font-bold text-gray-900 font-mono">
+                {summary.totalCards}
+              </span>
+            </div>
           </div>
-          <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">Jami Kartalar</span>
-            <span className="text-xs sm:text-sm font-bold text-gray-900 font-mono">
-              {summary.totalCards}
-            </span>
-          </div>
-        </div>
 
-        {/* Total Flow */}
-        <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
-          <div className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
-            <TrendingUp className="w-3.5 h-3.5" />
+          {/* Total Flow */}
+          <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
+            <div className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0">
+              <TrendingUp className="w-3.5 h-3.5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-[9.5px] text-gray-500 block leading-tight">Umumiy Oqim</span>
+              <span className="text-xs sm:text-sm font-bold text-emerald-700 font-mono truncate block">
+                {formatSum(summary.totalFlowAmount)}
+              </span>
+            </div>
           </div>
-          <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">Umumiy Oqim</span>
-            <span className="text-xs sm:text-sm font-bold text-emerald-700 font-mono truncate block">
-              {formatSum(summary.totalFlowAmount)}
-            </span>
-          </div>
-        </div>
 
-        {/* Droppers Count */}
-        <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
-          <div className="p-1.5 bg-red-50 text-red-600 border border-red-200 shrink-0">
-            <AlertOctagon className="w-3.5 h-3.5" />
+          {/* Droppers Count */}
+          <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
+            <div className="p-1.5 bg-red-50 text-red-600 border border-red-200 shrink-0">
+              <AlertOctagon className="w-3.5 h-3.5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-[9.5px] text-gray-500 block leading-tight">
+                Dropper Kartalar
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-red-600 font-mono">
+                {summary.droppersCount}
+              </span>
+            </div>
           </div>
-          <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">Dropper Kartalar</span>
-            <span className="text-xs sm:text-sm font-bold text-red-600 font-mono">
-              {summary.droppersCount}
-            </span>
-          </div>
-        </div>
 
-        {/* Transits Count */}
-        <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
-          <div className="p-1.5 bg-yellow-50 text-yellow-600 border border-yellow-200 shrink-0">
-            <ArrowRightLeft className="w-3.5 h-3.5" />
+          {/* Transits Count */}
+          <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2">
+            <div className="p-1.5 bg-yellow-50 text-yellow-600 border border-yellow-200 shrink-0">
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-[9.5px] text-gray-500 block leading-tight">
+                Tranzit Kartalar
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-yellow-600 font-mono">
+                {summary.transitCount}
+              </span>
+            </div>
           </div>
-          <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">Tranzit Kartalar</span>
-            <span className="text-xs sm:text-sm font-bold text-yellow-600 font-mono">
-              {summary.transitCount}
-            </span>
-          </div>
-        </div>
 
-        {/* Blacklisted / Suspicious Cards */}
-        <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2 col-span-2 sm:col-span-1">
-          <div className="p-1.5 bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-            <ShieldCheck className="w-3.5 h-3.5" />
-          </div>
-          <div className="overflow-hidden">
-            <span className="text-[9.5px] text-gray-500 block leading-tight">Xavfli Kartalar</span>
-            <span className="text-xs sm:text-sm font-bold text-rose-700 font-mono">
-              {summary.blacklistedCount}
-            </span>
+          {/* Blacklisted / Suspicious Cards */}
+          <div className="bg-white border border-[#d2d6de] p-1.5 shadow-xs flex items-center gap-2 col-span-2 sm:col-span-1">
+            <div className="p-1.5 bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-[9.5px] text-gray-500 block leading-tight">
+                Xavfli Kartalar
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-rose-700 font-mono">
+                {summary.blacklistedCount}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 2. Filter Bar */}
       <div className="shrink-0">
@@ -145,6 +203,8 @@ export function FinancialFlowPage() {
           onResetFilters={handleResetFilters}
           onRefresh={() => refetch()}
           isFetching={isFetching}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={() => void toggleFullscreen()}
         />
       </div>
 
