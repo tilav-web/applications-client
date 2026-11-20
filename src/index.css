@@ -209,3 +209,12 @@
     transform: translateX(320%);
   }
 }
+
+/* Yandex Maps 2.1 Dark Mode: faqat xarita plitkalarini (ground-pane) qoraytiradi, badge va chegaralar o'zgarmaydi */
+.ymaps-dark-mode [class*='ground-pane'] {
+  filter: invert(92%) hue-rotate(180deg) brightness(92%) contrast(90%) saturate(75%);
+}
+.ymaps-dark-mode [class*='copyrights-pane'] {
+  filter: invert(90%) hue-rotate(180deg);
+  opacity: 0.65;
+}

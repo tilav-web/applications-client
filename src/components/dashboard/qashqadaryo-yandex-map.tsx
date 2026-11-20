@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import mahallasCoordsData from '@/data/qashqadaryo-mahallas-coords.json';
 import provinceBoundaryData from '@/data/qashqadaryo-province-boundary.json';
 import realDistrictsData from '@/data/qashqadaryo-real-districts.json';
+import { useAppStore } from '@/store';
 
 declare global {
   interface Window {
@@ -100,6 +101,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   isLoading = false,
   onDistrictSelect,
 }) => {
+  const isDark = useAppStore((s) => s.theme === 'dark');
   const outerWrapperRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -547,7 +549,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         },
         {
           fill: false,
-          strokeColor: '#000000', // Qora rangda viloyat borderi
+          strokeColor: isDark ? '#e2e8f0' : '#000000', // Viloyat borderi (dark/light)
           strokeWidth: 2.5,
           strokeOpacity: 0.95,
           interactive: false,
@@ -595,38 +597,53 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         );
       }
 
-      // Shaffof poligon (Yuzasi bo'yalmaydi! Faqat nozik 1px to'q ko'k chegara chizig'i)
+      const defaultStroke = isSelected
+        ? isDark
+          ? '#f8fafc'
+          : '#000000'
+        : isDark
+          ? '#60a5fa'
+          : '#1e40af';
+      const hoverStroke = isSelected
+        ? isDark
+          ? '#ffffff'
+          : '#000000'
+        : isDark
+          ? '#38bdf8'
+          : '#0284c7';
+
+      // Shaffof poligon (Yuzasi bo'yalmaydi! Faqat nozik chegara chizig'i)
       const districtPolygon = new ymaps.Polygon(
         ymapsCoords,
         {
           hintContent: `<b>${dName}</b><br/>Arizalar: ${stat.count} ta<br/>Zarar: ${formatUZS(stat.totalLoss)}`,
         },
         {
-          fillColor: '#0284c7',
-          fillOpacity: isSelected ? 0.08 : 0.001, // 100% shaffof, xarita to'liq ko'rinadi
-          strokeColor: isSelected ? '#000000' : '#1e40af', // Tanlanganda qora rangda aniq chegara
-          strokeWidth: isSelected ? 2.5 : 1.2, // Yagona nozik 1px border
-          strokeOpacity: isZoomedIn && !isSelected ? 0.25 : 0.85,
+          fillColor: isDark ? '#38bdf8' : '#0284c7',
+          fillOpacity: isSelected ? (isDark ? 0.14 : 0.08) : 0.001,
+          strokeColor: defaultStroke,
+          strokeWidth: isSelected ? 2.5 : 1.3,
+          strokeOpacity: isZoomedIn && !isSelected ? 0.25 : 0.9,
           cursor: 'pointer',
         },
       );
 
-      // Hover hodisalari: ko'zga yaqqol tashlanadigan toza chegara va yengil shaffof yorug'lik
+      // Hover hodisalari
       districtPolygon.events.add('mouseenter', () => {
         setHoveredDistrict(dName);
         districtPolygon.options.set({
-          strokeColor: isSelected ? '#000000' : '#0284c7', // Yorqin neon ko'k chegara
+          strokeColor: hoverStroke,
           strokeWidth: 2.5,
-          fillOpacity: 0.15, // Tumanning butun yuzasi yengil ajralib ko'rinadi
+          fillOpacity: isDark ? 0.2 : 0.15,
         });
       });
 
       districtPolygon.events.add('mouseleave', () => {
         setHoveredDistrict(null);
         districtPolygon.options.set({
-          strokeColor: isSelected ? '#000000' : '#1e40af',
-          strokeWidth: isSelected ? 2.5 : 1.2,
-          fillOpacity: isSelected ? 0.08 : 0.001,
+          strokeColor: defaultStroke,
+          strokeWidth: isSelected ? 2.5 : 1.3,
+          fillOpacity: isSelected ? (isDark ? 0.14 : 0.08) : 0.001,
         });
       });
 
@@ -762,6 +779,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     visibleDistrictFeatures,
     allowedDistrictNames,
     defaultMapBounds,
+    isDark,
   ]);
 
   // 6. TANLANGAN TUMAN ICHIDA MAHALLALARNI KO'RSATISH
@@ -974,10 +992,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           size="sm"
           variant="outline"
           onClick={() => setIsMoveMode((prev) => !prev)}
-          className={`h-9 px-2.5 gap-1.5 text-xs shadow-xl backdrop-blur-md rounded-xl cursor-pointer border ${
+          className={`h-9 px-2.5 gap-1.5 text-xs shadow-lg backdrop-blur-md rounded-xl cursor-pointer border ${
             isMoveMode
-              ? 'bg-sky-600 text-white border-sky-400 font-bold'
-              : 'bg-slate-900/95 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-800'
+              ? 'bg-sky-600 text-white border-sky-400 font-bold hover:bg-sky-700'
+              : 'bg-card/95 text-foreground border-border hover:bg-muted'
           }`}
           title={
             isMoveMode
@@ -995,7 +1013,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           size="sm"
           variant="outline"
           onClick={handleZoomIn}
-          className="h-9 w-9 p-0 bg-slate-900/95 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-800 shadow-xl backdrop-blur-md rounded-xl cursor-pointer"
+          className="h-9 w-9 p-0 bg-card/95 text-foreground border-border hover:bg-muted shadow-lg backdrop-blur-md rounded-xl cursor-pointer"
           title="Kattalashtirish (+)"
         >
           <Plus className="h-4 w-4" />
@@ -1005,7 +1023,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           size="sm"
           variant="outline"
           onClick={handleZoomOut}
-          className="h-9 w-9 p-0 bg-slate-900/95 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-800 shadow-xl backdrop-blur-md rounded-xl cursor-pointer"
+          className="h-9 w-9 p-0 bg-card/95 text-foreground border-border hover:bg-muted shadow-lg backdrop-blur-md rounded-xl cursor-pointer"
           title="Kichraytirish (-)"
         >
           <Minus className="h-4 w-4" />
@@ -1015,7 +1033,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           size="sm"
           variant="outline"
           onClick={() => handleSelectDistrict(null)}
-          className="h-9 w-9 p-0 bg-slate-900/95 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-800 shadow-xl backdrop-blur-md rounded-xl cursor-pointer"
+          className="h-9 w-9 p-0 bg-card/95 text-foreground border-border hover:bg-muted shadow-lg backdrop-blur-md rounded-xl cursor-pointer"
           title="Markazga qaytarish"
         >
           <RefreshCw className="h-4 w-4" />
@@ -1025,11 +1043,11 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           size="sm"
           variant="outline"
           onClick={toggleFullscreen}
-          className="h-9 w-9 p-0 bg-slate-900/95 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-800 shadow-xl backdrop-blur-md rounded-xl cursor-pointer"
+          className="h-9 w-9 p-0 bg-card/95 text-foreground border-border hover:bg-muted shadow-lg backdrop-blur-md rounded-xl cursor-pointer"
           title={isFullscreen ? 'Kichraytirish' : "To'liq ekranga (Full Screen)"}
         >
           {isFullscreen ? (
-            <Minimize2 className="h-4 w-4 text-amber-400" />
+            <Minimize2 className="h-4 w-4 text-amber-500" />
           ) : (
             <Expand className="h-4 w-4" />
           )}
@@ -1039,21 +1057,25 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       {/* 3. ASOSIY YANDEX XARITA DIVI */}
       <div
         ref={mapContainerRef}
-        className="w-full h-full bg-[#0a0f1d] cursor-grab active:cursor-grabbing"
+        className={`w-full h-full cursor-grab active:cursor-grabbing ${
+          isDark ? 'bg-[#0a0f1d] ymaps-dark-mode' : 'bg-slate-100'
+        }`}
       />
 
       {/* 4. YUKLANISH HOLATI INDIKATORI */}
       {(!isYmapsReady || isLoading) && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xs text-white">
-          <RefreshCw className="h-7 w-7 text-sky-400 animate-spin mb-2" />
-          <p className="text-xs font-semibold text-slate-300">Yandex Map xaritasi yuklanmoqda...</p>
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-xs text-foreground">
+          <RefreshCw className="h-7 w-7 text-primary animate-spin mb-2" />
+          <p className="text-xs font-semibold text-muted-foreground">
+            Yandex Map xaritasi yuklanmoqda...
+          </p>
         </div>
       )}
 
       {/* 5. CHEGARA RANGLARI TAVSIFI (LEGEND) */}
-      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex items-center gap-3 bg-slate-900/95 border border-slate-700 px-3.5 py-2 rounded-xl text-[11px] text-slate-300 shadow-xl backdrop-blur-md font-semibold pointer-events-auto">
-        <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5">
-          <Layers className="h-3.5 w-3.5 text-sky-400" />
+      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex items-center gap-3 bg-card/95 border border-border px-3.5 py-2 rounded-xl text-[11px] text-foreground shadow-lg backdrop-blur-md font-semibold pointer-events-auto">
+        <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1.5">
+          <Layers className="h-3.5 w-3.5 text-primary" />
           Arizalar darajasi:
         </span>
         <span className="flex items-center gap-1.5">
@@ -1076,21 +1098,21 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
       {/* 6. HOVER TOOLTIP (Sichqoncha tuman chegarasi ustiga kelganda) */}
       {hoveredDistrict && !selectedDistrictName && (
-        <div className="absolute top-16 left-4 z-30 bg-slate-900/95 text-white p-3 rounded-xl border border-slate-700 shadow-2xl pointer-events-none backdrop-blur-md animate-in fade-in duration-150 min-w-[210px]">
-          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5 mb-2">
-            <span className="font-extrabold text-sm text-sky-400">{hoveredDistrict}</span>
-            <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px] font-mono">
+        <div className="absolute top-16 left-4 z-30 bg-card/95 text-foreground p-3 rounded-xl border border-border shadow-2xl pointer-events-none backdrop-blur-md animate-in fade-in duration-150 min-w-[210px]">
+          <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-1.5 mb-2">
+            <span className="font-extrabold text-sm text-primary">{hoveredDistrict}</span>
+            <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-mono">
               {districtStatsMap.get(hoveredDistrict)?.count || 0} ta ariza
             </Badge>
           </div>
           <div className="space-y-1 text-[11px]">
-            <div className="flex justify-between text-slate-300">
+            <div className="flex justify-between text-muted-foreground">
               <span>Yetkazilgan zarar:</span>
-              <span className="font-mono font-bold text-amber-300">
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
                 {formatUZS(districtStatsMap.get(hoveredDistrict)?.totalLoss)}
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">
+            <div className="text-[10px] text-muted-foreground mt-1">
               Bosganda ushbu tumanning mahallalari yaqinlashadi
             </div>
           </div>
