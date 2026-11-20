@@ -851,19 +851,16 @@ export function ApplicationsPage() {
               <TableHead className="w-[145px] h-10 px-3 text-[11px] whitespace-nowrap">
                 Ariza Raqami
               </TableHead>
-              <TableHead className="min-w-[200px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Tafsilot & Xodim Qaydlari
-              </TableHead>
-              <TableHead className="w-[135px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Holati
-              </TableHead>
               <TableHead className="w-[155px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Asosiy Arizachi
-              </TableHead>
-              <TableHead className="w-[140px] h-10 px-3 text-[11px] whitespace-nowrap text-right">
                 Zarar Summasi
               </TableHead>
-              <TableHead className="w-[125px] h-10 px-3 text-[11px] whitespace-nowrap">
+              <TableHead className="w-[145px] h-10 px-3 text-[11px] whitespace-nowrap">
+                Holati
+              </TableHead>
+              <TableHead className="min-w-[175px] h-10 px-3 text-[11px] whitespace-nowrap">
+                Asosiy Arizachi
+              </TableHead>
+              <TableHead className="w-[135px] h-10 px-3 text-[11px] whitespace-nowrap">
                 Bog‘liqliklar
               </TableHead>
               <TableHead className="w-[115px] h-10 px-3 text-[11px] whitespace-nowrap">
@@ -873,7 +870,7 @@ export function ApplicationsPage() {
           </TableHeader>
           <TableBody className="divide-y divide-border">
             {isLoading ? (
-              <TableRowsSkeleton rows={8} columns={9} />
+              <TableRowsSkeleton rows={8} columns={8} />
             ) : data?.items?.length ? (
               data.items.map((app: Application) => {
                 const selected = selection.isSelected(app.id);
@@ -934,30 +931,7 @@ export function ApplicationsPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-xs">
-                      <p className="font-semibold text-foreground truncate">
-                        {app.description || 'Tafsilot kiritilmagan'}
-                      </p>
-                      {app.officer_notes && (
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          Xodim: {app.officer_notes}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(app.status, app.application_status)}</TableCell>
-                    <TableCell>
-                      {app.citizen ? (
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <User className="h-3.5 w-3.5 text-primary shrink-0" />
-                          <span className="font-medium truncate max-w-[150px]">
-                            {app.citizen.last_name} {app.citizen.first_name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap">
                       {(() => {
                         const { total, currency } = getApplicationTotalLoss(app);
                         if (total <= 0) {
@@ -975,6 +949,19 @@ export function ApplicationsPage() {
                           </span>
                         );
                       })()}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(app.status, app.application_status)}</TableCell>
+                    <TableCell>
+                      {app.citizen ? (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="font-medium truncate max-w-[200px]">
+                            {app.citizen.last_name} {app.citizen.first_name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {app.relations_summary && app.relations_summary.total > 0 ? (
@@ -1007,7 +994,7 @@ export function ApplicationsPage() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                   Hech qanday ariza topilmadi
                 </TableCell>
               </TableRow>
