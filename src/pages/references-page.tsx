@@ -866,8 +866,8 @@ export function ReferencesPage() {
         onValueChange={(val) => setActiveTab(val as ReferenceTabKey)}
         className="w-full"
       >
-        <div className="flex flex-col lg:flex-row gap-5 items-start">
-          {/* Chap tomondagi vertikal guruhlangan navigatsiya (Desktop) */}
+        <div className="flex flex-col lg:flex-row-reverse gap-5 items-start">
+          {/* O'ng tomondagi vertikal guruhlangan navigatsiya (Desktop) */}
           <aside className="hidden lg:block w-64 shrink-0 sticky top-4">
             <Card className="py-2 gap-0 border-border/80 bg-card/70 backdrop-blur-sm">
               <CardContent className="p-2 space-y-4">
@@ -907,7 +907,7 @@ export function ReferencesPage() {
             </Card>
           </aside>
 
-          {/* O'ng tomondagi asosiy tarkib */}
+          {/* Chap tomondagi asosiy tarkib */}
           <div className="flex-1 min-w-0 w-full space-y-4">
             <div className="hidden lg:flex items-center justify-between gap-4 pb-1 border-b border-border/60">
               <div className="flex items-center gap-3">
