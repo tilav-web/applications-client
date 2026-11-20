@@ -51,6 +51,8 @@ export const applicationsApi = {
     date?: string;
     date_from?: string;
     date_to?: string;
+    min_amount?: number;
+    max_amount?: number;
     relations_filter?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });

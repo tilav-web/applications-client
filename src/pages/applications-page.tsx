@@ -74,7 +74,40 @@ export function ApplicationsPage() {
   const debouncedDesc = useDebounce(descFilter, 300);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [relationsFilter, setRelationsFilter] = useState<string>('');
-  const [dateFilter, setDateFilter] = useState<string>('');
+  const [dateFromFilter, setDateFromFilter] = useState<string>('');
+  const [dateToFilter, setDateToFilter] = useState<string>('');
+  const [minAmountFilter, setMinAmountFilter] = useState<string>('');
+  const debouncedMinAmount = useDebounce(minAmountFilter, 350);
+  const [maxAmountFilter, setMaxAmountFilter] = useState<string>('');
+  const debouncedMaxAmount = useDebounce(maxAmountFilter, 350);
+
+  const parseAmountParam = (val: string): number | undefined => {
+    const clean = val.replace(/\D/g, '');
+    if (!clean) return undefined;
+    const num = Number(clean);
+    return Number.isFinite(num) ? num : undefined;
+  };
+
+  const getApplicationTotalLoss = (app: Application): { total: number; currency: string } => {
+    const seen = new Set<string>();
+    let total = 0;
+    let currency = 'UZS';
+    if (app.transfer) {
+      if (app.transfer.id) seen.add(app.transfer.id);
+      total += Number(app.transfer.amount || 0);
+      if (app.transfer.currency) currency = app.transfer.currency;
+    }
+    if (Array.isArray(app.custom_fields)) {
+      for (const cf of app.custom_fields) {
+        if (cf.transfer && (!cf.transfer.id || !seen.has(cf.transfer.id))) {
+          if (cf.transfer.id) seen.add(cf.transfer.id);
+          total += Number(cf.transfer.amount || 0);
+          if (cf.transfer.currency) currency = cf.transfer.currency;
+        }
+      }
+    }
+    return { total, currency };
+  };
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -94,7 +127,10 @@ export function ApplicationsPage() {
         description: debouncedDesc.trim() || undefined,
         status_id: statusFilter || undefined,
         relations_filter: relationsFilter || undefined,
-        date: dateFilter || undefined,
+        date_from: dateFromFilter || undefined,
+        date_to: dateToFilter || undefined,
+        min_amount: parseAmountParam(debouncedMinAmount),
+        max_amount: parseAmountParam(debouncedMaxAmount),
       });
 
       const url = window.URL.createObjectURL(
@@ -180,7 +216,10 @@ export function ApplicationsPage() {
     Boolean(descFilter.trim()),
     Boolean(statusFilter),
     Boolean(relationsFilter),
-    Boolean(dateFilter),
+    Boolean(dateFromFilter),
+    Boolean(dateToFilter),
+    Boolean(minAmountFilter.trim()),
+    Boolean(maxAmountFilter.trim()),
   ].filter(Boolean).length;
 
   const handleClearAllFilters = () => {
@@ -193,7 +232,10 @@ export function ApplicationsPage() {
     setDescFilter('');
     setStatusFilter('');
     setRelationsFilter('');
-    setDateFilter('');
+    setDateFromFilter('');
+    setDateToFilter('');
+    setMinAmountFilter('');
+    setMaxAmountFilter('');
     setPage(1);
   };
 
@@ -212,7 +254,10 @@ export function ApplicationsPage() {
         card_number: debouncedCardNumber,
         phone_number: debouncedPhoneNumber,
         description: debouncedDesc,
-        date: dateFilter,
+        date_from: dateFromFilter,
+        date_to: dateToFilter,
+        min_amount: debouncedMinAmount,
+        max_amount: debouncedMaxAmount,
         relations_filter: relationsFilter,
       },
     ],
@@ -228,7 +273,10 @@ export function ApplicationsPage() {
         card_number: debouncedCardNumber.trim() || undefined,
         phone_number: debouncedPhoneNumber.trim() || undefined,
         description: debouncedDesc.trim() || undefined,
-        date: dateFilter || undefined,
+        date_from: dateFromFilter || undefined,
+        date_to: dateToFilter || undefined,
+        min_amount: parseAmountParam(debouncedMinAmount),
+        max_amount: parseAmountParam(debouncedMaxAmount),
         relations_filter: relationsFilter || undefined,
       }),
     placeholderData: (prev) => prev,
@@ -254,7 +302,10 @@ export function ApplicationsPage() {
             card_number: debouncedCardNumber,
             phone_number: debouncedPhoneNumber,
             description: debouncedDesc,
-            date: dateFilter,
+            date_from: dateFromFilter,
+            date_to: dateToFilter,
+            min_amount: debouncedMinAmount,
+            max_amount: debouncedMaxAmount,
             relations_filter: relationsFilter,
           },
         ],
@@ -270,7 +321,10 @@ export function ApplicationsPage() {
             card_number: debouncedCardNumber.trim() || undefined,
             phone_number: debouncedPhoneNumber.trim() || undefined,
             description: debouncedDesc.trim() || undefined,
-            date: dateFilter || undefined,
+            date_from: dateFromFilter || undefined,
+            date_to: dateToFilter || undefined,
+            min_amount: parseAmountParam(debouncedMinAmount),
+            max_amount: parseAmountParam(debouncedMaxAmount),
             relations_filter: relationsFilter || undefined,
           }),
       });
@@ -287,7 +341,10 @@ export function ApplicationsPage() {
     debouncedCardNumber,
     debouncedPhoneNumber,
     debouncedDesc,
-    dateFilter,
+    dateFromFilter,
+    dateToFilter,
+    debouncedMinAmount,
+    debouncedMaxAmount,
     relationsFilter,
     queryClient,
   ]);
@@ -727,13 +784,48 @@ export function ApplicationsPage() {
         </FilterSelect>
 
         <FilterInput
-          label="Sana"
+          label="Sanadan"
           type="date"
-          value={dateFilter}
+          value={dateFromFilter}
           onChange={(v) => {
-            setDateFilter(v);
+            setDateFromFilter(v);
             setPage(1);
           }}
+          mono
+        />
+
+        <FilterInput
+          label="Sanagacha"
+          type="date"
+          value={dateToFilter}
+          onChange={(v) => {
+            setDateToFilter(v);
+            setPage(1);
+          }}
+          mono
+        />
+
+        <FilterInput
+          label="Zarar (dan, UZS)"
+          type="number"
+          value={minAmountFilter}
+          onChange={(v) => {
+            setMinAmountFilter(v);
+            setPage(1);
+          }}
+          placeholder="Masalan: 500000"
+          mono
+        />
+
+        <FilterInput
+          label="Zarar (gacha, UZS)"
+          type="number"
+          value={maxAmountFilter}
+          onChange={(v) => {
+            setMaxAmountFilter(v);
+            setPage(1);
+          }}
+          placeholder="Masalan: 5000000"
           mono
         />
       </TableFilterPanel>
@@ -768,17 +860,20 @@ export function ApplicationsPage() {
               <TableHead className="w-[155px] h-10 px-3 text-[11px] whitespace-nowrap">
                 Asosiy Arizachi
               </TableHead>
+              <TableHead className="w-[140px] h-10 px-3 text-[11px] whitespace-nowrap text-right">
+                Zarar Summasi
+              </TableHead>
               <TableHead className="w-[125px] h-10 px-3 text-[11px] whitespace-nowrap">
                 Bog‘liqliklar
               </TableHead>
-              <TableHead className="w-[125px] h-10 px-3 text-[11px] whitespace-nowrap">
+              <TableHead className="w-[115px] h-10 px-3 text-[11px] whitespace-nowrap">
                 Sana
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-border">
             {isLoading ? (
-              <TableRowsSkeleton rows={8} columns={8} />
+              <TableRowsSkeleton rows={8} columns={9} />
             ) : data?.items?.length ? (
               data.items.map((app: Application) => {
                 const selected = selection.isSelected(app.id);
@@ -862,6 +957,25 @@ export function ApplicationsPage() {
                         <span className="text-muted-foreground text-xs">—</span>
                       )}
                     </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      {(() => {
+                        const { total, currency } = getApplicationTotalLoss(app);
+                        if (total <= 0) {
+                          return <span className="text-muted-foreground text-xs">—</span>;
+                        }
+                        return (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
+                              total >= 50_000_000
+                                ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
+                                : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {new Intl.NumberFormat('uz-UZ').format(Math.round(total))} {currency}
+                          </span>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {app.relations_summary && app.relations_summary.total > 0 ? (
                         <Button
@@ -893,7 +1007,7 @@ export function ApplicationsPage() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Hech qanday ariza topilmadi
                 </TableCell>
               </TableRow>

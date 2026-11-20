@@ -144,7 +144,7 @@ interface FilterInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  type?: 'text' | 'date';
+  type?: 'text' | 'date' | 'number';
   icon?: React.ReactNode;
   mono?: boolean;
   className?: string;
