@@ -10,7 +10,6 @@ import {
   Phone,
   Search,
   ShieldAlert,
-  Sparkles,
   TrendingUp,
   User,
   X,
@@ -210,24 +209,20 @@ export function GlobalSearchModal() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="Karta raqam (yoki oxirgi 4 raqami), telefon, JSHSHIR, F.I.O, @telegram, IP, ariza raqami..."
-            className="flex-1 bg-transparent text-sm sm:text-base font-medium text-foreground placeholder:text-muted-foreground/65 focus:outline-none"
+            placeholder="Qidirish (karta, telefon, F.I.Sh, JSHSHIR, ariza raqami...)"
+            className="flex-1 bg-transparent text-sm sm:text-base font-medium text-foreground placeholder:text-muted-foreground/65 focus:outline-none pr-6"
           />
 
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer mr-5"
               title="Tozalash"
             >
               <X className="h-4 w-4" />
             </button>
           )}
-
-          <kbd className="hidden sm:inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-            ESC
-          </kbd>
         </div>
 
         {/* Kategoriya Tablari */}
@@ -269,67 +264,43 @@ export function GlobalSearchModal() {
         {/* Natijalar Ro'yxati */}
         <div className="max-h-[62vh] overflow-y-auto p-2">
           {debouncedQuery.trim().length < 2 ? (
-            <div className="p-5 space-y-5">
-              {recentSearches.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5" />
-                      Soʻnggi qidiruvlar
-                    </span>
+            recentSearches.length > 0 ? (
+              <div className="p-3 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Soʻnggi qidiruvlar
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecentSearches([]);
+                      localStorage.removeItem(RECENT_SEARCHES_KEY);
+                    }}
+                    className="text-[11px] hover:text-rose-500 cursor-pointer"
+                  >
+                    Tozalash
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {recentSearches.map((term) => (
                     <button
+                      key={term}
                       type="button"
-                      onClick={() => {
-                        setRecentSearches([]);
-                        localStorage.removeItem(RECENT_SEARCHES_KEY);
-                      }}
-                      className="text-[11px] hover:text-rose-500 cursor-pointer"
+                      onClick={() => setQuery(term)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/40 text-xs font-mono text-foreground transition-colors cursor-pointer"
                     >
-                      Tozalash
+                      <Search className="h-3 w-3 text-muted-foreground" />
+                      {term}
                     </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {recentSearches.map((term) => (
-                      <button
-                        key={term}
-                        type="button"
-                        onClick={() => setQuery(term)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/40 text-xs font-mono text-foreground transition-colors cursor-pointer"
-                      >
-                        <Search className="h-3 w-3 text-muted-foreground" />
-                        {term}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                  <Sparkles className="h-4 w-4" />
-                  <span>360° Tahliliy Global Qidiruv Imkoniyatlari</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <div>
-                    • Plastik karta (toʻliq yoki oxirgi 4 raqami:{' '}
-                    <code className="text-foreground">8600</code>,{' '}
-                    <code className="text-foreground">1290</code>)
-                  </div>
-                  <div>
-                    • Telefon raqam (<code className="text-foreground">90 123 45 67</code>,{' '}
-                    <code className="text-foreground">+998...</code>)
-                  </div>
-                  <div>
-                    • Fuqaro F.I.Sh, Pasport yoki JSHSHIR (
-                    <code className="text-foreground">AC1234567</code>)
-                  </div>
-                  <div>
-                    • Telegram nik/ID, IP manzil, Kripto-hamyon (
-                    <code className="text-foreground">@username</code>)
-                  </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                Qidirish uchun kamida 2 ta belgi kiriting
+              </div>
+            )
           ) : items.length === 0 && !isFetching ? (
             <div className="py-12 text-center space-y-2">
               <Search className="h-9 w-9 text-muted-foreground/40 mx-auto" />
@@ -401,27 +372,6 @@ export function GlobalSearchModal() {
               })}
             </div>
           )}
-        </div>
-
-        {/* Pastki yo'riqnoma paneli */}
-        <div className="px-4 py-2 border-t border-border/70 bg-muted/30 flex items-center justify-between text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span>
-              <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                ↑↓
-              </kbd>{' '}
-              Tanlash
-            </span>
-            <span>
-              <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                Enter
-              </kbd>{' '}
-              360° Dosyeni ochish
-            </span>
-          </div>
-          <span className="hidden sm:inline font-medium text-primary/80">
-            Tahliliy Bogʻliqliklar Qidiruvi
-          </span>
         </div>
       </DialogContent>
     </Dialog>
