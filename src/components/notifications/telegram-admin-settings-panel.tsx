@@ -182,7 +182,7 @@ export function TelegramAdminSettingsPanel() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Token: <span className="font-mono">{bot.token_masked}</span> &bull; Xodimlar{' '}
-                      <b>Mening Profilim</b> sahifasidan 1 bosishda ulanishlari mumkin.
+                      <b>Sozlamalar</b> sahifasidan 1 bosishda ulanishlari mumkin.
                     </p>
                   </div>
 

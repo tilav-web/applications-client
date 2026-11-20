@@ -8,8 +8,8 @@ import {
   FileText,
   GitFork,
   LayoutDashboard,
+  Settings,
   ShieldCheck,
-  User,
   Users,
 } from 'lucide-react';
 
@@ -124,11 +124,11 @@ export const navigationConfig: NavItem[] = [
   },
   {
     id: 'profile',
-    title: 'Mening Profilim',
+    title: 'Sozlamalar',
     path: '/profile',
-    icon: User,
+    icon: Settings,
     category: 'system',
     allowedRoles: ['*'],
-    description: 'Shaxsiy profil va xavfsizlik sozlamalari',
+    description: 'Profil, xavfsizlik, bildirishnomalar va Telegram sozlamalari',
   },
 ];

@@ -121,7 +121,7 @@ export function AppHeader() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={() => navigate('/profile')}>
               <UserIcon className="h-4 w-4 mr-2 text-primary" />
-              Mening profilim
+              Sozlamalar
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => fetchProfile()} disabled={isLoading}>
