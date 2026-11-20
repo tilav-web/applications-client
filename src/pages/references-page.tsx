@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -962,11 +963,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isDistrictsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={2} />
                     ) : districtsData?.items?.length ? (
                       districtsData.items.map((district: District) => (
                         <TableRow key={district.id}>
@@ -1052,11 +1049,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isMahallasLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={3} />
                     ) : mahallasData?.items?.length ? (
                       mahallasData.items.map((mahalla: Mahalla) => (
                         <TableRow key={mahalla.id}>
@@ -1144,11 +1137,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isCrimesLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={2} />
                     ) : crimesData?.items?.length ? (
                       crimesData.items.map((crime: Crime) => (
                         <TableRow key={crime.id}>
@@ -1242,11 +1231,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody className="divide-y divide-border">
                     {isCrimeMethodsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={6} />
                     ) : crimeMethodsData?.items?.length ? (
                       crimeMethodsData.items.map((method: CrimeMethod) => (
                         <TableRow key={method.id} className="border-b border-border">
@@ -1385,11 +1370,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isBanksLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={5} />
                     ) : banksData?.items?.length ? (
                       banksData.items.map((bank: Bank) => (
                         <TableRow key={bank.id}>
@@ -1491,11 +1472,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isProvidersLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={3} />
                     ) : providersData?.items?.length ? (
                       providersData.items.map((prov: PaymentProvider) => (
                         <TableRow key={prov.id}>
@@ -1588,11 +1565,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isStatusesLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={7} />
                     ) : statusesData?.items?.length ? (
                       statusesData.items.map((st: ApplicationStatusItem) => (
                         <TableRow key={st.id}>
@@ -1723,11 +1696,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isSuspectFieldsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={7} />
                     ) : suspectFieldsData?.items?.length ? (
                       suspectFieldsData.items.map((field: SuspectFieldConfig) => (
                         <TableRow key={field.id}>
@@ -1882,11 +1851,7 @@ export function ReferencesPage() {
                     </TableHeader>
                     <TableBody>
                       {isCategoriesLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                            Yuklanmoqda...
-                          </TableCell>
-                        </TableRow>
+                        <TableRowsSkeleton rows={6} columns={5} />
                       ) : allCategoriesList.filter((c) =>
                           occupationSearch
                             ? c.name.toLowerCase().includes(occupationSearch.toLowerCase())
@@ -1964,11 +1929,7 @@ export function ReferencesPage() {
                     </TableHeader>
                     <TableBody>
                       {isOccupationsLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                            Yuklanmoqda...
-                          </TableCell>
-                        </TableRow>
+                        <TableRowsSkeleton rows={6} columns={6} />
                       ) : allOccupationsList.filter((o) =>
                           occupationSearch
                             ? o.name.toLowerCase().includes(occupationSearch.toLowerCase())
@@ -2069,11 +2030,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isSourcesLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={4} />
                     ) : allSourcesList.filter((s) =>
                         sourceSearch
                           ? s.name.toLowerCase().includes(sourceSearch.toLowerCase())
@@ -2165,11 +2122,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isDeptServicesLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={4} />
                     ) : allDeptServicesList.filter((d) =>
                         deptServiceSearch
                           ? d.name.toLowerCase().includes(deptServiceSearch.toLowerCase()) ||
@@ -2268,11 +2221,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isDecisionTypesLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={3} />
                     ) : allDecisionTypesList.filter((d) =>
                         decisionSearch
                           ? d.name.toLowerCase().includes(decisionSearch.toLowerCase())
@@ -2360,11 +2309,7 @@ export function ReferencesPage() {
                   </TableHeader>
                   <TableBody>
                     {isRejectionReasonsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Yuklanmoqda...
-                        </TableCell>
-                      </TableRow>
+                      <TableRowsSkeleton rows={6} columns={3} />
                     ) : allRejectionReasonsList.filter((r) =>
                         rejectionSearch
                           ? r.name.toLowerCase().includes(rejectionSearch.toLowerCase())
@@ -2459,7 +2404,10 @@ export function ReferencesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <fieldset
+            disabled={createMutation.isPending || updateMutation.isPending}
+            className="space-y-4 py-2 border-0 p-0 m-0"
+          >
             {/* Common Name field */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
@@ -3110,13 +3058,14 @@ export function ReferencesPage() {
                 </label>
               </div>
             )}
-          </div>
+          </fieldset>
 
           <DialogFooter>
             <Button
               variant="outline"
               size="default"
               onClick={closeModal}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
             >
               Bekor qilish
@@ -3126,7 +3075,7 @@ export function ReferencesPage() {
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
-              disabled={createMutation.isPending || updateMutation.isPending}
+              loading={createMutation.isPending || updateMutation.isPending}
               className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
               {createMutation.isPending || updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
@@ -3149,6 +3098,7 @@ export function ReferencesPage() {
               variant="outline"
               size="default"
               onClick={closeModal}
+              disabled={deleteMutation.isPending}
               className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
             >
               Yo&apos;q, bekor qilish
@@ -3157,7 +3107,7 @@ export function ReferencesPage() {
               variant="destructive"
               size="default"
               onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
+              loading={deleteMutation.isPending}
               className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20"
             >
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}

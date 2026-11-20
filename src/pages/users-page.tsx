@@ -672,197 +672,206 @@ export function UsersPage() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Ism *</label>
-                <Input
-                  placeholder="Ali"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  className="h-10 text-xs sm:text-sm font-medium"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Familiya *</label>
-                <Input
-                  placeholder="Valiyev"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  className="h-10 text-xs sm:text-sm font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Login (Username) *</label>
-                <Input
-                  placeholder="ali_operator"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  required
-                  className="h-10 text-xs sm:text-sm font-mono font-medium"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Telefon raqami</label>
-                <Input
-                  placeholder="+998901234567"
-                  value={formData.phone_number}
-                  onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                  className="h-10 text-xs sm:text-sm font-mono font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Parol {editingUser ? '(O‘zgartirilmasa bo‘sh qoldiring)' : '*'}
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <fieldset
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="space-y-4 border-0 p-0 m-0"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Ism *</label>
                   <Input
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required={!editingUser}
-                    minLength={6}
-                    className="h-10 pl-9 text-xs sm:text-sm"
+                    placeholder="Ali"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    className="h-10 text-xs sm:text-sm font-medium"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Familiya *</label>
+                  <Input
+                    placeholder="Valiyev"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    className="h-10 text-xs sm:text-sm font-medium"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Tizimdagi Roli *</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="SUPER_ADMIN">
-                    Super Admin (To‘liq boshqaruv, o‘chirish huquqi)
-                  </option>
-                  <option value="BOSS">Rahbar (Faqat statistika va hisobotlar, Read-Only)</option>
-                  <option value="STAFF">Markaziy Xodim / Katta tergovchi (Barcha arizalar)</option>
-                  <option value="DISTRICT_OFFICER">
-                    Hududiy Xodim (Faqat biriktirilgan tumanlar)
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            {formData.role === 'DISTRICT_OFFICER' && (
-              <div className="space-y-2 border border-border/70 rounded-xl p-3.5 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-primary" />
-                    Biriktirilgan Tumanlar ({formData.assigned_district_ids.length} ta tanlandi) *
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Login (Username) *
                   </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          assigned_district_ids: allDistricts.map((d) => d.id),
-                        })
-                      }
-                      className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
-                    >
-                      Barchasini tanlash
-                    </button>
-                    <span className="text-muted-foreground text-xs">|</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          assigned_district_ids: [],
-                        })
-                      }
-                      className="text-[11px] text-muted-foreground hover:underline cursor-pointer"
-                    >
-                      Tozalash
-                    </button>
+                  <Input
+                    placeholder="ali_operator"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    required
+                    className="h-10 text-xs sm:text-sm font-mono font-medium"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Telefon raqami</label>
+                  <Input
+                    placeholder="+998901234567"
+                    value={formData.phone_number}
+                    onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                    className="h-10 text-xs sm:text-sm font-mono font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Parol {editingUser ? '(O‘zgartirilmasa bo‘sh qoldiring)' : '*'}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required={!editingUser}
+                      minLength={6}
+                      className="h-10 pl-9 text-xs sm:text-sm"
+                    />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
-                  {allDistricts.map((district) => {
-                    const isChecked = formData.assigned_district_ids.includes(district.id);
-                    return (
-                      <label
-                        key={district.id}
-                        className={`flex items-center gap-2 text-xs p-2 rounded-lg border cursor-pointer transition-colors ${
-                          isChecked
-                            ? 'bg-primary/10 border-primary/40 text-primary font-semibold'
-                            : 'bg-background hover:bg-muted border-input text-foreground'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                assigned_district_ids: [
-                                  ...formData.assigned_district_ids,
-                                  district.id,
-                                ],
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                assigned_district_ids: formData.assigned_district_ids.filter(
-                                  (id) => id !== district.id,
-                                ),
-                              });
-                            }
-                          }}
-                          className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
-                        />
-                        <span className="truncate">{district.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {formData.assigned_district_ids.length === 0 && (
-                  <p className="text-[11px] text-rose-500 font-medium">
-                    Diqqat: Kamida bitta tuman biriktirilishi lozim, aks holda xodim arizalarni
-                    ko‘ra olmaydi!
-                  </p>
-                )}
-              </div>
-            )}
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                size="default"
-                onClick={() => {
-                  setIsCreateOpen(false);
-                  setEditingUser(null);
-                  resetForm();
-                }}
-                className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
-              >
-                Bekor qilish
-              </Button>
-              <Button
-                type="submit"
-                size="default"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer gap-2"
-              >
-                {(createMutation.isPending || updateMutation.isPending) && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                <span>{editingUser ? 'O‘zgarishlarni Saqlash' : 'Akkauntni Yaratish'}</span>
-              </Button>
-            </DialogFooter>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Tizimdagi Roli *</label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="SUPER_ADMIN">
+                      Super Admin (To‘liq boshqaruv, o‘chirish huquqi)
+                    </option>
+                    <option value="BOSS">Rahbar (Faqat statistika va hisobotlar, Read-Only)</option>
+                    <option value="STAFF">
+                      Markaziy Xodim / Katta tergovchi (Barcha arizalar)
+                    </option>
+                    <option value="DISTRICT_OFFICER">
+                      Hududiy Xodim (Faqat biriktirilgan tumanlar)
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              {formData.role === 'DISTRICT_OFFICER' && (
+                <div className="space-y-2 border border-border/70 rounded-xl p-3.5 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-primary" />
+                      Biriktirilgan Tumanlar ({formData.assigned_district_ids.length} ta tanlandi) *
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            assigned_district_ids: allDistricts.map((d) => d.id),
+                          })
+                        }
+                        className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                      >
+                        Barchasini tanlash
+                      </button>
+                      <span className="text-muted-foreground text-xs">|</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            assigned_district_ids: [],
+                          })
+                        }
+                        className="text-[11px] text-muted-foreground hover:underline cursor-pointer"
+                      >
+                        Tozalash
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {allDistricts.map((district) => {
+                      const isChecked = formData.assigned_district_ids.includes(district.id);
+                      return (
+                        <label
+                          key={district.id}
+                          className={`flex items-center gap-2 text-xs p-2 rounded-lg border cursor-pointer transition-colors ${
+                            isChecked
+                              ? 'bg-primary/10 border-primary/40 text-primary font-semibold'
+                              : 'bg-background hover:bg-muted border-input text-foreground'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  assigned_district_ids: [
+                                    ...formData.assigned_district_ids,
+                                    district.id,
+                                  ],
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  assigned_district_ids: formData.assigned_district_ids.filter(
+                                    (id) => id !== district.id,
+                                  ),
+                                });
+                              }
+                            }}
+                            className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
+                          />
+                          <span className="truncate">{district.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {formData.assigned_district_ids.length === 0 && (
+                    <p className="text-[11px] text-rose-500 font-medium">
+                      Diqqat: Kamida bitta tuman biriktirilishi lozim, aks holda xodim arizalarni
+                      ko‘ra olmaydi!
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="default"
+                  onClick={() => {
+                    setIsCreateOpen(false);
+                    setEditingUser(null);
+                    resetForm();
+                  }}
+                  className="text-xs sm:text-sm h-10 px-5 cursor-pointer font-medium"
+                >
+                  Bekor qilish
+                </Button>
+                <Button
+                  type="submit"
+                  size="default"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer gap-2"
+                >
+                  {(createMutation.isPending || updateMutation.isPending) && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  <span>{editingUser ? 'O‘zgarishlarni Saqlash' : 'Akkauntni Yaratish'}</span>
+                </Button>
+              </DialogFooter>
+            </fieldset>
           </form>
         </DialogContent>
       </Dialog>

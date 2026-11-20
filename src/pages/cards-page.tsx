@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -505,11 +506,7 @@ export function CardsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                  Yuklanmoqda...
-                </TableCell>
-              </TableRow>
+              <TableRowsSkeleton rows={8} columns={6} />
             ) : data?.items?.length ? (
               data.items.map((card: Card) => {
                 const ownerName = card.citizen
@@ -720,7 +717,7 @@ export function CardsPage() {
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
-              disabled={createMutation.isPending || updateMutation.isPending}
+              loading={createMutation.isPending || updateMutation.isPending}
               className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
               {createMutation.isPending || updateMutation.isPending
@@ -743,6 +740,7 @@ export function CardsPage() {
               variant="outline"
               size="default"
               onClick={closeModal}
+              disabled={deleteMutation.isPending}
               className="text-xs sm:text-sm h-10 px-4 cursor-pointer font-medium"
             >
               Bekor qilish
@@ -751,7 +749,7 @@ export function CardsPage() {
               variant="destructive"
               size="default"
               onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
+              loading={deleteMutation.isPending}
               className="text-xs sm:text-sm h-10 px-5 font-semibold cursor-pointer shadow-md shadow-red-500/20"
             >
               {deleteMutation.isPending ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}

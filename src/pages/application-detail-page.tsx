@@ -557,10 +557,6 @@ export function ApplicationDetailPage() {
       {/* ===================================================================== */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1.5">
-            <FileText className="h-3.5 w-3.5" />
-            <span>Murojaat Tafsilotlari & Tergov Dosyesi</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
             <span>Ariza</span>
             <span className="font-mono text-primary text-xl sm:text-2xl font-bold bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20">

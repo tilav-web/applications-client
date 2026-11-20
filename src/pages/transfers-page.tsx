@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -522,11 +523,7 @@ export function TransfersPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                  Yuklanmoqda...
-                </TableCell>
-              </TableRow>
+              <TableRowsSkeleton rows={8} columns={7} />
             ) : data?.items?.length ? (
               data.items.map((transfer: Transfer) => {
                 const selected = selection.isSelected(transfer.id);
@@ -798,7 +795,7 @@ export function TransfersPage() {
               onClick={() =>
                 modalType === 'create' ? createMutation.mutate() : updateMutation.mutate()
               }
-              disabled={createMutation.isPending || updateMutation.isPending}
+              loading={createMutation.isPending || updateMutation.isPending}
               className="text-xs sm:text-sm h-10 px-6 font-semibold shadow-md shadow-primary/25 cursor-pointer"
             >
               {createMutation.isPending || updateMutation.isPending

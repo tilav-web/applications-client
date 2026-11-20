@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -516,11 +517,7 @@ export function AuditPage() {
                 </thead>
                 <tbody className="divide-y">
                   {logsLoading ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                        Yuklanmoqda...
-                      </td>
-                    </tr>
+                    <TableRowsSkeleton rows={8} columns={7} nativeTr />
                   ) : !logsData?.items.length ? (
                     <tr>
                       <td colSpan={7} className="text-center py-8 text-muted-foreground">

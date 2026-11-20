@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -761,11 +762,7 @@ export function ApplicationsPage() {
           </TableHeader>
           <TableBody className="divide-y divide-border">
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                  Yuklanmoqda...
-                </TableCell>
-              </TableRow>
+              <TableRowsSkeleton rows={8} columns={8} />
             ) : data?.items?.length ? (
               data.items.map((app: Application) => {
                 const selected = selection.isSelected(app.id);

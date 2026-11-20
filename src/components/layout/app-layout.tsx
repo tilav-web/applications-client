@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
+import { Suspense, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { GlobalSearchModal } from '@/components/intelligence/global-search-modal';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { PageSkeleton } from '@/components/ui/page-skeletons';
 import { cn } from '@/lib/utils';
 import { syncThemeClass, useAppStore } from '@/store';
 
@@ -11,6 +13,9 @@ export function AppLayout() {
   const theme = useAppStore((state) => state.theme);
   const location = useLocation();
   const isFinancialFlow = location.pathname.startsWith('/financial-flow');
+  const isFetching = useIsFetching();
+  const isMutating = useIsMutating();
+  const isGlobalBusy = isFetching > 0 || isMutating > 0;
 
   useEffect(() => {
     syncThemeClass(theme);
@@ -28,7 +33,20 @@ export function AppLayout() {
       <GlobalSearchModal />
 
       {/* 2. RIGHT CONTAINER (Header + Main) */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+      <div className="relative flex-1 flex flex-col h-full overflow-hidden min-w-0">
+        {/* Global Top Progress Bar (har qanday backend so'rovi ketayotganda ko'rinadi) */}
+        <div
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none fixed top-0 left-0 right-0 z-50 h-0.5 overflow-hidden transition-opacity duration-200',
+            isGlobalBusy ? 'opacity-100' : 'opacity-0',
+          )}
+        >
+          <div className="h-full w-full bg-primary/20">
+            <div className="h-full w-1/3 bg-primary animate-[loading-bar_1.1s_ease-in-out_infinite]" />
+          </div>
+        </div>
+
         {/* HEADER (Fixed height, right-side user info card) */}
         <AppHeader />
 
@@ -47,7 +65,9 @@ export function AppLayout() {
               isFinancialFlow ? 'h-full flex-1 flex flex-col min-h-0' : '',
             )}
           >
-            <Outlet />
+            <Suspense fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>
