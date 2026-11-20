@@ -49,7 +49,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { cardsApi, paymentProvidersApi, transfersApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
-import type { Transfer, TransferStatus } from '@/types/models';
+import type { Transfer, TransferDestinationType, TransferStatus } from '@/types/models';
 
 export function TransfersPage() {
   const navigate = useNavigate();
@@ -128,7 +128,9 @@ export function TransfersPage() {
   // Dialog states
   const [modalType, setModalType] = useState<'create' | 'edit' | 'delete' | null>(null);
   const [targetTransfer, setTargetTransfer] = useState<Transfer | null>(null);
-  const [formData, setFormData] = useState<Partial<Transfer>>({});
+  const [formData, setFormData] = useState<
+    Partial<Transfer> & { destination_platform?: string; destination_value?: string }
+  >({});
 
   // 1. Fetch Transfers Query
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -270,14 +272,24 @@ export function TransfersPage() {
   });
 
   const openCreateModal = () => {
-    setFormData({ currency: 'UZS', status: 'KUTILMOQDA' });
+    setFormData({ currency: 'UZS', status: 'KUTILMOQDA', destination_type: 'CARD' });
     setTargetTransfer(null);
     setModalType('create');
   };
 
   const openEditModal = (transfer: Transfer) => {
     setTargetTransfer(transfer);
-    setFormData({ ...transfer });
+    const details = (transfer.destination_details || {}) as Record<string, string | undefined>;
+    setFormData({
+      ...transfer,
+      destination_type: transfer.destination_type || 'CARD',
+      destination_platform: details.platform || transfer.receiver_identifier?.type_label || '',
+      destination_value:
+        details.value ||
+        transfer.receiver_identifier?.raw_value ||
+        transfer.destination_label ||
+        '',
+    });
     setModalType('edit');
   };
 
@@ -527,7 +539,7 @@ export function TransfersPage() {
               <TableHead>Summa & Valyuta</TableHead>
               <TableHead>Holati</TableHead>
               <TableHead>Yuboruvchi Karta</TableHead>
-              <TableHead>Qabul Qiluvchi Karta</TableHead>
+              <TableHead>Qabul Qiluvchi / Chiqish Kanali</TableHead>
               <TableHead>To&apos;lov Tizimi</TableHead>
             </TableRow>
           </TableHeader>
@@ -593,9 +605,58 @@ export function TransfersPage() {
                     </TableCell>
                     <TableCell
                       className="font-mono text-xs"
-                      onClick={(e) => transfer.receiver_card_id && e.stopPropagation()}
+                      onClick={(e) =>
+                        (transfer.receiver_card_id || transfer.receiver_identifier_id) &&
+                        e.stopPropagation()
+                      }
                     >
-                      {transfer.receiver_card ? (
+                      {transfer.destination_type && transfer.destination_type !== 'CARD' ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[10px] font-sans font-semibold',
+                              transfer.destination_type === 'CRYPTO'
+                                ? 'bg-violet-500/10 text-violet-600 border-violet-500/30'
+                                : transfer.destination_type === 'CASH'
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                  : transfer.destination_type === 'PLATFORM'
+                                    ? 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30'
+                                    : 'bg-slate-500/10 text-slate-600 border-slate-500/30',
+                            )}
+                          >
+                            {transfer.destination_type === 'CRYPTO'
+                              ? 'Kripto'
+                              : transfer.destination_type === 'CASH'
+                                ? 'Naqd / ATM'
+                                : transfer.destination_type === 'PLATFORM'
+                                  ? 'Servis'
+                                  : transfer.destination_type === 'BANK_ACCOUNT'
+                                    ? 'Hisob raqam'
+                                    : 'Boshqa'}
+                          </Badge>
+                          {transfer.receiver_identifier_id ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate(`/dossier/identifier/${transfer.receiver_identifier_id}`)
+                              }
+                              className="text-foreground hover:text-primary hover:underline cursor-pointer truncate max-w-[200px]"
+                              title={transfer.destination_label || ''}
+                            >
+                              {transfer.destination_label ||
+                                transfer.receiver_identifier?.raw_value}
+                            </button>
+                          ) : (
+                            <span
+                              className="text-foreground truncate max-w-[200px]"
+                              title={transfer.destination_label || ''}
+                            >
+                              {transfer.destination_label || '—'}
+                            </span>
+                          )}
+                        </div>
+                      ) : transfer.receiver_card ? (
                         <button
                           type="button"
                           onClick={() => navigate(`/cards/${transfer.receiver_card_id}`)}
@@ -728,6 +789,31 @@ export function TransfersPage() {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Chiqish kanali (Qabul qiluvchi turi)
+              </label>
+              <select
+                value={formData.destination_type || 'CARD'}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    destination_type: e.target.value as TransferDestinationType,
+                  })
+                }
+                className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="CARD">Plastik karta (Karta → Karta)</option>
+                <option value="CRYPTO">Kripto-birja / Hamyon (Binance, Bybit, TRC-20...)</option>
+                <option value="CASH">Naqdlashtirish (Bankomat / ATM / Kassa)</option>
+                <option value="PLATFORM">
+                  Onlayn servis / Akkaunt (TikTok, Telegram, 1xBet...)
+                </option>
+                <option value="BANK_ACCOUNT">Bank hisob raqami (20 talik)</option>
+                <option value="OTHER">Boshqa chiqish yo‘li</option>
+              </select>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground">
@@ -750,27 +836,57 @@ export function TransfersPage() {
                 </select>
               </div>
 
+              {(formData.destination_type || 'CARD') === 'CARD' ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Qabul Qiluvchi Karta (Pul tushgan)
+                  </label>
+                  <select
+                    value={formData.receiver_card_id || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, receiver_card_id: e.target.value || null })
+                    }
+                    className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Kartani tanlang (ixtiyoriy)...</option>
+                    {cardsData?.items?.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.masked_number || c.card_number}{' '}
+                        {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Birja / Platforma / Bankomat nomi
+                  </label>
+                  <Input
+                    placeholder="Binance, TikTok, ATM #402..."
+                    value={formData.destination_platform || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, destination_platform: e.target.value })
+                    }
+                    className="h-10 text-xs sm:text-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {(formData.destination_type || 'CARD') !== 'CARD' && (
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground">
-                  Qabul Qiluvchi Karta (Pul tushgan)
+                  UID / Hamyon / Profil ID yoki ATM manzili *
                 </label>
-                <select
-                  value={formData.receiver_card_id || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, receiver_card_id: e.target.value || null })
-                  }
-                  className="w-full h-10 rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Kartani tanlang (ixtiyoriy)...</option>
-                  {cardsData?.items?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.masked_number || c.card_number}{' '}
-                      {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
-                    </option>
-                  ))}
-                </select>
+                <Input
+                  placeholder="Masalan: UID 48291034, TX9aK..., @tiktok_user yoki ATM manzili"
+                  value={formData.destination_value || ''}
+                  onChange={(e) => setFormData({ ...formData, destination_value: e.target.value })}
+                  className="h-10 text-xs sm:text-sm font-mono"
+                />
               </div>
-            </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">To‘lov Provayderi</label>

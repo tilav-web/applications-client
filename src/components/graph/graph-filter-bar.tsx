@@ -1,4 +1,13 @@
-import { Boxes, Filter, Maximize2, Minimize2, RefreshCw, RotateCcw, Search } from 'lucide-react';
+import {
+  Boxes,
+  Filter,
+  Maximize2,
+  Minimize2,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+} from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +27,7 @@ interface Props {
   isFetching?: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  onAddTransfer?: () => void;
 }
 
 export const GraphFilterBar: React.FC<Props> = ({
@@ -34,6 +44,7 @@ export const GraphFilterBar: React.FC<Props> = ({
   isFetching,
   isFullscreen,
   onToggleFullscreen,
+  onAddTransfer,
 }) => {
   return (
     <div className="bg-white border border-[#d2d6de] p-2 shadow-xs">
@@ -58,10 +69,13 @@ export const GraphFilterBar: React.FC<Props> = ({
             onChange={(e) => onRiskChange(e.target.value)}
             className="text-xs border border-gray-300 px-3 py-1.5 h-8 focus:outline-none focus:border-[#2874a6] bg-white text-gray-700 cursor-pointer"
           >
-            <option value="ALL">Barcha rollar</option>
+            <option value="ALL">Barcha rollar va kanallar</option>
             <option value="RED">🚨 Firibgar / Dropper</option>
             <option value="YELLOW">⚠️ Tranzit Vositachi</option>
             <option value="BLUE">🔷 Jabrlanuvchi</option>
+            <option value="CRYPTO">🪙 Kripto / Birja</option>
+            <option value="CASH">🏧 Naqdlashtirish (ATM)</option>
+            <option value="PLATFORM">🌐 Onlayn Servis / Hisob</option>
           </select>
         </div>
 
@@ -83,6 +97,18 @@ export const GraphFilterBar: React.FC<Props> = ({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {onAddTransfer && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onAddTransfer}
+              className="h-8 px-2.5 text-xs font-semibold bg-[#2874a6] hover:bg-[#1f5e88] text-white rounded-none cursor-pointer gap-1"
+              title="Kartadan karta, kripto-birja, naqd (ATM) yoki onlayn servisga o'tkazma qo'shish"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Oqim qo‘shish</span>
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"

@@ -363,6 +363,8 @@ export const GraphCanvas: React.FC<Props> = ({
         n.role === 'TRANSIT' ||
         n.role === 'ATM_TERMINAL' ||
         n.role === 'CRYPTO_CASHOUT' ||
+        n.role === 'PLATFORM_CASHOUT' ||
+        n.role === 'BANK_ACCOUNT_OUT' ||
         (n.riskScore && n.riskScore >= 70);
       if (isHub) {
         hubNodes.push(n);
@@ -860,13 +862,19 @@ export const GraphCanvas: React.FC<Props> = ({
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
 
-        // Color based on role (Kiber yordamchi bot bilan 100% bir xil)
+        // Color based on role (Kiber yordamchi bot bilan 100% bir xil + yangi chiqish kanallari)
         if (node.role === 'ATM_TERMINAL') {
-          ctx.fillStyle = isHovered ? '#991b1b' : '#dc2626';
-          ctx.strokeStyle = '#7f1d1d';
+          ctx.fillStyle = isHovered ? '#047857' : '#059669';
+          ctx.strokeStyle = '#064e3b';
         } else if (node.role === 'CRYPTO_CASHOUT') {
           ctx.fillStyle = isHovered ? '#6d28d9' : '#8b5cf6';
           ctx.strokeStyle = '#4c1d95';
+        } else if (node.role === 'PLATFORM_CASHOUT') {
+          ctx.fillStyle = isHovered ? '#0e7490' : '#0891b2';
+          ctx.strokeStyle = '#164e63';
+        } else if (node.role === 'BANK_ACCOUNT_OUT') {
+          ctx.fillStyle = isHovered ? '#334155' : '#475569';
+          ctx.strokeStyle = '#1e293b';
         } else if (
           node.role === 'MULE_DROPPER' ||
           node.isBlacklisted ||
@@ -901,6 +909,18 @@ export const GraphCanvas: React.FC<Props> = ({
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🪙', node.x, node.y);
+        } else if (node.role === 'PLATFORM_CASHOUT') {
+          ctx.font = '16px sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🌐', node.x, node.y);
+        } else if (node.role === 'BANK_ACCOUNT_OUT') {
+          ctx.font = '16px sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🏦', node.x, node.y);
         } else {
           const riskVal = typeof node.riskScore === 'number' ? node.riskScore : 0;
           const scoreFontSize = Math.min(Math.max(10, Math.floor(node.radius * 0.42)), 15);
@@ -1288,18 +1308,30 @@ export const GraphCanvas: React.FC<Props> = ({
       </div>
 
       {/* Legend Badge Bar */}
-      <div className="absolute top-4 right-4 z-20 hidden md:flex items-center gap-3.5 bg-white border border-[#d2d6de] px-3.5 py-1.5 text-[11px] shadow-sm font-medium text-gray-700">
+      <div className="absolute top-4 right-4 z-20 hidden md:flex flex-wrap items-center gap-3 bg-white border border-[#d2d6de] px-3.5 py-1.5 text-[11px] shadow-sm font-medium text-gray-700">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-red-500/30"></span>
           Firibgar / Dropper
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-          Tranzit Karta
+          Tranzit
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
           Jabrlanuvchi
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-violet-500"></span>
+          Kripto / Birja
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
+          Naqd (ATM)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-cyan-600"></span>
+          Onlayn Servis
         </span>
       </div>
 

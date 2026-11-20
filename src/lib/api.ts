@@ -1420,6 +1420,11 @@ export const intelligenceApi = {
     payment_provider_name?: string;
     transaction_id?: string;
     application_id?: string;
+    destination_type?: string;
+    destination_platform?: string;
+    destination_value?: string;
+    destination_label?: string;
+    destination_details?: Record<string, unknown>;
   }) => {
     const res = await apiClient.post<Transfer>('/intelligence/transfers/transit', data);
     return res.data;

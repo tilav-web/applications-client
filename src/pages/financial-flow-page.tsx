@@ -13,11 +13,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GraphCanvas } from '@/components/graph/graph-canvas';
 import { GraphFilterBar } from '@/components/graph/graph-filter-bar';
 import { NodeDetailsDrawer } from '@/components/graph/node-details-drawer';
+import { TransitTransferDialog } from '@/components/intelligence/transit-transfer-dialog';
 import { Button } from '@/components/ui/button';
+import { usePermissions } from '@/hooks/use-permissions';
 import { financialFlowApi } from '@/lib/api';
 import type { IGraphNode } from '@/types/models';
 
 export function FinancialFlowPage() {
+  const { canWrite } = usePermissions();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [searchCard, setSearchCard] = useState('');
   const [riskLevel, setRiskLevel] = useState('ALL');
@@ -25,6 +28,7 @@ export function FinancialFlowPage() {
   const [clusteringEnabled, setClusteringEnabled] = useState(true);
   const [selectedNode, setSelectedNode] = useState<IGraphNode | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isTransitDialogOpen, setIsTransitDialogOpen] = useState(false);
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -205,6 +209,7 @@ export function FinancialFlowPage() {
           isFetching={isFetching}
           isFullscreen={isFullscreen}
           onToggleFullscreen={() => void toggleFullscreen()}
+          onAddTransfer={canWrite ? () => setIsTransitDialogOpen(true) : undefined}
         />
       </div>
 
@@ -267,6 +272,17 @@ export function FinancialFlowPage() {
           </div>
         )}
       </div>
+
+      {canWrite && (
+        <TransitTransferDialog
+          open={isTransitDialogOpen}
+          onOpenChange={setIsTransitDialogOpen}
+          defaultSenderCardNumber={
+            selectedNode && !selectedNode.destinationType ? selectedNode.cardNumber : ''
+          }
+          onSuccessInvalidateKeys={[['financial-flow-graph'], ['transfers']]}
+        />
+      )}
     </div>
   );
 }

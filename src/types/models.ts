@@ -290,6 +290,9 @@ export interface TransferCustomField {
   order?: number | null;
 }
 
+export type TransferDestinationType =
+  'CARD' | 'CRYPTO' | 'CASH' | 'PLATFORM' | 'BANK_ACCOUNT' | 'OTHER';
+
 export interface Transfer {
   id: string;
   transaction_id: string | null;
@@ -307,6 +310,16 @@ export interface Transfer {
   receiver_card?: Card | null;
   card_id: string | null;
   card?: Card | null;
+  destination_type?: TransferDestinationType;
+  receiver_identifier_id?: string | null;
+  receiver_identifier?: {
+    id: string;
+    type: string;
+    type_label?: string | null;
+    raw_value: string;
+  } | null;
+  destination_label?: string | null;
+  destination_details?: Record<string, unknown> | null;
   custom_fields?: TransferCustomField[];
   created_at?: string;
   updated_at?: string;
@@ -744,7 +757,9 @@ export type GraphCardRole =
   | 'VICTIM_SOURCE'
   | 'COMPROMISED_VICTIM'
   | 'ATM_TERMINAL'
-  | 'CRYPTO_CASHOUT';
+  | 'CRYPTO_CASHOUT'
+  | 'PLATFORM_CASHOUT'
+  | 'BANK_ACCOUNT_OUT';
 
 export interface IGraphNode {
   id: string;
@@ -769,6 +784,8 @@ export interface IGraphNode {
   pinfl?: string;
   passport?: string;
   phone?: string;
+  destinationType?: string;
+  identifierId?: string;
   linkedApplications?: LinkedApplicationInfo[];
   x?: number;
   y?: number;
