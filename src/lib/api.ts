@@ -27,6 +27,7 @@ import type {
   RejectionReason,
   SuspectFieldConfig,
   Transfer,
+  TransferChannel,
 } from '@/types/models';
 
 import { apiClient } from './axios';
@@ -571,6 +572,30 @@ export const paymentProvidersApi = {
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(
       `/payment-providers/${id}`,
+    );
+    return res.data;
+  },
+};
+
+// 8.1. Transfer Exit Channels API (Dinamik chiqish kanallari)
+export const transferChannelsApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<TransferChannel>>('/transfer-channels', {
+      params,
+    });
+    return res.data;
+  },
+  create: async (data: Partial<TransferChannel>) => {
+    const res = await apiClient.post<TransferChannel>('/transfer-channels', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<TransferChannel>) => {
+    const res = await apiClient.patch<TransferChannel>(`/transfer-channels/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/transfer-channels/${id}`,
     );
     return res.data;
   },

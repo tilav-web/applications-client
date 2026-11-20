@@ -293,6 +293,24 @@ export interface TransferCustomField {
 export type TransferDestinationType =
   'CARD' | 'CRYPTO' | 'CASH' | 'PLATFORM' | 'BANK_ACCOUNT' | 'OTHER';
 
+export interface TransferChannel {
+  id: string;
+  name: string;
+  code: string;
+  category: TransferDestinationType;
+  color: string;
+  icon: string;
+  presets: string[];
+  platform_label: string | null;
+  platform_placeholder: string | null;
+  value_label: string | null;
+  value_placeholder: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Transfer {
   id: string;
   transaction_id: string | null;

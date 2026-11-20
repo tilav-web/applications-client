@@ -60,6 +60,7 @@ import {
   paymentProvidersApi,
   rejectionReasonsApi,
   suspectFieldConfigsApi,
+  transferChannelsApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import type {
@@ -78,6 +79,8 @@ import type {
   PaymentProvider,
   RejectionReason,
   SuspectFieldConfig,
+  TransferChannel,
+  TransferDestinationType,
 } from '@/types/models';
 
 type ReferenceItem =
@@ -87,6 +90,7 @@ type ReferenceItem =
   | CrimeMethod
   | Bank
   | PaymentProvider
+  | TransferChannel
   | ApplicationStatusItem
   | SuspectFieldConfig
   | OccupationCategory
@@ -131,6 +135,7 @@ type ReferenceTabKey =
   | 'rejection_reasons'
   | 'banks'
   | 'providers'
+  | 'transfer_channels'
   | 'statuses'
   | 'suspect_fields';
 
@@ -238,6 +243,12 @@ const REFERENCE_NAV_GROUPS: Array<{
         label: 'To‘lov Provayderlari',
         description: 'Payme, Click, Uzum va boshqa to‘lov tizimlari',
         icon: CreditCard,
+      },
+      {
+        key: 'transfer_channels',
+        label: 'Chiqish Kanallari',
+        description: 'Moliyaviy oqimda pul chiqish yo‘llari (Kripto, ATM, Servislar...)',
+        icon: Layers,
       },
     ],
   },
@@ -370,6 +381,13 @@ export function ReferencesPage() {
     enabled: activeTab === 'providers',
   });
 
+  // 4.1. Transfer Exit Channels Query
+  const { data: transferChannelsData, isLoading: isTransferChannelsLoading } = useQuery({
+    queryKey: ['transfer-channels'],
+    queryFn: () => transferChannelsApi.getAll({ limit: 100 }),
+    enabled: activeTab === 'transfer_channels',
+  });
+
   // 5. Application Statuses Query
   const { data: statusesData, isLoading: isStatusesLoading } = useQuery({
     queryKey: ['application-statuses', { page: statusPage, limit: pageSize, search: statusSearch }],
@@ -482,6 +500,31 @@ export function ReferencesPage() {
         });
       if (activeTab === 'banks') return banksApi.create(formData);
       if (activeTab === 'providers') return paymentProvidersApi.create(formData);
+      if (activeTab === 'transfer_channels') {
+        const rawPresets =
+          typeof formData.presets_text === 'string'
+            ? formData.presets_text
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : Array.isArray(formData.presets)
+              ? (formData.presets as string[])
+              : [];
+        return transferChannelsApi.create({
+          name: formData.name || '',
+          code: formData.code || undefined,
+          category: ((formData.category as string) || 'PLATFORM') as TransferDestinationType,
+          color: (formData.color as string) || '#0891b2',
+          icon: (formData.icon as string) || '🌐',
+          presets: rawPresets,
+          platform_label: (formData.platform_label as string) || undefined,
+          platform_placeholder: (formData.platform_placeholder as string) || undefined,
+          value_label: (formData.value_label as string) || undefined,
+          value_placeholder: (formData.value_placeholder as string) || undefined,
+          sort_order: formData.sort_order ? Number(formData.sort_order) : 10,
+          is_active: formData.is_active !== false,
+        });
+      }
       if (activeTab === 'statuses')
         return applicationStatusesApi.create({
           name: formData.name || '',
@@ -553,23 +596,25 @@ export function ReferencesPage() {
         queryKey: [
           activeTab === 'providers'
             ? 'payment-providers'
-            : activeTab === 'statuses'
-              ? 'application-statuses'
-              : activeTab === 'suspect_fields'
-                ? 'suspect-field-configs'
-                : activeTab === 'crime_methods'
-                  ? 'crime-methods'
-                  : activeTab === 'occupations'
-                    ? 'occupations-all'
-                    : activeTab === 'sources'
-                      ? 'application-sources-all'
-                      : activeTab === 'department_services'
-                        ? 'department-services-all'
-                        : activeTab === 'rejection_reasons'
-                          ? 'rejection-reasons-all'
-                          : activeTab === 'decision_types'
-                            ? 'decision-types-all'
-                            : activeTab,
+            : activeTab === 'transfer_channels'
+              ? 'transfer-channels'
+              : activeTab === 'statuses'
+                ? 'application-statuses'
+                : activeTab === 'suspect_fields'
+                  ? 'suspect-field-configs'
+                  : activeTab === 'crime_methods'
+                    ? 'crime-methods'
+                    : activeTab === 'occupations'
+                      ? 'occupations-all'
+                      : activeTab === 'sources'
+                        ? 'application-sources-all'
+                        : activeTab === 'department_services'
+                          ? 'department-services-all'
+                          : activeTab === 'rejection_reasons'
+                            ? 'rejection-reasons-all'
+                            : activeTab === 'decision_types'
+                              ? 'decision-types-all'
+                              : activeTab,
         ],
       });
       if (activeTab === 'occupations') {
@@ -632,6 +677,31 @@ export function ReferencesPage() {
         });
       if (activeTab === 'banks') return banksApi.update(targetItem.id, formData);
       if (activeTab === 'providers') return paymentProvidersApi.update(targetItem.id, formData);
+      if (activeTab === 'transfer_channels') {
+        const rawPresets =
+          typeof formData.presets_text === 'string'
+            ? formData.presets_text
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : Array.isArray(formData.presets)
+              ? (formData.presets as string[])
+              : undefined;
+        return transferChannelsApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          code: formData.code || undefined,
+          category: (formData.category as TransferDestinationType) || undefined,
+          color: (formData.color as string) || undefined,
+          icon: (formData.icon as string) || undefined,
+          presets: rawPresets,
+          platform_label: (formData.platform_label as string) || undefined,
+          platform_placeholder: (formData.platform_placeholder as string) || undefined,
+          value_label: (formData.value_label as string) || undefined,
+          value_placeholder: (formData.value_placeholder as string) || undefined,
+          sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+          is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined,
+        });
+      }
       if (activeTab === 'statuses')
         return applicationStatusesApi.update(targetItem.id, {
           name: formData.name || undefined,
@@ -701,23 +771,25 @@ export function ReferencesPage() {
         queryKey: [
           activeTab === 'providers'
             ? 'payment-providers'
-            : activeTab === 'statuses'
-              ? 'application-statuses'
-              : activeTab === 'suspect_fields'
-                ? 'suspect-field-configs'
-                : activeTab === 'crime_methods'
-                  ? 'crime-methods'
-                  : activeTab === 'occupations'
-                    ? 'occupations-all'
-                    : activeTab === 'sources'
-                      ? 'application-sources-all'
-                      : activeTab === 'department_services'
-                        ? 'department-services-all'
-                        : activeTab === 'rejection_reasons'
-                          ? 'rejection-reasons-all'
-                          : activeTab === 'decision_types'
-                            ? 'decision-types-all'
-                            : activeTab,
+            : activeTab === 'transfer_channels'
+              ? 'transfer-channels'
+              : activeTab === 'statuses'
+                ? 'application-statuses'
+                : activeTab === 'suspect_fields'
+                  ? 'suspect-field-configs'
+                  : activeTab === 'crime_methods'
+                    ? 'crime-methods'
+                    : activeTab === 'occupations'
+                      ? 'occupations-all'
+                      : activeTab === 'sources'
+                        ? 'application-sources-all'
+                        : activeTab === 'department_services'
+                          ? 'department-services-all'
+                          : activeTab === 'rejection_reasons'
+                            ? 'rejection-reasons-all'
+                            : activeTab === 'decision_types'
+                              ? 'decision-types-all'
+                              : activeTab,
         ],
       });
       if (activeTab === 'occupations') {
@@ -750,6 +822,7 @@ export function ReferencesPage() {
       if (activeTab === 'crime_methods') return crimeMethodsApi.delete(targetItem.id);
       if (activeTab === 'banks') return banksApi.delete(targetItem.id);
       if (activeTab === 'providers') return paymentProvidersApi.delete(targetItem.id);
+      if (activeTab === 'transfer_channels') return transferChannelsApi.delete(targetItem.id);
       if (activeTab === 'statuses') return applicationStatusesApi.delete(targetItem.id);
       if (activeTab === 'suspect_fields') return suspectFieldConfigsApi.delete(targetItem.id);
       if (activeTab === 'occupations') {
@@ -768,23 +841,25 @@ export function ReferencesPage() {
         queryKey: [
           activeTab === 'providers'
             ? 'payment-providers'
-            : activeTab === 'statuses'
-              ? 'application-statuses'
-              : activeTab === 'suspect_fields'
-                ? 'suspect-field-configs'
-                : activeTab === 'crime_methods'
-                  ? 'crime-methods'
-                  : activeTab === 'occupations'
-                    ? 'occupations-all'
-                    : activeTab === 'sources'
-                      ? 'application-sources-all'
-                      : activeTab === 'department_services'
-                        ? 'department-services-all'
-                        : activeTab === 'rejection_reasons'
-                          ? 'rejection-reasons-all'
-                          : activeTab === 'decision_types'
-                            ? 'decision-types-all'
-                            : activeTab,
+            : activeTab === 'transfer_channels'
+              ? 'transfer-channels'
+              : activeTab === 'statuses'
+                ? 'application-statuses'
+                : activeTab === 'suspect_fields'
+                  ? 'suspect-field-configs'
+                  : activeTab === 'crime_methods'
+                    ? 'crime-methods'
+                    : activeTab === 'occupations'
+                      ? 'occupations-all'
+                      : activeTab === 'sources'
+                        ? 'application-sources-all'
+                        : activeTab === 'department_services'
+                          ? 'department-services-all'
+                          : activeTab === 'rejection_reasons'
+                            ? 'rejection-reasons-all'
+                            : activeTab === 'decision_types'
+                              ? 'decision-types-all'
+                              : activeTab,
         ],
       });
       if (activeTab === 'occupations') {
@@ -816,7 +891,11 @@ export function ReferencesPage() {
 
   const openEditModal = (item: ReferenceItem) => {
     setTargetItem(item);
-    setFormData({ ...item });
+    const extra: Record<string, unknown> = {};
+    if ('presets' in item && Array.isArray(item.presets)) {
+      extra.presets_text = item.presets.join(', ');
+    }
+    setFormData({ ...item, ...extra });
     setModalType('edit');
   };
 
@@ -1528,6 +1607,102 @@ export function ReferencesPage() {
                     isLoading={isProvidersLoading}
                   />
                 )}
+              </Card>
+            </TabsContent>
+
+            {/* 4.1. TRANSFER EXIT CHANNELS TAB (Dinamik chiqish kanallari) */}
+            <TabsContent value="transfer_channels" className="space-y-4 mt-0">
+              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead>Kanal Nomi</TableHead>
+                      <TableHead>Kategoriya (Graf turi)</TableHead>
+                      <TableHead>Tezkor Variantlar (Presets)</TableHead>
+                      <TableHead className="w-[80px] text-center">Tartib</TableHead>
+                      <TableHead className="text-right">Amallar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isTransferChannelsLoading ? (
+                      <TableRowsSkeleton rows={5} columns={5} />
+                    ) : transferChannelsData?.items?.length ? (
+                      transferChannelsData.items.map((ch: TransferChannel) => (
+                        <TableRow key={ch.id} className="hover:bg-primary/[0.04]">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-sm"
+                                style={{ backgroundColor: `${ch.color || '#0891b2'}20` }}
+                              >
+                                {ch.icon || '🌐'}
+                              </span>
+                              <div>
+                                <div className="font-semibold text-foreground">{ch.name}</div>
+                                <div className="font-mono text-[10px] text-muted-foreground">
+                                  {ch.code}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[11px] font-mono">
+                              {ch.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {ch.presets && ch.presets.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {ch.presets.map((p) => (
+                                  <Badge
+                                    key={p}
+                                    variant="secondary"
+                                    className="text-[10px] font-normal"
+                                  >
+                                    {p}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center font-mono text-xs">
+                            {ch.sort_order}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 cursor-pointer"
+                                onClick={() => openEditModal(ch)}
+                              >
+                                <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                              {ch.code !== 'CARD' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 hover:text-destructive cursor-pointer"
+                                  onClick={() => openDeleteModal(ch)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          Chiqish kanallari topilmadi
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </Card>
             </TabsContent>
 
@@ -2751,6 +2926,104 @@ export function ReferencesPage() {
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="h-9 text-xs font-mono"
                 />
+              </div>
+            )}
+
+            {activeTab === 'transfer_channels' && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Kategoriya (Graf turi)</label>
+                    <select
+                      value={(formData.category as string) || 'PLATFORM'}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
+                    >
+                      <option value="CARD">Plastik karta (CARD)</option>
+                      <option value="CRYPTO">Kripto / Birja (CRYPTO)</option>
+                      <option value="CASH">Naqdlashtirish / ATM (CASH)</option>
+                      <option value="PLATFORM">Onlayn Servis / Profil (PLATFORM)</option>
+                      <option value="BANK_ACCOUNT">Bank hisob raqami (BANK_ACCOUNT)</option>
+                      <option value="OTHER">Boshqa (OTHER)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Tizim Kodi (Slug)</label>
+                    <Input
+                      placeholder="CRYPTO, BETTING, TIKTOK..."
+                      value={formData.code || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, code: e.target.value.toUpperCase() })
+                      }
+                      className="h-9 text-xs font-mono uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Ikonka (Emoji)</label>
+                    <Input
+                      placeholder="🪙 / 🏧 / 🌐 / 🎰"
+                      value={(formData.icon as string) || ''}
+                      onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                      className="h-9 text-sm text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Rang (Hex)</label>
+                    <Input
+                      type="color"
+                      value={(formData.color as string) || '#0891b2'}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      className="h-9 p-1 cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Tartib raqami</label>
+                    <Input
+                      type="number"
+                      value={formData.sort_order ?? 10}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sort_order: Number(e.target.value) })
+                      }
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-medium text-foreground">
+                    Tezkor tanlash tugmalari (vergul bilan ajratilgan)
+                  </label>
+                  <Input
+                    placeholder="Binance, Bybit, OKX, USDT TRC-20, TON"
+                    value={(formData.presets_text as string) || ''}
+                    onChange={(e) => setFormData({ ...formData, presets_text: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Platforma maydoni nomi</label>
+                    <Input
+                      placeholder="Birja / Platforma nomi"
+                      value={(formData.platform_label as string) || ''}
+                      onChange={(e) => setFormData({ ...formData, platform_label: e.target.value })}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Qiymat maydoni nomi</label>
+                    <Input
+                      placeholder="UID / Hamyon / Profil ID *"
+                      value={(formData.value_label as string) || ''}
+                      onChange={(e) => setFormData({ ...formData, value_label: e.target.value })}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowRightLeft, Banknote, Building2, Coins, CreditCard, Globe } from 'lucide-react';
-import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRightLeft, Settings2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
 import { Button } from '@/components/ui/button';
@@ -14,9 +15,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
-import { intelligenceApi } from '@/lib/api';
+import { usePermissions } from '@/hooks/use-permissions';
+import { intelligenceApi, transferChannelsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
-import type { Card, TransferDestinationType } from '@/types/models';
+import type { Card, TransferChannel } from '@/types/models';
 
 interface TransitTransferDialogProps {
   open: boolean;
@@ -26,59 +28,81 @@ interface TransitTransferDialogProps {
   onSuccessInvalidateKeys: unknown[][];
 }
 
-const DESTINATION_CHANNELS: Array<{
-  value: TransferDestinationType;
-  label: string;
-  icon: typeof CreditCard;
-  presets: string[];
-  platformPlaceholder: string;
-  valueLabel: string;
-  valuePlaceholder: string;
-}> = [
+const FALLBACK_CHANNELS: TransferChannel[] = [
   {
-    value: 'CARD',
-    label: 'Plastik karta',
-    icon: CreditCard,
+    id: 'default-card',
+    name: 'Plastik karta',
+    code: 'CARD',
+    category: 'CARD',
+    color: '#e74c3c',
+    icon: '💳',
     presets: [],
-    platformPlaceholder: '',
-    valueLabel: 'Qabul qiluvchi (Tranzit / Dropper) karta raqami *',
-    valuePlaceholder: '9860 1234 5678 9012',
+    platform_label: null,
+    platform_placeholder: null,
+    value_label: 'Qabul qiluvchi (Tranzit / Dropper) karta raqami *',
+    value_placeholder: '9860 1234 5678 9012',
+    sort_order: 1,
+    is_active: true,
   },
   {
-    value: 'CRYPTO',
-    label: 'Kripto / Birja',
-    icon: Coins,
+    id: 'default-crypto',
+    name: 'Kripto / Birja',
+    code: 'CRYPTO',
+    category: 'CRYPTO',
+    color: '#8b5cf6',
+    icon: '🪙',
     presets: ['Binance', 'Bybit', 'OKX', 'USDT TRC-20', 'TON'],
-    platformPlaceholder: 'Binance, Bybit, OKX, TRC-20...',
-    valueLabel: 'Birja UID yoki Kripto-hamyon manzili *',
-    valuePlaceholder: 'Masalan: UID 48291034 yoki TX9aK... (TRC-20)',
+    platform_label: 'Birja / Tarmoq nomi',
+    platform_placeholder: 'Binance, Bybit, OKX, TRC-20...',
+    value_label: 'Birja UID yoki Kripto-hamyon manzili *',
+    value_placeholder: 'Masalan: UID 48291034 yoki TX9aK... (TRC-20)',
+    sort_order: 2,
+    is_active: true,
   },
   {
-    value: 'CASH',
-    label: 'Naqd / ATM',
-    icon: Banknote,
+    id: 'default-cash',
+    name: 'Naqd / ATM',
+    code: 'CASH',
+    category: 'CASH',
+    color: '#059669',
+    icon: '🏧',
     presets: ['Bankomat (ATM)', 'Bank kassasi', 'Valyuta ayirboshlash'],
-    platformPlaceholder: 'Bankomat / Bank filiali nomi',
-    valueLabel: 'ATM ID yoki naqdlashtirilgan manzil *',
-    valuePlaceholder: 'Masalan: ATM #402, Qarshi sh. Mustaqillik ko‘chasi',
+    platform_label: 'Naqdlashtirish joyi turi',
+    platform_placeholder: 'Bankomat / Bank filiali nomi',
+    value_label: 'ATM ID yoki naqdlashtirilgan manzil *',
+    value_placeholder: 'Masalan: ATM #402, Qarshi sh. Mustaqillik ko‘chasi',
+    sort_order: 3,
+    is_active: true,
   },
   {
-    value: 'PLATFORM',
-    label: 'Onlayn Servis',
-    icon: Globe,
+    id: 'default-platform',
+    name: 'Onlayn Servis',
+    code: 'PLATFORM',
+    category: 'PLATFORM',
+    color: '#0891b2',
+    icon: '🌐',
     presets: ['TikTok', 'Telegram', '1xBet', 'Steam', 'Visa Merchant'],
-    platformPlaceholder: 'TikTok, Telegram, 1xBet, Visa Merchant...',
-    valueLabel: 'Profil / Akkaunt ID yoki username *',
-    valuePlaceholder: 'Masalan: @user_profile yoki ID 9912045',
+    platform_label: 'Platforma / Servis nomi',
+    platform_placeholder: 'TikTok, Telegram, 1xBet, Visa Merchant...',
+    value_label: 'Profil / Akkaunt ID yoki username *',
+    value_placeholder: 'Masalan: @user_profile yoki ID 9912045',
+    sort_order: 4,
+    is_active: true,
   },
   {
-    value: 'BANK_ACCOUNT',
-    label: 'Hisob raqam',
-    icon: Building2,
+    id: 'default-bank',
+    name: 'Hisob raqam',
+    code: 'BANK_ACCOUNT',
+    category: 'BANK_ACCOUNT',
+    color: '#475569',
+    icon: '🏦',
     presets: ['Kapitalbank', 'Ipak Yo‘li', 'Hamkorbank', 'NBU'],
-    platformPlaceholder: 'Bank nomi / MFO',
-    valueLabel: '20 talik bank hisob raqami *',
-    valuePlaceholder: '20208000...',
+    platform_label: 'Bank nomi / MFO',
+    platform_placeholder: 'Bank nomi yoki MFO kodi',
+    value_label: '20 talik bank hisob raqami *',
+    value_placeholder: '20208000...',
+    sort_order: 5,
+    is_active: true,
   },
 ];
 
@@ -90,9 +114,23 @@ export function TransitTransferDialog({
   onSuccessInvalidateKeys,
 }: TransitTransferDialogProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { isAdmin } = usePermissions();
+
+  const { data: channelsRes } = useQuery({
+    queryKey: ['transfer-channels'],
+    queryFn: () => transferChannelsApi.getAll({ limit: 100 }),
+    staleTime: 60_000,
+    enabled: open,
+  });
+
+  const channels = useMemo(() => {
+    const active = (channelsRes?.items || []).filter((c) => c.is_active !== false);
+    return active.length > 0 ? active : FALLBACK_CHANNELS;
+  }, [channelsRes]);
 
   const [direction, setDirection] = useState<'OUTGOING' | 'INCOMING'>('OUTGOING');
-  const [destinationType, setDestinationType] = useState<TransferDestinationType>('CARD');
+  const [selectedChannelCode, setSelectedChannelCode] = useState<string>('CARD');
   const [destinationPlatform, setDestinationPlatform] = useState('');
   const [destinationValue, setDestinationValue] = useState('');
 
@@ -107,9 +145,9 @@ export function TransitTransferDialog({
   const [transactionId, setTransactionId] = useState('');
 
   const activeChannel =
-    DESTINATION_CHANNELS.find((c) => c.value === destinationType) || DESTINATION_CHANNELS[0];
+    channels.find((c) => c.code === selectedChannelCode) || channels[0] || FALLBACK_CHANNELS[0];
 
-  const isOutgoingNonCard = direction === 'OUTGOING' && destinationType !== 'CARD';
+  const isOutgoingNonCard = direction === 'OUTGOING' && activeChannel.category !== 'CARD';
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -117,22 +155,31 @@ export function TransitTransferDialog({
       const ownNum = chosenOwnCard?.card_number || ownCardNumber;
 
       if (direction === 'OUTGOING') {
-        if (destinationType !== 'CARD') {
+        if (activeChannel.category !== 'CARD') {
+          const platformStr = destinationPlatform.trim() || activeChannel.name;
           return intelligenceApi.createTransitTransfer({
             sender_card_id: chosenOwnCard?.id || undefined,
             sender_card_number: ownNum || undefined,
             amount: Number(amount.replace(/\D/g, '')),
-            payment_provider_name: destinationPlatform || providerName,
+            payment_provider_name: platformStr || providerName,
             transfer_date: transferDate,
             transfer_time: transferTime,
             transaction_id: transactionId || undefined,
-            destination_type: destinationType,
-            destination_platform: destinationPlatform.trim() || undefined,
+            destination_type: activeChannel.category,
+            destination_platform: platformStr,
             destination_value: destinationValue.trim(),
             destination_label:
-              destinationPlatform.trim() && destinationValue.trim()
-                ? `${destinationPlatform.trim()}: ${destinationValue.trim()}`
-                : destinationValue.trim() || destinationPlatform.trim(),
+              platformStr && destinationValue.trim()
+                ? `${platformStr}: ${destinationValue.trim()}`
+                : destinationValue.trim() || platformStr,
+            destination_details: {
+              channel_code: activeChannel.code,
+              channel_name: activeChannel.name,
+              channel_icon: activeChannel.icon,
+              channel_color: activeChannel.color,
+              platform: platformStr,
+              value: destinationValue.trim(),
+            },
           });
         }
 
@@ -191,27 +238,29 @@ export function TransitTransferDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-primary" />
+      <DialogContent className="sm:max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto p-6">
+        <DialogHeader className="pb-2 border-b border-border/60">
+          <DialogTitle className="flex items-center gap-2.5 text-lg">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ArrowRightLeft className="h-5 w-5" />
+            </div>
             <span>Bank Vipiskasi / Moliyaviy Oqim Oʻtkazmasi</span>
           </DialogTitle>
-          <DialogDescription>
-            Kartaga kirgan yoki undan boshqa karta, kripto-birja (Binance), naqdlashtirish (ATM)
-            yoki onlayn servisga (TikTok va h.k.) chiqib ketgan oqimni kiriting.
+          <DialogDescription className="text-xs sm:text-sm">
+            Kartaga kirgan yoki undan boshqa karta, kripto-birja (Binance), naqdlashtirish (ATM),
+            onlayn servis (TikTok va h.k.) yoki boshqa chiqish kanallariga ketgan oqimni kiriting.
           </DialogDescription>
         </DialogHeader>
 
-        <fieldset disabled={mutation.isPending} className="space-y-4 py-2 border-0 p-0 m-0">
-          {/* Yo'nalish tanlash */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50 border border-border">
+        <fieldset disabled={mutation.isPending} className="space-y-5 py-3 border-0 p-0 m-0">
+          {/* 1. Yo'nalish tanlash */}
+          <div className="grid grid-cols-2 gap-2.5 p-1.5 rounded-xl bg-muted/50 border border-border">
             <button
               type="button"
               onClick={() => setDirection('OUTGOING')}
-              className={`py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 direction === 'OUTGOING'
-                  ? 'bg-rose-500 text-white shadow-xs'
+                  ? 'bg-rose-500 text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -221,11 +270,11 @@ export function TransitTransferDialog({
               type="button"
               onClick={() => {
                 setDirection('INCOMING');
-                setDestinationType('CARD');
+                setSelectedChannelCode('CARD');
               }}
-              className={`py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 direction === 'INCOMING'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -233,31 +282,47 @@ export function TransitTransferDialog({
             </button>
           </div>
 
-          {/* Chiqish kanali (faqat Chiqim bo'lganda) */}
+          {/* 2. Dinamik chiqish kanallari (faqat Chiqim bo'lganda) */}
           {direction === 'OUTGOING' && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold">Pul qayerga chiqib ketdi? (Kanal)</label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                {DESTINATION_CHANNELS.map((ch) => {
-                  const Icon = ch.icon;
-                  const active = destinationType === ch.value;
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs sm:text-sm font-semibold">
+                  Pul qayerga chiqib ketdi? (Chiqish kanali)
+                </label>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate('/references?tab=transfer_channels');
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                    <span>Kanallarni boshqarish</span>
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                {channels.map((ch) => {
+                  const active = activeChannel.code === ch.code;
                   return (
                     <button
-                      key={ch.value}
+                      key={ch.id}
                       type="button"
                       onClick={() => {
-                        setDestinationType(ch.value);
+                        setSelectedChannelCode(ch.code);
                         setDestinationPlatform('');
                         setDestinationValue('');
                       }}
-                      className={`flex flex-col items-center justify-center gap-1 py-2 px-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                         active
-                          ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                           : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
                       }`}
                     >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span className="truncate">{ch.label}</span>
+                      <span className="text-base leading-none">{ch.icon || '🌐'}</span>
+                      <span className="truncate">{ch.name}</span>
                     </button>
                   );
                 })}
@@ -265,46 +330,63 @@ export function TransitTransferDialog({
             </div>
           )}
 
-          {/* Joriy shaxs/dosye kartasi */}
-          {availableCards.length > 0 ? (
+          {/* 3. Asosiy karta + Summa (2 ustunli qulay joylashuv) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {availableCards.length > 0 ? (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">
+                  {direction === 'OUTGOING'
+                    ? 'Pul chiqqan karta (Asosiy karta)'
+                    : 'Pul tushgan karta'}
+                </label>
+                <select
+                  value={selectedOwnCardId}
+                  onChange={(e) => setSelectedOwnCardId(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-mono font-semibold"
+                >
+                  {availableCards.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.card_number || c.masked_number} ({c.bank?.name || 'Bank'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">
+                  {direction === 'OUTGOING'
+                    ? 'Pul chiqqan karta raqami (16 talik)'
+                    : 'Pul tushgan karta raqami (16 talik)'}
+                </label>
+                <Input
+                  value={ownCardNumber}
+                  onChange={(e) => setOwnCardNumber(e.target.value)}
+                  placeholder="8600 0000 0000 0000"
+                  className="h-10 font-mono text-sm"
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">
-                {direction === 'OUTGOING'
-                  ? 'Pul chiqqan karta (Asosiy karta)'
-                  : 'Pul tushgan karta'}
-              </label>
-              <select
-                value={selectedOwnCardId}
-                onChange={(e) => setSelectedOwnCardId(e.target.value)}
-                className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs font-mono font-semibold"
-              >
-                {availableCards.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.card_number || c.masked_number} ({c.bank?.name || 'Bank'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold">Asosiy karta raqami (16 talik)</label>
+              <label className="text-xs font-semibold">Summa (UZS) *</label>
               <Input
-                value={ownCardNumber}
-                onChange={(e) => setOwnCardNumber(e.target.value)}
-                placeholder="8600 0000 0000 0000"
-                className="font-mono"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="15 000 000"
+                className="h-10 font-mono font-bold text-sm"
               />
             </div>
-          )}
+          </div>
 
-          {/* Qabul qiluvchi: Karta yoki Kripto/Naqd/Servis */}
+          {/* 4. Qabul qiluvchi: Karta yoki Dinamik Kanal (Kripto / Naqd / Servis / Hisob) */}
           {!isOutgoingNonCard ? (
-            <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-border/80 bg-muted/20">
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-semibold">
                     {direction === 'OUTGOING'
-                      ? 'Qabul qiluvchi (Tranzit / Dropper) karta raqami *'
+                      ? activeChannel.value_label ||
+                        'Qabul qiluvchi (Tranzit / Dropper) karta raqami *'
                       : 'Joʻnatuvchi karta raqami *'}
                   </label>
                   {counterpartyCardNumber && (
@@ -314,101 +396,88 @@ export function TransitTransferDialog({
                 <Input
                   value={counterpartyCardNumber}
                   onChange={(e) => setCounterpartyCardNumber(e.target.value)}
-                  placeholder="9860 1234 5678 9012"
-                  className="font-mono font-bold"
+                  placeholder={activeChannel.value_placeholder || '9860 1234 5678 9012'}
+                  className="h-10 font-mono font-bold text-sm bg-background"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold">
-                    Kontragent F.I.O (Vipiskada boʻlsa)
-                  </label>
-                  <Input
-                    value={counterpartyOwnerName}
-                    onChange={(e) => setCounterpartyOwnerName(e.target.value)}
-                    placeholder="Masalan: ESHMATOV TOSHMAT"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold">Summa (UZS) *</label>
-                  <Input
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="15000000"
-                    className="font-mono font-bold"
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="space-y-2 p-3 rounded-xl border border-primary/20 bg-primary/5">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold">
-                    {destinationType === 'CRYPTO'
-                      ? 'Birja / Tarmoq nomi'
-                      : destinationType === 'CASH'
-                        ? 'Naqdlashtirish joyi turi'
-                        : destinationType === 'BANK_ACCOUNT'
-                          ? 'Bank nomi / MFO'
-                          : 'Platforma / Servis nomi'}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 pb-1">
-                    {activeChannel.presets.map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setDestinationPlatform(preset)}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium border transition-colors cursor-pointer ${
-                          destinationPlatform === preset
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background border-border text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
-                  <Input
-                    value={destinationPlatform}
-                    onChange={(e) => setDestinationPlatform(e.target.value)}
-                    placeholder={activeChannel.platformPlaceholder}
-                    className="bg-background"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold">{activeChannel.valueLabel}</label>
-                  <Input
-                    value={destinationValue}
-                    onChange={(e) => setDestinationValue(e.target.value)}
-                    placeholder={activeChannel.valuePlaceholder}
-                    className="font-mono font-semibold bg-background"
-                  />
-                </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Summa (UZS) *</label>
+                <label className="text-xs font-semibold">Kontragent F.I.O (Vipiskada boʻlsa)</label>
                 <Input
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="15000000"
-                  className="font-mono font-bold"
+                  value={counterpartyOwnerName}
+                  onChange={(e) => setCounterpartyOwnerName(e.target.value)}
+                  placeholder="Masalan: ESHMATOV TOSHMAT"
+                  className="h-10 text-sm bg-background"
                 />
               </div>
-            </>
+            </div>
+          ) : (
+            <div className="space-y-3 p-4 rounded-xl border border-primary/25 bg-primary/[0.04]">
+              <div className="flex items-center gap-2 text-xs font-bold text-primary">
+                <span className="text-base">{activeChannel.icon || '🌐'}</span>
+                <span>{activeChannel.name} tafsilotlari</span>
+              </div>
+
+              {activeChannel.presets && activeChannel.presets.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {activeChannel.presets.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setDestinationPlatform(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        destinationPlatform === preset
+                          ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                          : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">
+                    {activeChannel.platform_label || 'Platforma / Birja / Joy nomi'}
+                  </label>
+                  <Input
+                    value={destinationPlatform}
+                    onChange={(e) => setDestinationPlatform(e.target.value)}
+                    placeholder={
+                      activeChannel.platform_placeholder || 'Binance, TikTok, ATM #402...'
+                    }
+                    className="h-10 text-sm bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">
+                    {activeChannel.value_label || 'UID / Hamyon / Profil ID yoki manzil *'}
+                  </label>
+                  <Input
+                    value={destinationValue}
+                    onChange={(e) => setDestinationValue(e.target.value)}
+                    placeholder={
+                      activeChannel.value_placeholder || 'Masalan: UID 48291034, @user, ATM...'
+                    }
+                    className="h-10 font-mono font-semibold text-sm bg-background"
+                  />
+                </div>
+              </div>
+            </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* 5. Qo'shimcha ma'lumotlar (4 ustunli ixcham qator) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold">Toʻlov tizimi</label>
               <Input
                 value={providerName}
                 onChange={(e) => setProviderName(e.target.value)}
-                placeholder="Click / Payme / Uzum / ATM"
+                placeholder="Click / Payme / ATM"
+                className="h-10 text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -417,6 +486,7 @@ export function TransitTransferDialog({
                 type="date"
                 value={transferDate}
                 onChange={(e) => setTransferDate(e.target.value)}
+                className="h-10 text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -425,22 +495,22 @@ export function TransitTransferDialog({
                 type="time"
                 value={transferTime}
                 onChange={(e) => setTransferTime(e.target.value)}
+                className="h-10 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Tranzaksiya / Chek ID</label>
+              <Input
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                placeholder="TRN-9928174..."
+                className="h-10 font-mono text-xs"
               />
             </div>
           </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold">Tranzaksiya / Chek ID (ixtiyoriy)</label>
-            <Input
-              value={transactionId}
-              onChange={(e) => setTransactionId(e.target.value)}
-              placeholder="TRN-9928174..."
-              className="font-mono text-xs"
-            />
-          </div>
         </fieldset>
 
-        <DialogFooter>
+        <DialogFooter className="pt-3 border-t border-border/60 gap-2">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -452,7 +522,7 @@ export function TransitTransferDialog({
             onClick={() => mutation.mutate()}
             loading={mutation.isPending}
             disabled={isSubmitDisabled}
-            className="gap-2"
+            className="gap-2 min-w-[160px]"
           >
             Oʻtkazmani saqlash
           </Button>
