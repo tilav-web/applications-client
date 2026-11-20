@@ -542,10 +542,22 @@ export function ApplicationCreatePage() {
   }, [allCrimes]);
 
   const { data: crimeMethodsData } = useQuery({
-    queryKey: ['crime-methods-active'],
-    queryFn: () => crimeMethodsApi.getAllActive(),
+    queryKey: ['crime-methods-active', selectedCrimeId],
+    queryFn: () => crimeMethodsApi.getAllActive(selectedCrimeId || undefined),
   });
   const allCrimeMethods = crimeMethodsData || [];
+
+  const [methodFieldValues, setMethodFieldValues] = useState<Record<string, string>>({});
+
+  const selectedCrimeMethod = useMemo(
+    () => allCrimeMethods.find((m) => m.id === selectedCrimeMethodId) || null,
+    [allCrimeMethods, selectedCrimeMethodId],
+  );
+
+  const activeMethodFields = useMemo(
+    () => (selectedCrimeMethod?.fields || []).filter((f) => f.is_active !== false),
+    [selectedCrimeMethod],
+  );
 
   const groupedCrimeMethods = useMemo(() => {
     const groups: Record<string, CrimeMethod[]> = {};
@@ -696,6 +708,16 @@ export function ApplicationCreatePage() {
 
       if (initialApp.crime_method_id || initialApp.crime_method) {
         setSelectedCrimeMethodId(initialApp.crime_method_id || initialApp.crime_method?.id || null);
+      }
+
+      if (Array.isArray(initialApp.custom_fields) && initialApp.custom_fields.length > 0) {
+        const prefilledMethodVals: Record<string, string> = {};
+        for (const cf of initialApp.custom_fields) {
+          if (cf.key && cf.value !== null && cf.value !== undefined) {
+            prefilledMethodVals[cf.key] = String(cf.value);
+          }
+        }
+        setMethodFieldValues(prefilledMethodVals);
       }
 
       const hasPrimaryFinancial = Boolean(
@@ -1118,8 +1140,36 @@ export function ApplicationCreatePage() {
       }
       payload.crime_method_id = selectedCrimeMethodId || null;
 
+      // 3.1. Jinoyat usuliga bog'langan dinamik maydonlarni tekshirish va saqlash
+      for (const mf of activeMethodFields) {
+        const fieldKey = mf.key || mf.label;
+        const val = (methodFieldValues[fieldKey] || '').trim();
+        if (mf.is_required && !val) {
+          toast.error(`"${mf.label}" maydonini to‘ldirish majburiy!`);
+          return;
+        }
+      }
+
       // 4. Moliyaviy Zarar / Karta va O'tkazmalar
-      const allCustomFields = [...customFields];
+      const activeMethodFieldKeys = new Set(activeMethodFields.map((mf) => mf.key || mf.label));
+      const allCustomFields = customFields.filter(
+        (cf) => !cf.key || !activeMethodFieldKeys.has(cf.key),
+      );
+
+      for (const mf of activeMethodFields) {
+        const fieldKey = mf.key || mf.label;
+        const val = (methodFieldValues[fieldKey] || '').trim();
+        if (val) {
+          allCustomFields.push({
+            clientId: `mf_${fieldKey}`,
+            label: mf.label,
+            key: fieldKey,
+            type: mf.field_type === 'NUMBER' ? 'NUMBER' : 'STRING',
+            value: mf.field_type === 'NUMBER' ? Number(val) : val,
+            order: mf.sort_order ?? 0,
+          });
+        }
+      }
 
       if (hasFinancialLoss && financialTransfers.length > 0) {
         const primary = financialTransfers[0];
@@ -2036,6 +2086,92 @@ export function ApplicationCreatePage() {
                 ))}
               </select>
             </div>
+
+            {/* Tanlangan jinoyat usuliga xos dinamik maydonlar (APK, Telegram va h.k.) */}
+            {activeMethodFields.length > 0 && (
+              <div className="md:col-span-2 p-4 rounded-xl border border-primary/25 bg-primary/[0.03] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-primary">
+                    Usul bo‘yicha qo‘shimcha ma’lumotlar ({selectedCrimeMethod?.name})
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {activeMethodFields.length} ta dinamik maydon
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {activeMethodFields.map((mf) => {
+                    const fieldKey = mf.key || mf.label;
+                    const value = methodFieldValues[fieldKey] || '';
+                    return (
+                      <div
+                        key={fieldKey}
+                        className={`space-y-1 ${mf.field_type === 'TEXT' ? 'sm:col-span-2' : ''}`}
+                      >
+                        <label className="text-xs font-medium text-foreground">
+                          {mf.label}
+                          {mf.is_required && <span className="text-rose-500 ml-0.5">*</span>}
+                        </label>
+                        {mf.field_type === 'SELECT' &&
+                        Array.isArray(mf.options) &&
+                        mf.options.length > 0 ? (
+                          <select
+                            value={value}
+                            onChange={(e) =>
+                              setMethodFieldValues((prev) => ({
+                                ...prev,
+                                [fieldKey]: e.target.value,
+                              }))
+                            }
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                          >
+                            <option value="">-- Tanlang --</option>
+                            {mf.options.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        ) : mf.field_type === 'TEXT' ? (
+                          <textarea
+                            rows={2}
+                            value={value}
+                            placeholder={mf.placeholder || ''}
+                            onChange={(e) =>
+                              setMethodFieldValues((prev) => ({
+                                ...prev,
+                                [fieldKey]: e.target.value,
+                              }))
+                            }
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                          />
+                        ) : (
+                          <Input
+                            type={
+                              mf.field_type === 'NUMBER'
+                                ? 'number'
+                                : mf.field_type === 'DATE'
+                                  ? 'date'
+                                  : mf.field_type === 'URL'
+                                    ? 'url'
+                                    : 'text'
+                            }
+                            value={value}
+                            placeholder={mf.placeholder || ''}
+                            onChange={(e) =>
+                              setMethodFieldValues((prev) => ({
+                                ...prev,
+                                [fieldKey]: e.target.value,
+                              }))
+                            }
+                            className="h-9 text-xs"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Sohaviy Xizmat & Qabul qilingan Qaror Turi */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 pt-1">

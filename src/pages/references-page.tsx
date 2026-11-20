@@ -207,6 +207,14 @@ export function ReferencesPage() {
     enabled: activeTab === 'crimes',
   });
 
+  // Jinoyat turlari lug'ati (Jinoyat usuliga bog'lash uchun)
+  const { data: allCrimesForMethod } = useQuery({
+    queryKey: ['all-crimes-for-method'],
+    queryFn: () => crimesApi.getAll({ limit: 100 }),
+    enabled: activeTab === 'crime_methods',
+  });
+  const allCrimesList = allCrimesForMethod?.items || [];
+
   // 2.1. Crime Methods Query
   const { data: crimeMethodsData, isLoading: isCrimeMethodsLoading } = useQuery({
     queryKey: [
@@ -331,6 +339,20 @@ export function ReferencesPage() {
           group_name: (formData.group_name as string) || 'Бошқа',
           sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
           description: (formData.description as string) || undefined,
+          crime_ids: Array.isArray(formData.crime_ids) ? (formData.crime_ids as string[]) : [],
+          fields: Array.isArray(formData.fields)
+            ? (formData.fields as Array<{
+                key?: string;
+                label: string;
+                field_type?: string;
+                options?: string[];
+                placeholder?: string;
+                is_required?: boolean;
+                show_in_excel?: boolean;
+                excel_header?: string;
+                sort_order?: number;
+              }>)
+            : [],
         });
       if (activeTab === 'banks') return banksApi.create(formData);
       if (activeTab === 'providers') return paymentProvidersApi.create(formData);
@@ -465,6 +487,22 @@ export function ReferencesPage() {
           group_name: (formData.group_name as string) || undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
           description: (formData.description as string) || undefined,
+          crime_ids: Array.isArray(formData.crime_ids)
+            ? (formData.crime_ids as string[])
+            : undefined,
+          fields: Array.isArray(formData.fields)
+            ? (formData.fields as Array<{
+                key?: string;
+                label: string;
+                field_type?: string;
+                options?: string[];
+                placeholder?: string;
+                is_required?: boolean;
+                show_in_excel?: boolean;
+                excel_header?: string;
+                sort_order?: number;
+              }>)
+            : undefined,
         });
       if (activeTab === 'banks') return banksApi.update(targetItem.id, formData);
       if (activeTab === 'providers') return paymentProvidersApi.update(targetItem.id, formData);
@@ -1061,6 +1099,8 @@ export function ReferencesPage() {
                 <TableRow className="border-b border-border">
                   <TableHead className="whitespace-nowrap">Usul nomi</TableHead>
                   <TableHead className="whitespace-nowrap">Guruhi</TableHead>
+                  <TableHead className="whitespace-nowrap">Jinoyat turlari</TableHead>
+                  <TableHead className="whitespace-nowrap text-center">Maydonlar</TableHead>
                   <TableHead className="whitespace-nowrap text-center">Tartib</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Amallar</TableHead>
                 </TableRow>
@@ -1068,14 +1108,14 @@ export function ReferencesPage() {
               <TableBody className="divide-y divide-border">
                 {isCrimeMethodsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Yuklanmoqda...
                     </TableCell>
                   </TableRow>
                 ) : crimeMethodsData?.items?.length ? (
                   crimeMethodsData.items.map((method: CrimeMethod) => (
                     <TableRow key={method.id} className="border-b border-border">
-                      <TableCell className="font-semibold text-foreground max-w-lg">
+                      <TableCell className="font-semibold text-foreground max-w-md">
                         {method.name}
                       </TableCell>
                       <TableCell>
@@ -1085,6 +1125,36 @@ export function ReferencesPage() {
                         >
                           {method.group_name || 'Бошқа'}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {method.crimes && method.crimes.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {method.crimes.map((c) => (
+                              <Badge key={c.id} variant="secondary" className="text-[10px]">
+                                {c.article || c.title}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                          >
+                            Umumiy (barchasi)
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {method.fields && method.fields.length > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          >
+                            {method.fields.length} ta maydon
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center font-mono text-xs text-muted-foreground">
                         {method.sort_order ?? 0}
@@ -1100,7 +1170,9 @@ export function ReferencesPage() {
                               group_name: method.group_name,
                               sort_order: method.sort_order,
                               description: method.description,
-                            })
+                              crime_ids: method.crimes?.map((c) => c.id) || [],
+                              fields: method.fields || [],
+                            } as ReferenceItem)
                           }
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
                         >
@@ -1119,7 +1191,7 @@ export function ReferencesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Hech qanday jinoyat usuli topilmadi
                     </TableCell>
                   </TableRow>
@@ -2342,6 +2414,208 @@ export function ReferencesPage() {
                       className="h-10 text-xs sm:text-sm"
                     />
                   </div>
+                </div>
+
+                {/* 1. Bog'langan jinoyat turlari (Bo'sh = Umumiy) */}
+                <div className="space-y-2 p-3 rounded-lg border border-border bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      Qaysi jinoyat turlariga tegishli?
+                    </label>
+                    <span className="text-[11px] text-muted-foreground">
+                      Tanlanmasa — barcha turlar uchun umumiy
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {allCrimesList.map((crime) => {
+                      const selectedIds: string[] = Array.isArray(formData.crime_ids)
+                        ? (formData.crime_ids as string[])
+                        : [];
+                      const isChecked = selectedIds.includes(crime.id);
+                      return (
+                        <button
+                          key={crime.id}
+                          type="button"
+                          onClick={() => {
+                            const next = isChecked
+                              ? selectedIds.filter((cid) => cid !== crime.id)
+                              : [...selectedIds, crime.id];
+                            setFormData({ ...formData, crime_ids: next });
+                          }}
+                          className={`px-2.5 py-1 rounded-md text-xs border transition-colors cursor-pointer ${
+                            isChecked
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-foreground border-border hover:bg-muted'
+                          }`}
+                        >
+                          {crime.article || crime.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Dinamik maydonlar konstruktori (APK, Telegram va h.k.) */}
+                <div className="space-y-2.5 p-3 rounded-lg border border-primary/20 bg-primary/[0.02]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block">
+                        Usul bo‘yicha dinamik maydonlar (Excel da ham chiqadi)
+                      </label>
+                      <span className="text-[11px] text-muted-foreground">
+                        Masalan: APK nomi, Telegram @username, Fishing havolasi...
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const prevFields = Array.isArray(formData.fields)
+                          ? [...(formData.fields as Array<Record<string, unknown>>)]
+                          : [];
+                        prevFields.push({
+                          label: '',
+                          field_type: 'STRING',
+                          placeholder: '',
+                          is_required: false,
+                          show_in_excel: true,
+                          sort_order: prevFields.length,
+                        });
+                        setFormData({ ...formData, fields: prevFields });
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Maydon qo‘shish
+                    </Button>
+                  </div>
+
+                  {Array.isArray(formData.fields) &&
+                    (formData.fields as Array<Record<string, unknown>>).length > 0 && (
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {(formData.fields as Array<Record<string, unknown>>).map((fld, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2.5 rounded-md border bg-background space-y-2"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              <Input
+                                placeholder="Maydon nomi (masalan: APK nomi)"
+                                value={(fld.label as string) || ''}
+                                onChange={(e) => {
+                                  const next = [
+                                    ...(formData.fields as Array<Record<string, unknown>>),
+                                  ];
+                                  next[idx] = { ...next[idx], label: e.target.value };
+                                  setFormData({ ...formData, fields: next });
+                                }}
+                                className="h-8 text-xs sm:col-span-5"
+                              />
+                              <select
+                                value={(fld.field_type as string) || 'STRING'}
+                                onChange={(e) => {
+                                  const next = [
+                                    ...(formData.fields as Array<Record<string, unknown>>),
+                                  ];
+                                  next[idx] = { ...next[idx], field_type: e.target.value };
+                                  setFormData({ ...formData, fields: next });
+                                }}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs sm:col-span-3"
+                              >
+                                <option value="STRING">Matn</option>
+                                <option value="NUMBER">Raqam</option>
+                                <option value="URL">Havola (URL)</option>
+                                <option value="PHONE">Telefon</option>
+                                <option value="DATE">Sana</option>
+                                <option value="TEXT">Ko‘p qatorli</option>
+                                <option value="SELECT">Ro‘yxat</option>
+                              </select>
+                              <Input
+                                placeholder="Placeholder"
+                                value={(fld.placeholder as string) || ''}
+                                onChange={(e) => {
+                                  const next = [
+                                    ...(formData.fields as Array<Record<string, unknown>>),
+                                  ];
+                                  next[idx] = { ...next[idx], placeholder: e.target.value };
+                                  setFormData({ ...formData, fields: next });
+                                }}
+                                className="h-8 text-xs sm:col-span-3"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-rose-500 sm:col-span-1"
+                                onClick={() => {
+                                  const next = (
+                                    formData.fields as Array<Record<string, unknown>>
+                                  ).filter((_, i) => i !== idx);
+                                  setFormData({ ...formData, fields: next });
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 text-[11px]">
+                              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(fld.is_required)}
+                                  onChange={(e) => {
+                                    const next = [
+                                      ...(formData.fields as Array<Record<string, unknown>>),
+                                    ];
+                                    next[idx] = { ...next[idx], is_required: e.target.checked };
+                                    setFormData({ ...formData, fields: next });
+                                  }}
+                                />
+                                <span>Majburiy</span>
+                              </label>
+                              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={fld.show_in_excel !== false}
+                                  onChange={(e) => {
+                                    const next = [
+                                      ...(formData.fields as Array<Record<string, unknown>>),
+                                    ];
+                                    next[idx] = { ...next[idx], show_in_excel: e.target.checked };
+                                    setFormData({ ...formData, fields: next });
+                                  }}
+                                />
+                                <span>Excelda ko‘rinsin</span>
+                              </label>
+                              {fld.field_type === 'SELECT' && (
+                                <Input
+                                  placeholder="Variantlar (vergul bilan: Telegram, Instagram, SMS)"
+                                  value={
+                                    Array.isArray(fld.options)
+                                      ? (fld.options as string[]).join(', ')
+                                      : ''
+                                  }
+                                  onChange={(e) => {
+                                    const next = [
+                                      ...(formData.fields as Array<Record<string, unknown>>),
+                                    ];
+                                    next[idx] = {
+                                      ...next[idx],
+                                      options: e.target.value
+                                        .split(',')
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                    };
+                                    setFormData({ ...formData, fields: next });
+                                  }}
+                                  className="h-7 text-xs flex-1 min-w-[200px]"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
             )}

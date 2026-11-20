@@ -92,6 +92,23 @@ export interface Crime {
   updated_at?: string;
 }
 
+export type CrimeMethodFieldType =
+  'STRING' | 'NUMBER' | 'URL' | 'DATE' | 'PHONE' | 'TEXT' | 'SELECT';
+
+export interface CrimeMethodField {
+  id?: string;
+  key?: string;
+  label: string;
+  field_type: CrimeMethodFieldType;
+  options?: string[] | null;
+  placeholder?: string | null;
+  is_required?: boolean;
+  show_in_excel?: boolean;
+  excel_header?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
 export interface CrimeMethod {
   id: string;
   name: string;
@@ -100,6 +117,8 @@ export interface CrimeMethod {
   description?: string | null;
   sort_order?: number;
   is_active?: boolean;
+  crimes?: Crime[];
+  fields?: CrimeMethodField[];
   created_at?: string;
   updated_at?: string;
 }

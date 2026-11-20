@@ -463,25 +463,61 @@ export const crimeMethodsApi = {
     limit?: number;
     search?: string;
     group_name?: string;
+    crime_id?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<CrimeMethod>>('/crime-methods', {
       params,
     });
     return res.data;
   },
-  getAllActive: async () => {
-    const res = await apiClient.get<CrimeMethod[]>('/crime-methods/active');
+  getAllActive: async (crimeId?: string) => {
+    const res = await apiClient.get<CrimeMethod[]>('/crime-methods/active', {
+      params: crimeId ? { crime_id: crimeId } : undefined,
+    });
     return res.data;
   },
   getOne: async (id: string) => {
     const res = await apiClient.get<CrimeMethod>(`/crime-methods/${id}`);
     return res.data;
   },
-  create: async (data: Partial<CrimeMethod>) => {
+  create: async (
+    data: Omit<Partial<CrimeMethod>, 'fields'> & {
+      crime_ids?: string[];
+      fields?: Array<{
+        key?: string;
+        label: string;
+        field_type?: string;
+        options?: string[];
+        placeholder?: string;
+        is_required?: boolean;
+        show_in_excel?: boolean;
+        excel_header?: string;
+        sort_order?: number;
+        is_active?: boolean;
+      }>;
+    },
+  ) => {
     const res = await apiClient.post<CrimeMethod>('/crime-methods', data);
     return res.data;
   },
-  update: async (id: string, data: Partial<CrimeMethod>) => {
+  update: async (
+    id: string,
+    data: Omit<Partial<CrimeMethod>, 'fields'> & {
+      crime_ids?: string[];
+      fields?: Array<{
+        key?: string;
+        label: string;
+        field_type?: string;
+        options?: string[];
+        placeholder?: string;
+        is_required?: boolean;
+        show_in_excel?: boolean;
+        excel_header?: string;
+        sort_order?: number;
+        is_active?: boolean;
+      }>;
+    },
+  ) => {
     const res = await apiClient.patch<CrimeMethod>(`/crime-methods/${id}`, data);
     return res.data;
   },
