@@ -7,6 +7,7 @@ import { ApplicationCreatePage } from '@/pages/application-create-page';
 import { ApplicationDetailPage } from '@/pages/application-detail-page';
 import { ApplicationRelationsPage } from '@/pages/application-relations-page';
 import { ApplicationsPage } from '@/pages/applications-page';
+import { AuditPage } from '@/pages/audit-page';
 import { CardDossierPage } from '@/pages/card-dossier-page';
 import { CardsPage } from '@/pages/cards-page';
 import { CitizenDossierPage } from '@/pages/citizen-dossier-page';
@@ -123,6 +124,10 @@ export const router = createBrowserRouter([
           {
             path: 'users',
             element: <UsersPage />,
+          },
+          {
+            path: 'audit',
+            element: <AuditPage />,
           },
           {
             path: 'profile',

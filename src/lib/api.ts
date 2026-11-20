@@ -1404,3 +1404,140 @@ export const intelligenceApi = {
     return res.data;
   },
 };
+
+// ============================================================================
+// AUDIT LOG & TRAFFIC / CROWDSEC SECURITY API (SUPER_ADMIN)
+// ============================================================================
+export interface AuditLogItem {
+  id: string;
+  user_id: string | null;
+  username: string | null;
+  role: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  summary: string | null;
+  details: Record<string, unknown> | null;
+  method: string;
+  path: string;
+  ip: string | null;
+  user_agent: string | null;
+  status_code: number;
+  is_success: boolean;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  duration_ms: number;
+  created_at: string;
+}
+
+export interface AuditStatsResponse {
+  total_logs: number;
+  today_count: number;
+  failed_auth_24h: number;
+  exports_24h: number;
+  deletes_24h: number;
+  critical_24h: number;
+}
+
+export interface AuditSettingsResponse {
+  audit_retention_days: number;
+  audit_archive_to_minio: boolean;
+}
+
+export interface TrafficOverviewResponse {
+  timeline: { time: string; requests: number }[];
+  status_breakdown: {
+    total: number;
+    '2xx': number;
+    '3xx': number;
+    '4xx': number;
+    '401': number;
+    '403': number;
+    '429': number;
+    '5xx': number;
+  };
+  top_ips: { ip: string; requests: number; errors: number; is_blocked: boolean }[];
+  top_endpoints: { endpoint: string; requests: number }[];
+  blocked_ips: {
+    ip: string;
+    reason: string;
+    blocked_by: string;
+    blocked_at: string;
+    expires_at: string;
+  }[];
+  crowdsec: {
+    connected: boolean;
+    decisions: {
+      id?: number;
+      origin?: string;
+      type?: string;
+      scope?: string;
+      value?: string;
+      duration?: string;
+      scenario?: string;
+    }[];
+    error?: string;
+  };
+}
+
+export const auditApi = {
+  getLogs: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    action?: string;
+    entity_type?: string;
+    severity?: string;
+    date_from?: string;
+    date_to?: string;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<AuditLogItem>>('/audit/logs', { params });
+    return res.data;
+  },
+  getStats: async () => {
+    const res = await apiClient.get<AuditStatsResponse>('/audit/stats');
+    return res.data;
+  },
+  getSettings: async () => {
+    const res = await apiClient.get<AuditSettingsResponse>('/audit/settings');
+    return res.data;
+  },
+  updateSettings: async (data: {
+    audit_retention_days?: number;
+    audit_archive_to_minio?: boolean;
+  }) => {
+    const res = await apiClient.patch<AuditSettingsResponse>('/audit/settings', data);
+    return res.data;
+  },
+  runCleanup: async () => {
+    const res = await apiClient.post<{
+      deleted_count: number;
+      archived_key: string | null;
+      retention_days: number;
+    }>('/audit/cleanup');
+    return res.data;
+  },
+  exportExcel: async (params?: Record<string, string | undefined>) => {
+    const res = await apiClient.get('/audit/export/excel', {
+      params,
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_jurnal_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  },
+  getTraffic: async () => {
+    const res = await apiClient.get<TrafficOverviewResponse>('/audit/traffic');
+    return res.data;
+  },
+  blockIp: async (data: { ip: string; reason?: string; duration_hours?: number }) => {
+    const res = await apiClient.post('/audit/traffic/block-ip', data);
+    return res.data;
+  },
+  unblockIp: async (ip: string) => {
+    const res = await apiClient.delete(`/audit/traffic/block-ip/${encodeURIComponent(ip)}`);
+    return res.data;
+  },
+};

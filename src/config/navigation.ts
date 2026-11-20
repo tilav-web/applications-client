@@ -8,6 +8,7 @@ import {
   FileText,
   GitFork,
   LayoutDashboard,
+  ShieldCheck,
   User,
   Users,
 } from 'lucide-react';
@@ -110,6 +111,16 @@ export const navigationConfig: NavItem[] = [
     badge: 'Admin',
     allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
     description: 'Tizim foydalanuvchilari va rollar taqsimoti',
+  },
+  {
+    id: 'audit',
+    title: 'Audit & Xavfsizlik',
+    path: '/audit',
+    icon: ShieldCheck,
+    category: 'management',
+    badge: 'Super',
+    allowedRoles: ['SUPER_ADMIN'],
+    description: 'Audit jurnali, trafik monitoringi va CrowdSec himoyasi',
   },
   {
     id: 'profile',
