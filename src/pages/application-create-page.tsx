@@ -37,10 +37,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import {
-  EmploymentSectionCard,
-  type WorkplaceDraft,
-} from '@/components/applications/employment-section-card';
+import { EmploymentSectionCard } from '@/components/applications/employment-section-card';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -295,13 +292,6 @@ export function ApplicationCreatePage() {
   const [selectedWorkplace, setSelectedWorkplace] = useState<
     import('@/types/models').Workplace | null
   >(null);
-  const [workplaceDraft, setWorkplaceDraft] = useState<WorkplaceDraft>({
-    name: '',
-    district_id: '',
-    mahalla_id: '',
-    address: '',
-    inn: '',
-  });
   const [workPosition, setWorkPosition] = useState<string>('');
 
   // Fuqaroning yashash tumani va mahallasi
@@ -1140,20 +1130,7 @@ export function ApplicationCreatePage() {
       }
 
       // 1.5. Ish joyi / Tashkilot va lavozimi (Snapshot + Citizen profili)
-      if (selectedWorkplace) {
-        payload.workplace_id = selectedWorkplace.id;
-      } else if (workplaceDraft.name.trim()) {
-        payload.workplace_data = {
-          name: workplaceDraft.name.trim(),
-          district_id: workplaceDraft.district_id || citizenDistrictId || null,
-          mahalla_id: workplaceDraft.mahalla_id || null,
-          occupation_category_id: occupationCategoryId || null,
-          address: workplaceDraft.address.trim() || null,
-          inn: workplaceDraft.inn.trim() || null,
-        };
-      } else {
-        payload.workplace_id = null;
-      }
+      payload.workplace_id = selectedWorkplace ? selectedWorkplace.id : null;
       payload.work_position = workPosition.trim() || null;
 
       // 2. Tuman
@@ -1916,11 +1893,8 @@ export function ApplicationCreatePage() {
             onOccupationChange={setOccupationId}
             allOccupationCategories={allOccupationCategories}
             availableOccupations={availableOccupations}
-            allDistricts={allDistricts}
             selectedWorkplace={selectedWorkplace}
             onSelectWorkplace={setSelectedWorkplace}
-            workplaceDraft={workplaceDraft}
-            onWorkplaceDraftChange={setWorkplaceDraft}
             workPosition={workPosition}
             onWorkPositionChange={setWorkPosition}
           />
