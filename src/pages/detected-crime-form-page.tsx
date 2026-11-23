@@ -3,16 +3,20 @@ import {
   AlertTriangle,
   ArrowLeft,
   HardDrive,
+  Paperclip,
   Plus,
   Radar,
   Save,
   Search,
+  ShieldAlert,
   Trash2,
+  Upload,
   UserPlus,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +32,7 @@ import {
   detectedCrimesApi,
   detectionSourcesApi,
   districtsApi,
+  filesApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import type {
@@ -88,6 +93,7 @@ export function DetectedCrimeFormPage() {
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
   const [statusId, setStatusId] = useState('');
+  const [slaDays, setSlaDays] = useState<number>(10);
   const [decisionTypeId, setDecisionTypeId] = useState('');
   const [decisionNumber, setDecisionNumber] = useState('');
   const [decisionDate, setDecisionDate] = useState('');
@@ -97,7 +103,9 @@ export function DetectedCrimeFormPage() {
   const [citizenSearch, setCitizenSearch] = useState('');
   const debouncedCitizenSearch = useDebounce(citizenSearch, 250);
 
+  const [suspectTree, setSuspectTree] = useState<unknown[]>([]);
   const [evidences, setEvidences] = useState<DetectedCrimeEvidence[]>([]);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
   const { data: existing } = useQuery({
     queryKey: ['detected-crime', id],
@@ -160,10 +168,12 @@ export function DetectedCrimeFormPage() {
     setDescription(existing.description || '');
     setOfficerNotes(existing.officer_notes || '');
     setStatusId(existing.status_id || '');
+    setSlaDays(existing.sla_days || 10);
     setDecisionTypeId(existing.decision_type_id || '');
     setDecisionNumber(existing.decision_number || '');
     setDecisionDate(existing.decision_date ? existing.decision_date.slice(0, 10) : '');
     setDecisionNote(existing.decision_note || '');
+    setSuspectTree(Array.isArray(existing.suspect_tree) ? existing.suspect_tree : []);
     setSuspects(
       (existing.suspects || []).map((s) => ({
         citizen_id: s.citizen_id,
@@ -241,10 +251,12 @@ export function DetectedCrimeFormPage() {
         description: description.trim() || null,
         officer_notes: officerNotes.trim() || null,
         status_id: statusId || null,
+        sla_days: slaDays || 10,
         decision_type_id: decisionTypeId || null,
         decision_number: decisionNumber.trim() || null,
         decision_date: decisionDate || null,
         decision_note: decisionNote.trim() || null,
+        suspect_tree: suspectTree,
         suspects: suspects.map((s) => ({
           citizen_id: s.citizen_id,
           role_in_crime: s.role_in_crime,
@@ -258,6 +270,8 @@ export function DetectedCrimeFormPage() {
             evidence_type: e.evidence_type,
             title: e.title.trim(),
             identifier_value: e.identifier_value?.trim() || null,
+            file_key: e.file_key || null,
+            file_name: e.file_name || null,
             notes: e.notes?.trim() || null,
           })),
       };
@@ -664,12 +678,25 @@ export function DetectedCrimeFormPage() {
         </CardContent>
       </Card>
 
-      {/* 4. Olib qo'yilgan ashyoviy va raqamli dalillar */}
+      {/* 4. Raqamli izlar va gumonlanuvchi identifikatorlari */}
+      <Card className="border-border/80 bg-card/70">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-primary" />
+            4. Raqamli Izlar va Identifikatorlar (Telegram ID, IP, Karta, Kripto)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SuspectTreeBuilder value={suspectTree} onChange={setSuspectTree} />
+        </CardContent>
+      </Card>
+
+      {/* 5. Olib qo'yilgan ashyoviy va raqamli dalillar */}
       <Card className="border-border/80 bg-card/70">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold flex items-center gap-2">
             <HardDrive className="h-4 w-4 text-primary" />
-            4. Olib Qo‘yilgan Ashyoviy va Raqamli Dalillar ({evidences.length})
+            5. Olib Qo‘yilgan Ashyoviy va Raqamli Dalillar ({evidences.length})
           </CardTitle>
           <Button
             type="button"
@@ -696,56 +723,126 @@ export function DetectedCrimeFormPage() {
             evidences.map((ev, idx) => (
               <div
                 key={idx}
-                className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center rounded-lg border border-border/70 p-2.5 bg-background/60"
+                className="space-y-2 rounded-lg border border-border/70 p-2.5 bg-background/60"
               >
-                <select
-                  value={ev.evidence_type}
-                  onChange={(e) => {
-                    const val = e.target.value as EvidenceType;
-                    setEvidences((prev) =>
-                      prev.map((r, i) => (i === idx ? { ...r, evidence_type: val } : r)),
-                    );
-                  }}
-                  className="sm:col-span-3 h-8 rounded-md border border-input bg-background px-2 text-xs"
-                >
-                  {EVIDENCE_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  placeholder="Nomi (masalan: iPhone 14 Pro, Telegram skrinshot)"
-                  value={ev.title}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setEvidences((prev) =>
-                      prev.map((r, i) => (i === idx ? { ...r, title: val } : r)),
-                    );
-                  }}
-                  className="sm:col-span-4 h-8 text-xs"
-                />
-                <Input
-                  placeholder="IMEI / Seriya / Karta / Hamyon"
-                  value={ev.identifier_value || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setEvidences((prev) =>
-                      prev.map((r, i) => (i === idx ? { ...r, identifier_value: val } : r)),
-                    );
-                  }}
-                  className="sm:col-span-4 h-8 text-xs font-mono"
-                />
-                <div className="sm:col-span-1 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive cursor-pointer"
-                    onClick={() => setEvidences((prev) => prev.filter((_, i) => i !== idx))}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                  <select
+                    value={ev.evidence_type}
+                    onChange={(e) => {
+                      const val = e.target.value as EvidenceType;
+                      setEvidences((prev) =>
+                        prev.map((r, i) => (i === idx ? { ...r, evidence_type: val } : r)),
+                      );
+                    }}
+                    className="sm:col-span-3 h-8 rounded-md border border-input bg-background px-2 text-xs"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                    {EVIDENCE_TYPE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    placeholder="Nomi (masalan: iPhone 14 Pro, Telegram skrinshot)"
+                    value={ev.title}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEvidences((prev) =>
+                        prev.map((r, i) => (i === idx ? { ...r, title: val } : r)),
+                      );
+                    }}
+                    className="sm:col-span-4 h-8 text-xs"
+                  />
+                  <Input
+                    placeholder="IMEI / Seriya / Karta / Hamyon"
+                    value={ev.identifier_value || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEvidences((prev) =>
+                        prev.map((r, i) => (i === idx ? { ...r, identifier_value: val } : r)),
+                      );
+                    }}
+                    className="sm:col-span-4 h-8 text-xs font-mono"
+                  />
+                  <div className="sm:col-span-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive cursor-pointer"
+                      onClick={() => setEvidences((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50">
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border border-input bg-background hover:bg-muted cursor-pointer">
+                      <Upload className="h-3 w-3 text-primary" />
+                      {uploadingIdx === idx
+                        ? 'Yuklanmoqda...'
+                        : ev.file_key
+                          ? 'Faylni almashtirish'
+                          : 'Skrinshot / Fayl biriktirish'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        disabled={uploadingIdx === idx}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingIdx(idx);
+                          try {
+                            const uploaded = await filesApi.uploadSingle(file, 'detected-crimes');
+                            setEvidences((prev) =>
+                              prev.map((r, i) =>
+                                i === idx
+                                  ? {
+                                      ...r,
+                                      file_key: uploaded.key,
+                                      file_name: uploaded.original_name || file.name,
+                                      title: r.title.trim() ? r.title : file.name,
+                                    }
+                                  : r,
+                              ),
+                            );
+                            toast.success('Dalil fayli yuklandi');
+                          } catch (err) {
+                            toast.error('Fayl yuklashda xato', {
+                              description: getErrorMessage(err),
+                            });
+                          } finally {
+                            setUploadingIdx(null);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                    {ev.file_key && (
+                      <a
+                        href={filesApi.getViewUrl({ key: ev.file_key })}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                      >
+                        <Paperclip className="h-3 w-3" />
+                        {ev.file_name || 'Biriktirilgan fayl'}
+                      </a>
+                    )}
+                  </div>
+                  <Input
+                    placeholder="Dalil bo‘yicha izoh (ixtiyoriy)..."
+                    value={ev.notes || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEvidences((prev) =>
+                        prev.map((r, i) => (i === idx ? { ...r, notes: val } : r)),
+                      );
+                    }}
+                    className="h-7 text-[11px] max-w-xs"
+                  />
                 </div>
               </div>
             ))
@@ -753,13 +850,15 @@ export function DetectedCrimeFormPage() {
         </CardContent>
       </Card>
 
-      {/* 5. Status va Yakuniy Qaror */}
+      {/* 6. Status, Muddat va Yakuniy Qaror */}
       <Card className="border-border/80 bg-card/70">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold">5. Holat va Yakuniy Qaror</CardTitle>
+          <CardTitle className="text-sm font-bold">
+            6. Holat, Protsessual Muddat va Yakuniy Qaror
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-semibold">Holati (Status)</label>
               <select
@@ -773,6 +872,18 @@ export function DetectedCrimeFormPage() {
                     {st.name}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">Tekshiruv muddati (JPK 329-m.)</label>
+              <select
+                value={slaDays}
+                onChange={(e) => setSlaDays(Number(e.target.value) || 10)}
+                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
+              >
+                <option value={3}>3 kun (Tezkor)</option>
+                <option value={10}>10 kun (Standart JPK)</option>
+                <option value={30}>30 kun (Uzaytirilgan)</option>
               </select>
             </div>
             <div className="space-y-1">

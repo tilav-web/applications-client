@@ -7,7 +7,9 @@ import {
   Edit2,
   ExternalLink,
   HardDrive,
+  Paperclip,
   Radar,
+  ShieldAlert,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -15,6 +17,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { SlaBadge } from '@/components/applications/sla-components';
+import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
-import { detectedCrimesApi } from '@/lib/api';
+import { detectedCrimesApi, filesApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 
 export function DetectedCrimeDetailPage() {
@@ -301,6 +304,21 @@ export function DetectedCrimeDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Raqamli izlar */}
+      {Array.isArray(item.suspect_tree) && item.suspect_tree.length > 0 && (
+        <Card className="border-border/80 bg-card/70">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-primary" />
+              Raqamli Izlar va Identifikatorlar ({item.suspect_tree.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SuspectTreeBuilder value={item.suspect_tree} readOnly />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Ashyoviy dalillar */}
       <Card className="border-border/80 bg-card/70">
         <CardHeader className="pb-2">
@@ -316,17 +334,33 @@ export function DetectedCrimeDetailPage() {
                 key={ev.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs"
               >
-                <div>
-                  <span className="font-semibold">{ev.title}</span>
-                  {ev.identifier_value && (
-                    <span className="ml-2 font-mono text-[11px] text-primary">
-                      {ev.identifier_value}
-                    </span>
-                  )}
+                <div className="space-y-0.5">
+                  <div>
+                    <span className="font-semibold">{ev.title}</span>
+                    {ev.identifier_value && (
+                      <span className="ml-2 font-mono text-[11px] text-primary">
+                        {ev.identifier_value}
+                      </span>
+                    )}
+                  </div>
+                  {ev.notes && <div className="text-[11px] text-muted-foreground">{ev.notes}</div>}
                 </div>
-                <Badge variant="outline" className="text-[10px]">
-                  {ev.evidence_type}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {ev.file_key && (
+                    <a
+                      href={filesApi.getViewUrl({ key: ev.file_key })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-md"
+                    >
+                      <Paperclip className="h-3 w-3" />
+                      {ev.file_name || 'Faylni ko‘rish'}
+                    </a>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">
+                    {ev.evidence_type}
+                  </Badge>
+                </div>
               </div>
             ))
           ) : (

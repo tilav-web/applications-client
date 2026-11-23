@@ -315,10 +315,14 @@ export function ApplicationCreatePage() {
     article: '',
   });
 
-  // Sohaviy xizmat va yakuniy qaror
+  // Sohaviy xizmat, SLA va yakuniy qaror
   const [departmentServiceId, setDepartmentServiceId] = useState<string | null>(null);
   const [decisionTypeId, setDecisionTypeId] = useState<string | null>(null);
   const [rejectionReasonId, setRejectionReasonId] = useState<string | null>(null);
+  const [slaDays, setSlaDays] = useState<string>('');
+  const [decisionNumber, setDecisionNumber] = useState<string>('');
+  const [decisionDate, setDecisionDate] = useState<string>('');
+  const [decisionNote, setDecisionNote] = useState<string>('');
 
   // ==========================================================================
   // 4. MOLIYAVIY ZARAR VA TRANZAKSIYA SHAKLLARI
@@ -661,6 +665,14 @@ export function ApplicationCreatePage() {
       setRejectionReasonId(
         initialApp.rejection_reason_id || initialApp.rejection_reason?.id || null,
       );
+      setSlaDays(initialApp.sla_days ? String(initialApp.sla_days) : '');
+      setDecisionNumber(initialApp.decision_number || '');
+      setDecisionDate(
+        initialApp.decision_date
+          ? new Date(initialApp.decision_date).toISOString().slice(0, 10)
+          : '',
+      );
+      setDecisionNote(initialApp.decision_note || '');
       if (initialApp.date) {
         setDate(new Date(initialApp.date).toISOString().substring(0, 10));
       }
@@ -1084,6 +1096,10 @@ export function ApplicationCreatePage() {
         department_service_id: departmentServiceId || null,
         decision_type_id: decisionTypeId || null,
         rejection_reason_id: rejectionReasonId || null,
+        sla_days: slaDays ? Number(slaDays) : undefined,
+        decision_number: decisionNumber.trim() || null,
+        decision_date: decisionDate || null,
+        decision_note: decisionNote.trim() || null,
       };
 
       // 1. Fuqaro
@@ -2192,6 +2208,57 @@ export function ApplicationCreatePage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Protsessual Muddat (SLA) va Qaror Rekvizitlari */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-3 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Tekshiruv muddati (JPK 329-m.)
+                </label>
+                <select
+                  value={slaDays}
+                  onChange={(e) => setSlaDays(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">Avtomatik (Status bo‘yicha)</option>
+                  <option value="3">3 kun (Tezkor tekshiruv)</option>
+                  <option value="10">10 kun (Standart JPK 329-m.)</option>
+                  <option value="30">30 kun (Uzaytirilgan)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Qaror / Jinoyat ishi raqami
+                </label>
+                <Input
+                  placeholder="Masalan: JI № 124/2026"
+                  value={decisionNumber}
+                  onChange={(e) => setDecisionNumber(e.target.value)}
+                  className="h-10 text-xs font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Qaror sanasi</label>
+                <Input
+                  type="date"
+                  value={decisionDate}
+                  onChange={(e) => setDecisionDate(e.target.value)}
+                  className="h-10 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Qaror izohi</label>
+                <Input
+                  placeholder="Qisqa izoh (ixtiyoriy)..."
+                  value={decisionNote}
+                  onChange={(e) => setDecisionNote(e.target.value)}
+                  className="h-10 text-xs"
+                />
               </div>
             </div>
 
