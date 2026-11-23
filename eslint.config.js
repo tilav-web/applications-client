@@ -37,7 +37,7 @@ export default defineConfig([
       ],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       'react-hooks/set-state-in-effect': 'off',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
