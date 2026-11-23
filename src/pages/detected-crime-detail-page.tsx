@@ -1,17 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
+  CheckCircle2,
   Clock,
   Edit2,
-  ExternalLink,
+  FileText,
+  Globe,
   HardDrive,
+  Loader2,
   Paperclip,
+  Printer,
   Radar,
+  RefreshCw,
+  Scale,
   ShieldAlert,
   Trash2,
+  TrendingUp,
   Users,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -20,7 +30,7 @@ import { SlaBadge } from '@/components/applications/sla-components';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
@@ -33,8 +43,30 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
-import { detectedCrimesApi, filesApi } from '@/lib/api';
+import { applicationStatusesApi, detectedCrimesApi, filesApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { cn } from '@/lib/utils';
+import type { ApplicationStatusItem } from '@/types/models';
+
+const formatCurrency = (amount?: number | string | null) => {
+  if (amount === undefined || amount === null || amount === '') return '0 UZS';
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(num)) return '0 UZS';
+  return `${new Intl.NumberFormat('uz-UZ').format(Math.round(num))} UZS`;
+};
+
+const formatDate = (dateStr?: string | null) => {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('uz-UZ', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export function DetectedCrimeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,17 +79,48 @@ export function DetectedCrimeDetailPage() {
   const [extendDays, setExtendDays] = useState(30);
   const [extendReason, setExtendReason] = useState('');
   const [approvalNum, setApprovalNum] = useState('');
+  const [nowMs] = useState(() => Date.now());
 
-  const { data: item, isLoading } = useQuery({
+  const {
+    data: item,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['detected-crime', id],
     queryFn: () => detectedCrimesApi.getOne(id as string),
     enabled: Boolean(id),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const { data: statusesRes } = useQuery({
+    queryKey: ['application-statuses-all'],
+    queryFn: () => applicationStatusesApi.getAll({ limit: 100 }),
+  });
+  const allStatuses = statusesRes?.items || [];
+
+  const updateStatusMut = useMutation({
+    mutationFn: (status_id: string) => detectedCrimesApi.update(id as string, { status_id }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['detected-crime', id], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['detected-crimes'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['detected-crimes-stats'], refetchType: 'all' }),
+      ]);
+      toast.success('Holat muvaffaqiyatli o‘zgartirildi');
+    },
+    onError: (err) =>
+      toast.error('Holatni o‘zgartirishda xatolik', { description: getErrorMessage(err) }),
   });
 
   const deleteMut = useMutation({
     mutationFn: () => detectedCrimesApi.delete(id as string),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['detected-crimes'] });
+      void queryClient.invalidateQueries({ queryKey: ['detected-crimes-stats'] });
       toast.success('Aniqlangan jinoyat o‘chirildi');
       navigate('/detected-crimes');
     },
@@ -76,14 +139,89 @@ export function DetectedCrimeDetailPage() {
       setExtendReason('');
       setApprovalNum('');
       void queryClient.invalidateQueries({ queryKey: ['detected-crime', id] });
+      void queryClient.invalidateQueries({ queryKey: ['detected-crimes'] });
       toast.success('Tekshiruv muddati JPK 329-modda bo‘yicha uzaytirildi');
     },
     onError: (err) => toast.error('Xatolik', { description: getErrorMessage(err) }),
   });
 
-  if (isLoading || !item) {
+  const getStatusBadge = (statusItem?: ApplicationStatusItem | null) => {
+    const label = statusItem?.name || 'Yangi';
+    const color = (statusItem?.color || '').toLowerCase();
+
+    if (color.includes('amber') || color.includes('yellow')) {
+      return (
+        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+          {label}
+        </Badge>
+      );
+    }
+    if (color.includes('emerald') || color.includes('green')) {
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+          <CheckCircle2 className="h-3 w-3" />
+          {label}
+        </Badge>
+      );
+    }
+    if (color.includes('red') || color.includes('rose')) {
+      return (
+        <Badge className="bg-red-500/10 text-red-500 border-red-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+          <X className="h-3 w-3" />
+          {label}
+        </Badge>
+      );
+    }
+    if (color.includes('purple') || color.includes('indigo')) {
+      return (
+        <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 inline-block" />
+          {label}
+        </Badge>
+      );
+    }
     return (
-      <div className="py-16 text-center text-xs text-muted-foreground">Ma’lumot yuklanmoqda...</div>
+      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" />
+        {label}
+      </Badge>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Aniqlangan jinoyat ma‘lumotlari yuklanmoqda...
+        </p>
+      </div>
+    );
+  }
+
+  if (isError || !item) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center p-6">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
+          <AlertCircle className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-foreground">Ma‘lumot topilmadi</h2>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            {getErrorMessage(error, 'Yozuv o‘chirilgan yoki tizimda mavjud emas')}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/detected-crimes')}
+          className="gap-2 text-xs cursor-pointer"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Aniqlangan jinoyatlar ro‘yxatiga qaytish
+        </Button>
+      </div>
     );
   }
 
@@ -94,204 +232,495 @@ export function DetectedCrimeDetailPage() {
         ? 'Ma’muriy (MJTK)'
         : 'Tergovga qadar tekshiruvda';
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-5 pb-12">
-      {/* Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/detected-crimes')}
-            className="h-9 w-9 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-sm font-bold text-primary">
-                {item.case_number || 'Kodsiz'}
-              </span>
-              <Badge variant="outline" className="text-[11px]">
-                {qualLabel}
-              </Badge>
-              <Badge variant="outline" className="text-[11px]">
-                {item.application_status?.name || 'Yangi'}
-              </Badge>
-              <SlaBadge app={item} />
-            </div>
-            <h1 className="text-lg font-bold mt-0.5">{item.title}</h1>
-          </div>
-        </div>
+  const suspectCount = item.suspects?.length || 0;
+  const repeatCount = (item.suspects || []).filter((s) => s.is_repeat_offender).length;
+  const evidenceCount = item.evidences?.length || 0;
+  const filesCount = (item.evidences || []).filter((e) => Boolean(e.file_key)).length;
+  const cluesCount = Array.isArray(item.suspect_tree) ? item.suspect_tree.length : 0;
 
-        {canWrite && (
-          <div className="flex items-center gap-2">
-            {item.application_status?.category !== 'CLOSED' && (
+  // SLA Progress hisoblash
+  const tracksSla = item.application_status ? item.application_status.tracks_sla : true;
+  const startMs = new Date(item.detected_at || item.created_at || nowMs).getTime();
+  const endMs = item.deadline_at ? new Date(item.deadline_at).getTime() : null;
+  const isOverdue = Boolean(tracksSla && endMs && endMs < nowMs);
+  const progressPct =
+    endMs && endMs > startMs
+      ? Math.min(100, Math.max(0, Math.round(((nowMs - startMs) / (endMs - startMs)) * 100)))
+      : 0;
+
+  return (
+    <div className="w-full space-y-6 pb-16">
+      {/* ===================================================================== */}
+      {/* 1. TOP NAVIGATSIYA VA AMALLAR PANELI (ARIZA SAHIFASI KABI)            */}
+      {/* ===================================================================== */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/detected-crimes')}
+          className="gap-2 text-muted-foreground hover:text-foreground cursor-pointer -ml-2 self-start"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Aniqlangan jinoyatlar ro‘yxatiga qaytish</span>
+        </Button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Tezkor status o'zgartirish */}
+          {canWrite && allStatuses.length > 0 && (
+            <select
+              value={item.status_id || ''}
+              onChange={(e) => {
+                if (e.target.value) updateStatusMut.mutate(e.target.value);
+              }}
+              disabled={updateStatusMut.isPending}
+              className="h-9 rounded-lg border border-input bg-card px-3 py-1 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary font-medium cursor-pointer"
+            >
+              {allStatuses.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Yangilash */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted cursor-pointer"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')} />
+            <span className="hidden sm:inline">Yangilash</span>
+          </Button>
+
+          {/* Chop etish */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted font-medium cursor-pointer"
+          >
+            <Printer className="h-3.5 w-3.5 text-primary" />
+            <span>Chop etish</span>
+          </Button>
+
+          {canWrite && (
+            <>
               <Button
-                variant="outline"
+                type="button"
                 size="sm"
-                onClick={() => setExtendOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
+                onClick={() => navigate(`/detected-crimes/${item.id}/edit`)}
+                className="h-9 px-3.5 text-xs gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs cursor-pointer"
               >
-                <Clock className="h-3.5 w-3.5 text-indigo-600" />
-                Muddatni uzaytirish
+                <Edit2 className="h-3.5 w-3.5" />
+                <span>Tahrirlash</span>
               </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/detected-crimes/${item.id}/edit`)}
-              className="h-8 text-xs gap-1.5 cursor-pointer"
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-              Tahrirlash
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteOpen(true)}
-              className="h-8 text-xs gap-1.5 text-destructive border-destructive/30 cursor-pointer"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              O‘chirish
-            </Button>
-          </div>
-        )}
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+                className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                title="O‘chirish"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Asosiy ma'lumotlar */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border-border/80 bg-card/70">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <Radar className="h-4 w-4 text-rose-600" />
-              Aniqlash va Bildirgi Rekvizitlari
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Aniqlangan sana</span>
-              <span className="font-semibold">
-                {new Date(item.detected_at).toLocaleDateString('uz-UZ')}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Hudud</span>
-              <span className="font-semibold">{item.district?.name || '—'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Aniqlash usuli</span>
-              <span className="font-semibold">{item.detection_source?.name || '—'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Sohaviy xizmat</span>
-              <span className="font-semibold">{item.department_service?.name || '—'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Bildirgi (Raport) №</span>
-              <span className="font-mono font-semibold">{item.report_number || '—'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[11px]">KUSP / E-material №</span>
-              <span className="font-mono font-semibold">{item.kusp_number || '—'}</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ===================================================================== */}
+      {/* 2. SARLAVHA BANNERI                                                   */}
+      {/* ===================================================================== */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
+              {item.title}
+            </h1>
+            <span className="font-mono text-primary text-base sm:text-lg font-bold bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20">
+              {item.case_number || 'Kodsiz'}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Aniqlangan sana:{' '}
+            <span className="font-semibold text-foreground">{formatDate(item.detected_at)}</span>
+            {item.district && (
+              <>
+                {' '}
+                &bull; Hudud:{' '}
+                <span className="font-semibold text-foreground">{item.district.name}</span>
+              </>
+            )}
+            {item.detection_source && (
+              <>
+                {' '}
+                &bull; Manba:{' '}
+                <span className="font-semibold text-foreground">{item.detection_source.name}</span>
+              </>
+            )}
+            {item.officer_notes && (
+              <>
+                {' '}
+                &bull; Qayd: <span className="italic text-foreground">{item.officer_notes}</span>
+              </>
+            )}
+          </p>
+        </div>
 
-        <Card className="border-border/80 bg-card/70">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <CalendarClock className="h-4 w-4 text-primary" />
-              Huquqiy Malaka, Platforma va Muddat
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <span className="text-muted-foreground block text-[11px]">JK / MJTK moddasi</span>
-              <span className="font-semibold text-primary">
-                {item.crime?.article || item.mjtk_article || '—'}
-              </span>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+          {getStatusBadge(item.application_status)}
+          <Badge variant="outline" className="font-semibold text-xs py-1 px-3">
+            {qualLabel}
+          </Badge>
+          {(item.crime?.article || item.mjtk_article) && (
+            <Badge
+              variant="outline"
+              className="border-primary/30 text-primary font-semibold text-xs py-1 px-3"
+            >
+              {item.crime?.article || item.mjtk_article}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 2.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA KARTASI)          */}
+      {/* ===================================================================== */}
+      {item.deadline_at && (
+        <Card
+          className={cn(
+            'py-0 gap-0 border shadow-2xs overflow-hidden',
+            isOverdue ? 'border-rose-500/40 bg-rose-500/5' : 'border-border/80 bg-card',
+          )}
+        >
+          <CardContent className="p-4 sm:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-xl',
+                    isOverdue ? 'bg-rose-500/15 text-rose-600' : 'bg-primary/10 text-primary',
+                  )}
+                >
+                  <CalendarClock className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs sm:text-sm font-bold text-foreground">
+                      Protsessual Tekshiruv Muddati (JPK 329-modda)
+                    </span>
+                    <SlaBadge app={item} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Boshlanish: {formatDate(item.detected_at)} &bull; Muddat:{' '}
+                    <span className="font-semibold text-foreground">
+                      {formatDate(item.deadline_at)}
+                    </span>{' '}
+                    ({item.sla_days || 10} kun)
+                    {item.prosecutor_approval_number
+                      ? ` • Prokuror roziligi: ${item.prosecutor_approval_number}`
+                      : ''}
+                  </p>
+                </div>
+              </div>
+
+              {canWrite && item.application_status?.category !== 'CLOSED' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExtendOpen(true)}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
+                >
+                  <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                  Muddatni uzaytirish
+                </Button>
+              )}
             </div>
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Protsessual muddat</span>
-              <span className="font-semibold">
-                {item.deadline_at ? new Date(item.deadline_at).toLocaleDateString('uz-UZ') : '—'}
-              </span>
-            </div>
-            <div className="col-span-2">
-              <span className="text-muted-foreground block text-[11px]">Platforma / Manzil</span>
-              <span className="font-mono font-semibold break-all">
-                {[item.platform, item.channel_or_source_url].filter(Boolean).join(' — ') || '—'}
-              </span>
-            </div>
-            {item.decision_type && (
-              <div className="col-span-2 rounded-lg bg-muted/40 p-2">
-                <span className="text-muted-foreground block text-[10px]">Yakuniy qaror</span>
-                <span className="font-semibold">
-                  {item.decision_type.name}
-                  {item.decision_number ? ` (№ ${item.decision_number})` : ''}
-                </span>
+
+            {tracksSla && (
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all',
+                    isOverdue ? 'bg-rose-600' : progressPct >= 75 ? 'bg-amber-500' : 'bg-primary',
+                  )}
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            )}
+
+            {item.extension_reason && (
+              <div className="text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 rounded-lg px-3 py-1.5">
+                <strong>Uzaytirish sababi:</strong> {item.extension_reason}
               </div>
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* ===================================================================== */}
+      {/* 3. 4 TA KPI KO'RSATKICHLAR BLOKI                                      */}
+      {/* ===================================================================== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 shrink-0">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Aylanma / Zarar</span>
+              <span className="text-sm sm:text-base font-bold text-red-600 dark:text-red-400 font-mono truncate block">
+                {formatCurrency(item.estimated_damage)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Gumonlanuvchilar</span>
+              <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
+                {suspectCount} nafar{repeatCount > 0 ? ` (${repeatCount} takroriy)` : ''}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shrink-0">
+              <HardDrive className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Ashyoviy Dalillar</span>
+              <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
+                {evidenceCount} ta{filesCount > 0 ? ` (${filesCount} fayl)` : ''}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div className="overflow-hidden">
+              <span className="text-xs text-muted-foreground block">Raqamli Izlar</span>
+              <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
+                {cluesCount} ta belgi
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Fabula */}
-      {item.description && (
-        <Card className="border-border/80 bg-card/70">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">Fabula (Batafsil tavsif)</CardTitle>
+      {/* ===================================================================== */}
+      {/* 4. ASOSIY MAZMUN: 2 USTUNLI TARTIBLI KARTALAR                         */}
+      {/* ===================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Karta 1: Aniqlash va Bildirgi */}
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs flex flex-col min-w-0 overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <Radar className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Aniqlash va Bildirgi Rekvizitlari
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              JPK 322-modda bo‘yicha qayd etilgan rasmiy raport va hududiy ma‘lumotlar
+            </CardDescription>
           </CardHeader>
-          <CardContent className="text-xs whitespace-pre-wrap leading-relaxed">
+          <CardContent className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Aniqlangan Sana:
+              </span>
+              <p className="font-semibold text-foreground">{formatDate(item.detected_at)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Hudud (Tuman / Shahar):
+              </span>
+              <p className="font-semibold text-foreground">{item.district?.name || '—'}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Aniqlash Usuli / Manbasi:
+              </span>
+              <p className="font-semibold text-foreground">{item.detection_source?.name || '—'}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Bildirgi (Raport) № & Sana:
+              </span>
+              <p className="font-mono font-bold text-foreground">
+                {item.report_number || '—'}
+                {item.report_date ? ` (${formatDate(item.report_date)})` : ''}
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                KUSP / E-material №:
+              </span>
+              <p className="font-mono font-bold text-foreground">{item.kusp_number || '—'}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Biriktirilgan Sohaviy Xizmat:
+              </span>
+              <p className="font-semibold text-foreground">
+                {item.department_service?.name || '—'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Karta 2: Huquqiy malaka, Platforma va Qaror */}
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs flex flex-col min-w-0 overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <div className="flex items-center gap-2.5 text-primary">
+              <Scale className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Huquqiy Malaka, Platforma va Qaror
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              JK / MJTK moddalari, kiber-muhit manzili va qabul qilingan yakuniy qaror
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Huquqiy Malaka:
+              </span>
+              <p className="font-semibold text-foreground">{qualLabel}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                JK / MJTK Moddasi:
+              </span>
+              <p className="font-bold text-primary">
+                {item.crime?.article || item.mjtk_article || '—'}
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Platforma & Kanal / URL Manzili:
+              </span>
+              <p className="font-mono font-semibold text-foreground break-all flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>
+                  {[item.platform, item.channel_or_source_url].filter(Boolean).join(' — ') || '—'}
+                </span>
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50 sm:col-span-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">
+                Yakuniy Qaror & Raqami:
+              </span>
+              <p className="font-semibold text-foreground">
+                {item.decision_type?.name || 'Qaror qabul qilinmagan'}
+                {item.decision_number ? ` — № ${item.decision_number}` : ''}
+                {item.decision_date ? ` (${formatDate(item.decision_date)})` : ''}
+              </p>
+              {item.decision_note && (
+                <p className="text-[11px] text-muted-foreground mt-1">{item.decision_note}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 5. FABULA (BATAFSIL TAVSIF)                                           */}
+      {/* ===================================================================== */}
+      {item.description && (
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <div className="flex items-center gap-2.5 text-primary">
+              <FileText className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Holat Fabulasi (Batafsil Tavsif)
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 text-xs sm:text-sm whitespace-pre-wrap leading-relaxed text-foreground">
             {item.description}
           </CardContent>
         </Card>
       )}
 
-      {/* Gumonlanuvchilar */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            Gumonlanuvchilar / Huquqbuzarlar ({item.suspects?.length || 0})
-          </CardTitle>
+      {/* ===================================================================== */}
+      {/* 6. GUMONLANUVCHILAR / HUQUQBUZARLAR                                   */}
+      {/* ===================================================================== */}
+      <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+          <div className="flex items-center gap-2.5 text-primary">
+            <Users className="h-5 w-5 shrink-0" />
+            <CardTitle className="text-base font-bold text-foreground">
+              Gumonlanuvchilar / Huquqbuzarlar ({suspectCount})
+            </CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            Fuqarolar bazasiga bog‘langan shaxslar — ustiga bosib 360° dosyesini ochishingiz mumkin
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="p-4 sm:p-5 space-y-2.5">
           {item.suspects?.length ? (
             item.suspects.map((s) => (
               <div
                 key={s.id || s.citizen_id}
                 onClick={() => navigate(`/citizens/${s.citizen_id}`)}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 p-3 hover:bg-muted/40 cursor-pointer transition-colors"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 p-3.5 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all group"
               >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2 text-xs font-bold">
-                    <span>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                    <span className="group-hover:text-primary group-hover:underline">
                       {s.citizen
                         ? `${s.citizen.last_name || ''} ${s.citizen.first_name || ''} ${s.citizen.middle_name || ''}`.trim()
                         : 'Fuqaro'}
                     </span>
-                    <ExternalLink className="h-3 w-3 text-primary" />
                     {s.is_repeat_offender && (
                       <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px] gap-1">
                         <AlertTriangle className="h-3 w-3" />
-                        Takroriy
+                        Takroriy shaxs
                       </Badge>
                     )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {s.citizen?.passport || 'Pasport yo‘q'} •{' '}
+                  <div className="text-xs text-muted-foreground">
+                    {s.citizen?.passport || 'Pasport yo‘q'} &bull;{' '}
                     {s.citizen?.phone_number || 'Tel yo‘q'}
                     {s.citizen?.workplace?.name ? ` • ${s.citizen.workplace.name}` : ''}
+                    {s.notes ? ` • Izoh: ${s.notes}` : ''}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-[11px]">
                     {s.role_in_crime}
                   </Badge>
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-[11px]">
                     {s.detention_status}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] gap-1 text-primary border-primary/30"
+                  >
+                    360° Dosye <ArrowRight className="h-3 w-3" />
                   </Badge>
                 </div>
               </div>
@@ -304,41 +733,49 @@ export function DetectedCrimeDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Raqamli izlar */}
-      {Array.isArray(item.suspect_tree) && item.suspect_tree.length > 0 && (
-        <Card className="border-border/80 bg-card/70">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-primary" />
-              Raqamli Izlar va Identifikatorlar ({item.suspect_tree.length})
-            </CardTitle>
+      {/* ===================================================================== */}
+      {/* 7. RAQAMLI IZLAR (SUSPECT TREE)                                       */}
+      {/* ===================================================================== */}
+      {cluesCount > 0 && (
+        <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+            <div className="flex items-center gap-2.5 text-primary">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Raqamli Izlar va Identifikatorlar ({cluesCount})
+              </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-5">
             <SuspectTreeBuilder value={item.suspect_tree} readOnly />
           </CardContent>
         </Card>
       )}
 
-      {/* Ashyoviy dalillar */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <HardDrive className="h-4 w-4 text-primary" />
-            Olib Qo‘yilgan Ashyoviy va Raqamli Dalillar ({item.evidences?.length || 0})
-          </CardTitle>
+      {/* ===================================================================== */}
+      {/* 8. ASHYOVIY VA RAQAMLI DALILLAR                                       */}
+      {/* ===================================================================== */}
+      <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+          <div className="flex items-center gap-2.5 text-primary">
+            <HardDrive className="h-5 w-5 shrink-0" />
+            <CardTitle className="text-base font-bold text-foreground">
+              Olib Qo‘yilgan Ashyoviy va Raqamli Dalillar ({evidenceCount})
+            </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="p-4 sm:p-5 space-y-2.5">
           {item.evidences?.length ? (
             item.evidences.map((ev) => (
               <div
                 key={ev.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-xs"
               >
                 <div className="space-y-0.5">
                   <div>
-                    <span className="font-semibold">{ev.title}</span>
+                    <span className="font-semibold text-foreground">{ev.title}</span>
                     {ev.identifier_value && (
-                      <span className="ml-2 font-mono text-[11px] text-primary">
+                      <span className="ml-2 font-mono text-[11px] font-bold text-primary">
                         {ev.identifier_value}
                       </span>
                     )}
@@ -351,7 +788,7 @@ export function DetectedCrimeDetailPage() {
                       href={filesApi.getViewUrl({ key: ev.file_key })}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-md"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline bg-primary/10 px-2.5 py-1 rounded-md"
                     >
                       <Paperclip className="h-3 w-3" />
                       {ev.file_name || 'Faylni ko‘rish'}

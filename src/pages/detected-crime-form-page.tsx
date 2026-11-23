@@ -1,17 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
-  ArrowLeft,
+  CheckCircle2,
+  FileText,
+  Globe,
   HardDrive,
+  Loader2,
+  MapPin,
   Paperclip,
   Plus,
   Radar,
+  Radio,
+  RotateCcw,
   Save,
+  Scale,
   Search,
+  Shield,
   ShieldAlert,
   Trash2,
   Upload,
   UserPlus,
+  X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -19,7 +28,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -48,6 +64,7 @@ interface SuspectDraft {
   citizen_id: string;
   citizen_name: string;
   citizen_passport?: string | null;
+  citizen_phone?: string | null;
   role_in_crime: SuspectCrimeRole;
   detention_status: DetentionStatus;
   is_repeat_offender: boolean;
@@ -103,11 +120,23 @@ export function DetectedCrimeFormPage() {
   const [citizenSearch, setCitizenSearch] = useState('');
   const debouncedCitizenSearch = useDebounce(citizenSearch, 250);
 
+  // Yangi fuqaro tezkor qo'shish (bazada yo'q bo'lsa)
+  const [showNewCitizenForm, setShowNewCitizenForm] = useState(false);
+  const [newCitizen, setNewCitizen] = useState({
+    last_name: '',
+    first_name: '',
+    middle_name: '',
+    passport: '',
+    phone_number: '',
+  });
+  const [creatingCitizen, setCreatingCitizen] = useState(false);
+
   const [suspectTree, setSuspectTree] = useState<unknown[]>([]);
   const [evidences, setEvidences] = useState<DetectedCrimeEvidence[]>([]);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
-  const { data: existing } = useQuery({
+  const { data: existing, isLoading: isLoadingExisting } = useQuery({
     queryKey: ['detected-crime', id],
     queryFn: () => detectedCrimesApi.getOne(id as string),
     enabled: isEdit,
@@ -143,6 +172,10 @@ export function DetectedCrimeFormPage() {
     queryFn: () => citizensApi.getAll({ page: 1, limit: 8, search: debouncedCitizenSearch }),
     enabled: debouncedCitizenSearch.trim().length >= 2,
   });
+
+  const allStatuses = statusesRes?.items || [];
+  const currentStatusObj = allStatuses.find((s) => s.id === statusId);
+  const currentStatusLabel = currentStatusObj?.name || 'Yangi (Qabul qilindi)';
 
   useEffect(() => {
     if (!existing) return;
@@ -181,6 +214,7 @@ export function DetectedCrimeFormPage() {
           ? `${s.citizen.last_name || ''} ${s.citizen.first_name || ''} ${s.citizen.middle_name || ''}`.trim()
           : 'Fuqaro',
         citizen_passport: s.citizen?.passport,
+        citizen_phone: s.citizen?.phone_number,
         role_in_crime: s.role_in_crime,
         detention_status: s.detention_status,
         is_repeat_offender: Boolean(s.is_repeat_offender),
@@ -220,6 +254,7 @@ export function DetectedCrimeFormPage() {
         citizen_id: c.id,
         citizen_name: name,
         citizen_passport: c.passport,
+        citizen_phone: c.phone_number,
         role_in_crime: 'IJROCHI',
         detention_status: 'ANIQLANMOQDA',
         is_repeat_offender: isRepeat,
@@ -228,6 +263,37 @@ export function DetectedCrimeFormPage() {
       },
     ]);
     setCitizenSearch('');
+  };
+
+  const handleCreateAndAttachCitizen = async () => {
+    if (!newCitizen.first_name.trim() && !newCitizen.last_name.trim()) {
+      toast.error('Ism yoki familiyani kiriting');
+      return;
+    }
+    setCreatingCitizen(true);
+    try {
+      const created = await citizensApi.create({
+        first_name: newCitizen.first_name.trim(),
+        last_name: newCitizen.last_name.trim(),
+        middle_name: newCitizen.middle_name.trim() || undefined,
+        passport: newCitizen.passport.trim().toUpperCase() || undefined,
+        phone_number: newCitizen.phone_number.trim() || undefined,
+      });
+      await handleAddSuspect(created);
+      setNewCitizen({
+        last_name: '',
+        first_name: '',
+        middle_name: '',
+        passport: '',
+        phone_number: '',
+      });
+      setShowNewCitizenForm(false);
+      toast.success('Yangi fuqaro bazaga qo‘shildi va gumonlanuvchi sifatida biriktirildi');
+    } catch (err) {
+      toast.error('Fuqaro qo‘shishda xatolik', { description: getErrorMessage(err) });
+    } finally {
+      setCreatingCitizen(false);
+    }
   };
 
   const saveMut = useMutation({
@@ -282,6 +348,7 @@ export function DetectedCrimeFormPage() {
     onSuccess: (saved) => {
       void queryClient.invalidateQueries({ queryKey: ['detected-crimes'] });
       void queryClient.invalidateQueries({ queryKey: ['detected-crimes-stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['detected-crime', saved.id] });
       toast.success(isEdit ? 'Ma’lumotlar yangilandi' : 'Aniqlangan jinoyat ro‘yxatga olindi');
       navigate(`/detected-crimes/${saved.id}`);
     },
@@ -290,119 +357,64 @@ export function DetectedCrimeFormPage() {
     },
   });
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-5 pb-12">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/detected-crimes')}
-            className="h-9 w-9 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-lg font-bold flex items-center gap-2">
-              <Radar className="h-5 w-5 text-rose-600" />
-              {isEdit ? 'Aniqlangan jinoyatni tahrirlash' : 'Yangi aniqlangan jinoyat / holat'}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              JPK 322-modda 4-bandi (Bildirgi / Tezkor-qidiruv / Kiber-monitoring)
-            </p>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          disabled={!title.trim() || saveMut.isPending}
-          loading={saveMut.isPending}
-          onClick={() => saveMut.mutate()}
-          className="gap-2 cursor-pointer"
-        >
-          <Save className="h-4 w-4" />
-          Saqlash
-        </Button>
+  if (isEdit && isLoadingExisting) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-xs text-muted-foreground font-mono">
+          Aniqlangan jinoyat shakli yuklanmoqda...
+        </p>
       </div>
+    );
+  }
 
-      {/* 1. Asosiy va Bildirgi rekvizitlari */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold">
-            1. Bildirgi (Raport), Aniqlash Usuli va Hudud
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2 space-y-1">
-              <label className="text-xs font-semibold">Qisqa sarlavha *</label>
-              <Input
-                placeholder="Masalan: Telegram kanalda taqiqlangan video tarqatish holati fosh etildi"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="h-9 text-xs"
-              />
+  return (
+    <div className="w-full space-y-6 pb-24">
+      {/* ===================================================================== */}
+      {/* YAGONA RASMIY ANIQLANGAN JINOYAT BAYONNOMASI (DOSSIER CONTAINER)      */}
+      {/* ===================================================================== */}
+      <div className="bg-card border border-border shadow-xl rounded-2xl overflow-hidden divide-y divide-border/60">
+        {/* ================================================================= */}
+        {/* BOSHQARUV VA PROTOKOL REKVIZITLARI (TOP HEADER)                   */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20">
+              <Radar className="h-6 w-6" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Aniqlangan sana</label>
-              <Input
-                type="date"
-                value={detectedAt}
-                onChange={(e) => setDetectedAt(e.target.value)}
-                className="h-9 text-xs"
-              />
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
+                  {isEdit ? 'Aniqlangan Jinoyatni Tahrirlash' : 'Yangi Aniqlangan Jinoyat / Holat'}
+                </h1>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] uppercase font-mono px-2 py-0 border-primary/40 text-primary font-bold"
+                >
+                  {currentStatusLabel}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? `${caseNumber || existing?.case_number || id} kodli aniqlangan jinoyat ma‘lumotlarini o‘zgartirish`
+                  : 'JPK 322-modda 4-bandi — Bildirgi / Tezkor-qidiruv / Kiber-monitoring orqali aniqlangan holat'}
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Ichki kod (ixtiyoriy, avto)</label>
-              <Input
-                placeholder="AJ-2026-0001"
-                value={caseNumber}
-                onChange={(e) => setCaseNumber(e.target.value)}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Bildirgi (Raport) raqami</label>
-              <Input
-                placeholder="№ 124/2026"
-                value={reportNumber}
-                onChange={(e) => setReportNumber(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Bildirgi sanasi</label>
-              <Input
-                type="date"
-                value={reportDate}
-                onChange={(e) => setReportDate(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">KUSP / E-material №</label>
-              <Input
-                placeholder="KUSP raqami..."
-                value={kuspNumber}
-                onChange={(e) => setKuspNumber(e.target.value)}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Aniqlash usuli / manbasi</label>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Aniqlash usuli */}
+            <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
+              <Radio className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                Manba:
+              </span>
               <select
                 value={detectionSourceId}
                 onChange={(e) => setDetectionSourceId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
+                className="h-7 border-0 p-0 text-xs font-semibold bg-transparent text-foreground focus:outline-none cursor-pointer max-w-[200px]"
               >
-                <option value="">-- Tanlang --</option>
+                <option value="">-- ANIQLASH USULI --</option>
                 {(sources || []).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -411,538 +423,883 @@ export function DetectedCrimeFormPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Hudud (Tuman / Shahar)</label>
-              <select
-                value={districtId}
-                onChange={(e) => setDistrictId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-              >
-                <option value="">-- Tumanni tanlang --</option>
-                {(districtsRes?.items || []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Sohaviy xizmat</label>
-              <select
-                value={deptServiceId}
-                onChange={(e) => setDeptServiceId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-              >
-                <option value="">-- Xizmatni tanlang --</option>
-                {(deptServices || []).map((ds) => (
-                  <option key={ds.id} value={ds.id}>
-                    {ds.short_name ? `${ds.short_name} — ${ds.name}` : ds.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 2. Huquqiy malaka va Raqamli platforma */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold">
-            2. Huquqiy Malaka (JK / MJTK) va Platforma
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Malaka turi</label>
-              <select
-                value={qualificationType}
-                onChange={(e) => setQualificationType(e.target.value as DetectedCrimeQualification)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs font-semibold"
-              >
-                <option value="PRE_INVESTIGATION">Tergovga qadar tekshiruvda</option>
-                <option value="CRIMINAL">Jinoyat (JK)</option>
-                <option value="ADMINISTRATIVE">Ma’muriy huquqbuzarlik (MJTK)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Jinoyat kodeksi (JK) moddasi</label>
-              <select
-                value={crimeId}
-                onChange={(e) => setCrimeId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-              >
-                <option value="">-- JK moddasini tanlang --</option>
-                {(crimesRes?.items || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.article} {c.title && c.title !== c.article ? `— ${c.title}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">MJTK moddasi (agar ma’muriy bo‘lsa)</label>
-              <Input
-                placeholder="Masalan: MJTK 189-modda, 155⁴-modda..."
-                value={mjtkArticle}
-                onChange={(e) => setMjtkArticle(e.target.value)}
-                className="h-9 text-xs"
+            {/* Aniqlangan sana */}
+            <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
+              <span className="text-[11px] font-semibold text-muted-foreground">Sana:</span>
+              <input
+                type="date"
+                value={detectedAt}
+                onChange={(e) => setDetectedAt(e.target.value)}
+                className="h-7 border-0 p-0 text-xs font-mono bg-transparent text-foreground focus:outline-none"
               />
             </div>
+
+            {/* Holat (Status) */}
+            <select
+              value={statusId}
+              onChange={(e) => setStatusId(e.target.value)}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-xs shadow-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            >
+              <option value="">Standart (Yangi)</option>
+              {allStatuses.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 1-QISM: BILDIRGI (RAPORT), ICHKI KOD VA HUDUD                     */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 space-y-4 bg-red-50/70 dark:bg-red-950/20 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-red-200/70 dark:border-red-800/40 pb-3">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground whitespace-nowrap">
+                  1. Bildirgi (Raport) va Hududiy Rekvizitlar
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm min-w-[240px] sm:w-72">
+                <span className="text-xs font-bold text-primary font-mono">№</span>
+                <Input
+                  value={caseNumber}
+                  onChange={(e) => setCaseNumber(e.target.value.toUpperCase())}
+                  placeholder="ICHKI KOD (AVTO: AJ-2026-...)"
+                  className="h-7 w-full border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase text-foreground placeholder:text-muted-foreground/60"
+                />
+              </div>
+            </div>
+
+            <Badge
+              variant="outline"
+              className="text-[11px] text-rose-600 border-rose-500/30 bg-rose-500/10 shrink-0 font-semibold"
+            >
+              Arizasiz aniqlangan (JPK 322-m.)
+            </Badge>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Platforma / Muhit</label>
-              <Input
-                placeholder="Telegram, Instagram, TikTok, Sayt..."
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Kanal / Guruh / Bot / URL manzili</label>
-              <Input
-                placeholder="@kanal_nomi yoki https://t.me/..."
-                value={channelUrl}
-                onChange={(e) => setChannelUrl(e.target.value)}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">
-                Noqonuniy aylanma / zarar (UZS, ixtiyoriy)
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Aniqlangan holat qisqa sarlavhasi *
               </label>
               <Input
-                type="number"
-                placeholder="0"
-                value={estimatedDamage}
-                onChange={(e) => setEstimatedDamage(e.target.value)}
-                className="h-9 text-xs font-mono"
+                placeholder="Masalan: Telegram kanalda taqiqlangan materiallar tarqatish holati fosh etildi"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="h-10 text-xs font-medium bg-background"
               />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Bildirgi (Raport) raqami
+                </label>
+                <Input
+                  placeholder="№ 124/2026"
+                  value={reportNumber}
+                  onChange={(e) => setReportNumber(e.target.value)}
+                  className="h-10 text-xs font-mono bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Bildirgi sanasi</label>
+                <Input
+                  type="date"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                  className="h-10 text-xs bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">KUSP / E-material №</label>
+                <Input
+                  placeholder="KUSP raqami..."
+                  value={kuspNumber}
+                  onChange={(e) => setKuspNumber(e.target.value)}
+                  className="h-10 text-xs font-mono bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-primary" />
+                  Hudud (Tuman / Shahar)
+                </label>
+                <select
+                  value={districtId}
+                  onChange={(e) => setDistrictId(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- TUMANNI TANLANG --</option>
+                  {(districtsRes?.items || []).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 2-QISM: HUQUQIY MALAKA (JK/MJTK), PLATFORMA, MUDDAT VA QAROR      */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 space-y-4 bg-amber-50/70 dark:bg-amber-950/20 transition-colors">
+          <div className="flex items-center justify-between border-b border-amber-200/70 dark:border-amber-800/40 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                <Scale className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                2. Huquqiy Malaka (JK / MJTK), Platforma va Qaror
+              </h2>
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold">Batafsil fabula (holat tavsifi)</label>
-            <textarea
-              rows={4}
-              placeholder="Holat qanday aniqlangani, tarqatilgan kontent/harakat mohiyati..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-4 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Huquqiy malaka turi</label>
+                <select
+                  value={qualificationType}
+                  onChange={(e) =>
+                    setQualificationType(e.target.value as DetectedCrimeQualification)
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="PRE_INVESTIGATION">Tergovga qadar tekshiruvda</option>
+                  <option value="CRIMINAL">Jinoyat (JK)</option>
+                  <option value="ADMINISTRATIVE">Ma’muriy huquqbuzarlik (MJTK)</option>
+                </select>
+              </div>
 
-      {/* 3. Gumonlanuvchilar / Huquqbuzarlar */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-primary" />
-            3. Gumonlanuvchilar / Huquqbuzarlar ({suspects.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="relative">
-            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Fuqarolar bazasidan qidirish (F.I.O., pasport, JSHSHIR, telefon)..."
-              value={citizenSearch}
-              onChange={(e) => setCitizenSearch(e.target.value)}
-              className="pl-9 h-9 text-xs"
-            />
-            {debouncedCitizenSearch.trim().length >= 2 &&
-              (matchedCitizensRes?.items?.length || 0) > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl p-1.5 max-h-56 overflow-y-auto">
-                  {matchedCitizensRes!.items.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => void handleAddSuspect(c)}
-                      className="px-3 py-2 rounded-lg hover:bg-muted cursor-pointer flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <span className="font-semibold">
-                          {c.last_name} {c.first_name} {c.middle_name}
-                        </span>
-                        {c.passport && (
-                          <span className="ml-2 font-mono text-[11px] text-primary">
-                            {c.passport}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Jinoyat kodeksi (JK) moddasi
+                </label>
+                <select
+                  value={crimeId}
+                  onChange={(e) => setCrimeId(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- JK MODDASINI TANLANG --</option>
+                  {(crimesRes?.items || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.article} {c.title && c.title !== c.article ? `— ${c.title}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  MJTK moddasi (ma’muriy bo‘lsa)
+                </label>
+                <Input
+                  placeholder="Masalan: MJTK 189-modda, 155⁴-modda..."
+                  value={mjtkArticle}
+                  onChange={(e) => setMjtkArticle(e.target.value)}
+                  className="h-10 text-xs bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-primary" />
+                  Platforma / Muhit
+                </label>
+                <Input
+                  placeholder="Telegram, Instagram, TikTok, Sayt..."
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  className="h-10 text-xs bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Kanal / Guruh / Bot / URL manzili
+                </label>
+                <Input
+                  placeholder="@kanal_nomi yoki https://t.me/..."
+                  value={channelUrl}
+                  onChange={(e) => setChannelUrl(e.target.value)}
+                  className="h-10 text-xs font-mono bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Noqonuniy aylanma / zarar (UZS)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={estimatedDamage}
+                  onChange={(e) => setEstimatedDamage(e.target.value)}
+                  className="h-10 text-xs font-mono bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-primary" />
+                  Biriktirilgan Sohaviy Xizmat
+                </label>
+                <select
+                  value={deptServiceId}
+                  onChange={(e) => setDeptServiceId(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- SOHAVIY XIZMATNI TANLANG --</option>
+                  {(deptServices || []).map((ds) => (
+                    <option key={ds.id} value={ds.id}>
+                      {ds.short_name ? `[${ds.short_name}] ` : ''}
+                      {ds.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Scale className="h-3.5 w-3.5 text-primary" />
+                  Qabul qilingan Yakuniy Qaror Turi
+                </label>
+                <select
+                  value={decisionTypeId}
+                  onChange={(e) => setDecisionTypeId(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="">-- QAROR TURINI TANLANG --</option>
+                  {(decisionTypes || []).map((dt) => (
+                    <option key={dt.id} value={dt.id}>
+                      {dt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Tekshiruv muddati (JPK 329-m.)
+                </label>
+                <select
+                  value={slaDays}
+                  onChange={(e) => setSlaDays(Number(e.target.value) || 10)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value={3}>3 kun (Tezkor tekshiruv)</option>
+                  <option value={10}>10 kun (Standart JPK 329-m.)</option>
+                  <option value={30}>30 kun (Uzaytirilgan)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  JI / Bayonnoma raqami
+                </label>
+                <Input
+                  placeholder="JI № yoki MJTK bayonnoma №"
+                  value={decisionNumber}
+                  onChange={(e) => setDecisionNumber(e.target.value)}
+                  className="h-10 text-xs font-mono bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Qaror sanasi</label>
+                <Input
+                  type="date"
+                  value={decisionDate}
+                  onChange={(e) => setDecisionDate(e.target.value)}
+                  className="h-10 text-xs bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Qaror bo‘yicha izoh</label>
+                <Input
+                  placeholder="Sud qarori, jarima yoki tergov..."
+                  value={decisionNote}
+                  onChange={(e) => setDecisionNote(e.target.value)}
+                  className="h-10 text-xs bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Fabula (Batafsil holat tavsifi)
+              </label>
+              <textarea
+                rows={4}
+                placeholder="Holat qanday aniqlangani, tarqatilgan kontent yoki noqonuniy harakat mohiyati..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background p-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Mas‘ul xodimning ichki qaydlari
+              </label>
+              <Input
+                placeholder="Tezkor qaydlar, qo‘shimcha ko‘rsatmalar..."
+                value={officerNotes}
+                onChange={(e) => setOfficerNotes(e.target.value)}
+                className="h-10 text-xs bg-background"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 3-QISM: GUMONLANUVCHILAR / HUQUQBUZARLAR (FUQAROLAR BAZASI)       */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 space-y-4 bg-blue-50/70 dark:bg-blue-950/20 transition-colors">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200/70 dark:border-blue-800/40 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                <UserPlus className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                3. Gumonlanuvchilar / Huquqbuzarlar ({suspects.length})
+              </h2>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowNewCitizenForm((v) => !v)}
+              className="h-8 text-xs gap-1.5 bg-background cursor-pointer"
+            >
+              {showNewCitizenForm ? (
+                <X className="h-3.5 w-3.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              {showNewCitizenForm ? 'Yopish' : 'Yangi fuqaro yaratib biriktirish'}
+            </Button>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            {/* Mavjud fuqarolar bazasidan qidiruv */}
+            <div className="relative">
+              <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Fuqarolar bazasidan qidirish (F.I.O., pasport, JSHSHIR, telefon)..."
+                value={citizenSearch}
+                onChange={(e) => setCitizenSearch(e.target.value)}
+                className="pl-9 h-10 text-xs bg-background"
+              />
+              {debouncedCitizenSearch.trim().length >= 2 &&
+                (matchedCitizensRes?.items?.length || 0) > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl p-1.5 max-h-60 overflow-y-auto">
+                    {matchedCitizensRes!.items.map((c) => (
+                      <div
+                        key={c.id}
+                        onClick={() => void handleAddSuspect(c)}
+                        className="px-3 py-2 rounded-lg hover:bg-muted cursor-pointer flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <span className="font-semibold">
+                            {c.last_name} {c.first_name} {c.middle_name}
+                          </span>
+                          {c.passport && (
+                            <span className="ml-2 font-mono text-[11px] text-primary">
+                              {c.passport}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{c.phone_number}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+
+            {/* Yangi fuqaro tezkor formasi */}
+            {showNewCitizenForm && (
+              <div className="rounded-xl border border-blue-300/70 dark:border-blue-800 bg-background p-4 space-y-3">
+                <div className="text-xs font-bold text-foreground">
+                  Yangi fuqaro profilini yaratish (bazaga qo‘shiladi va shu ishga biriktiriladi)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5">
+                  <Input
+                    placeholder="Familiya *"
+                    value={newCitizen.last_name}
+                    onChange={(e) => setNewCitizen((p) => ({ ...p, last_name: e.target.value }))}
+                    className="h-9 text-xs uppercase"
+                  />
+                  <Input
+                    placeholder="Ism *"
+                    value={newCitizen.first_name}
+                    onChange={(e) => setNewCitizen((p) => ({ ...p, first_name: e.target.value }))}
+                    className="h-9 text-xs uppercase"
+                  />
+                  <Input
+                    placeholder="Sharif"
+                    value={newCitizen.middle_name}
+                    onChange={(e) => setNewCitizen((p) => ({ ...p, middle_name: e.target.value }))}
+                    className="h-9 text-xs uppercase"
+                  />
+                  <Input
+                    placeholder="Pasport (AA1234567)"
+                    value={newCitizen.passport}
+                    onChange={(e) =>
+                      setNewCitizen((p) => ({ ...p, passport: e.target.value.toUpperCase() }))
+                    }
+                    className="h-9 text-xs font-mono uppercase"
+                  />
+                  <Input
+                    placeholder="Telefon (+998...)"
+                    value={newCitizen.phone_number}
+                    onChange={(e) => setNewCitizen((p) => ({ ...p, phone_number: e.target.value }))}
+                    className="h-9 text-xs font-mono"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewCitizenForm(false)}
+                    className="h-8 text-xs cursor-pointer"
+                  >
+                    Bekor qilish
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={creatingCitizen}
+                    loading={creatingCitizen}
+                    onClick={() => void handleCreateAndAttachCitizen()}
+                    className="h-8 text-xs gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Yaratish va Biriktirish
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Biriktirilgan gumonlanuvchilar ro'yxati */}
+            {suspects.length > 0 ? (
+              <div className="space-y-2.5">
+                {suspects.map((s, idx) => (
+                  <div
+                    key={s.citizen_id}
+                    className="rounded-xl border border-border/80 bg-background p-3.5 space-y-2.5 shadow-2xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Bazadagi fuqaro
+                        </Badge>
+                        <span className="text-xs font-bold">{s.citizen_name}</span>
+                        {s.citizen_passport && (
+                          <Badge variant="outline" className="text-[10px] font-mono">
+                            {s.citizen_passport}
+                          </Badge>
+                        )}
+                        {s.citizen_phone && (
+                          <span className="text-[11px] font-mono text-muted-foreground">
+                            {s.citizen_phone}
                           </span>
                         )}
+                        {s.is_repeat_offender && (
+                          <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px] gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Takroriy shaxs
+                          </Badge>
+                        )}
                       </div>
-                      <span className="text-[11px] text-muted-foreground">{c.phone_number}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive cursor-pointer"
+                        onClick={() => setSuspects((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    {s.repeat_info && (
+                      <div className="text-[11px] text-rose-600 font-medium">{s.repeat_info}</div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <select
+                        value={s.role_in_crime}
+                        onChange={(e) => {
+                          const val = e.target.value as SuspectCrimeRole;
+                          setSuspects((prev) =>
+                            prev.map((row, i) =>
+                              i === idx ? { ...row, role_in_crime: val } : row,
+                            ),
+                          );
+                        }}
+                        className="h-9 rounded-md border border-input bg-background px-2.5 text-xs font-medium"
+                      >
+                        <option value="TASHKILOTCHI">Tashkilotchi</option>
+                        <option value="ADMIN">Kanal / Guruh admini</option>
+                        <option value="IJROCHI">Ijrochi / Tarqatuvchi</option>
+                        <option value="VOSITACHI">Vositachi</option>
+                        <option value="KARTA_EGASI">Karta / Hamyon egasi</option>
+                        <option value="BOSHQA">Boshqa rol</option>
+                      </select>
+
+                      <select
+                        value={s.detention_status}
+                        onChange={(e) => {
+                          const val = e.target.value as DetentionStatus;
+                          setSuspects((prev) =>
+                            prev.map((row, i) =>
+                              i === idx ? { ...row, detention_status: val } : row,
+                            ),
+                          );
+                        }}
+                        className="h-9 rounded-md border border-input bg-background px-2.5 text-xs font-medium"
+                      >
+                        <option value="ANIQLANMOQDA">Aniqlanmoqda</option>
+                        <option value="USHLANGAN">Ushlangan (JPK 221-m.)</option>
+                        <option value="TILXATDA">Tilxat / Garovda</option>
+                        <option value="QIDIRUVDA">Qidiruvda</option>
+                        <option value="OZODLIKDA">Ozodlikda</option>
+                      </select>
+
+                      <Input
+                        placeholder="Izoh (ixtiyoriy)..."
+                        value={s.notes}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSuspects((prev) =>
+                            prev.map((row, i) => (i === idx ? { ...row, notes: val } : row)),
+                          );
+                        }}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground italic py-1">
+                Hali gumonlanuvchilar biriktirilmagan. Yuqoridagi qidiruv orqali bazadan tanlang
+                yoki yangi fuqaro qo‘shing.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 4-QISM: RAQAMLI IZLAR VA IDENTIFIKATORLAR (SUSPECT TREE)          */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 space-y-4 bg-purple-50/70 dark:bg-purple-950/20 transition-colors">
+          <div className="flex items-center justify-between border-b border-purple-200/70 dark:border-purple-800/40 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                <ShieldAlert className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                4. Raqamli Izlar va Identifikatorlar (Telegram ID, IP, Karta, Kripto)
+              </h2>
+            </div>
           </div>
 
-          {suspects.length > 0 && (
-            <div className="space-y-2">
-              {suspects.map((s, idx) => (
+          <div className="pt-1">
+            <SuspectTreeBuilder value={suspectTree} onChange={setSuspectTree} />
+          </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 5-QISM: OLIB QO'YILGAN ASHYOVIY VA RAQAMLI DALILLAR               */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 space-y-4 bg-emerald-50/70 dark:bg-emerald-950/20 transition-colors">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/70 dark:border-emerald-800/40 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <HardDrive className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                5. Olib Qo‘yilgan Ashyoviy va Raqamli Dalillar ({evidences.length})
+              </h2>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setEvidences((prev) => [
+                  ...prev,
+                  { evidence_type: 'PHONE', title: '', identifier_value: '', notes: '' },
+                ])
+              }
+              className="h-8 text-xs gap-1.5 bg-background cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Dalil qo‘shish
+            </Button>
+          </div>
+
+          <div className="space-y-2.5 pt-1">
+            {evidences.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic">
+                Telefon (IMEI), noutbuk, SIM-karta, kripto-hamyon yoki skrinshot/video dalillarni
+                qo‘shing.
+              </div>
+            ) : (
+              evidences.map((ev, idx) => (
                 <div
-                  key={s.citizen_id}
-                  className="rounded-xl border border-border/70 bg-background/60 p-3 space-y-2"
+                  key={idx}
+                  className="space-y-2 rounded-xl border border-border/80 p-3 bg-background shadow-2xs"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold">{s.citizen_name}</span>
-                      {s.citizen_passport && (
-                        <Badge variant="outline" className="text-[10px] font-mono">
-                          {s.citizen_passport}
-                        </Badge>
-                      )}
-                      {s.is_repeat_offender && (
-                        <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px] gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          Takroriy shaxs
-                        </Badge>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive cursor-pointer"
-                      onClick={() => setSuspects((prev) => prev.filter((_, i) => i !== idx))}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-
-                  {s.repeat_info && (
-                    <div className="text-[11px] text-rose-600 font-medium">{s.repeat_info}</div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                     <select
-                      value={s.role_in_crime}
+                      value={ev.evidence_type}
                       onChange={(e) => {
-                        const val = e.target.value as SuspectCrimeRole;
-                        setSuspects((prev) =>
-                          prev.map((row, i) => (i === idx ? { ...row, role_in_crime: val } : row)),
+                        const val = e.target.value as EvidenceType;
+                        setEvidences((prev) =>
+                          prev.map((r, i) => (i === idx ? { ...r, evidence_type: val } : r)),
                         );
                       }}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                      className="sm:col-span-3 h-9 rounded-md border border-input bg-background px-2.5 text-xs font-medium"
                     >
-                      <option value="TASHKILOTCHI">Tashkilotchi</option>
-                      <option value="ADMIN">Kanal / Guruh admini</option>
-                      <option value="IJROCHI">Ijrochi / Tarqatuvchi</option>
-                      <option value="VOSITACHI">Vositachi</option>
-                      <option value="KARTA_EGASI">Karta / Hamyon egasi</option>
-                      <option value="BOSHQA">Boshqa rol</option>
+                      {EVIDENCE_TYPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
-
-                    <select
-                      value={s.detention_status}
-                      onChange={(e) => {
-                        const val = e.target.value as DetentionStatus;
-                        setSuspects((prev) =>
-                          prev.map((row, i) =>
-                            i === idx ? { ...row, detention_status: val } : row,
-                          ),
-                        );
-                      }}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                    >
-                      <option value="ANIQLANMOQDA">Aniqlanmoqda</option>
-                      <option value="USHLANGAN">Ushlangan (JPK 221-m.)</option>
-                      <option value="TILXATDA">Tilxat / Garovda</option>
-                      <option value="QIDIRUVDA">Qidiruvda</option>
-                      <option value="OZODLIKDA">Ozodlikda</option>
-                    </select>
-
                     <Input
-                      placeholder="Izoh (ixtiyoriy)..."
-                      value={s.notes}
+                      placeholder="Nomi (masalan: iPhone 14 Pro, Telegram skrinshot)"
+                      value={ev.title}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setSuspects((prev) =>
-                          prev.map((row, i) => (i === idx ? { ...row, notes: val } : row)),
+                        setEvidences((prev) =>
+                          prev.map((r, i) => (i === idx ? { ...r, title: val } : r)),
                         );
                       }}
-                      className="h-8 text-xs"
+                      className="sm:col-span-4 h-9 text-xs"
+                    />
+                    <Input
+                      placeholder="IMEI / Seriya / Karta / Hamyon"
+                      value={ev.identifier_value || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEvidences((prev) =>
+                          prev.map((r, i) => (i === idx ? { ...r, identifier_value: val } : r)),
+                        );
+                      }}
+                      className="sm:col-span-4 h-9 text-xs font-mono"
+                    />
+                    <div className="sm:col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-destructive cursor-pointer"
+                        onClick={() => setEvidences((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/50">
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border border-input bg-muted/30 hover:bg-muted cursor-pointer">
+                        <Upload className="h-3 w-3 text-primary" />
+                        {uploadingIdx === idx
+                          ? 'Yuklanmoqda...'
+                          : ev.file_key
+                            ? 'Faylni almashtirish'
+                            : 'Skrinshot / Fayl biriktirish'}
+                        <input
+                          type="file"
+                          className="hidden"
+                          disabled={uploadingIdx === idx}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setUploadingIdx(idx);
+                            try {
+                              const uploaded = await filesApi.uploadSingle(file, 'detected-crimes');
+                              setEvidences((prev) =>
+                                prev.map((r, i) =>
+                                  i === idx
+                                    ? {
+                                        ...r,
+                                        file_key: uploaded.key,
+                                        file_name: uploaded.original_name || file.name,
+                                        title: r.title.trim() ? r.title : file.name,
+                                      }
+                                    : r,
+                                ),
+                              );
+                              toast.success('Dalil fayli yuklandi');
+                            } catch (err) {
+                              toast.error('Fayl yuklashda xato', {
+                                description: getErrorMessage(err),
+                              });
+                            } finally {
+                              setUploadingIdx(null);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                      {ev.file_key && (
+                        <a
+                          href={filesApi.getViewUrl({ key: ev.file_key })}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                        >
+                          <Paperclip className="h-3 w-3" />
+                          {ev.file_name || 'Biriktirilgan fayl'}
+                        </a>
+                      )}
+                    </div>
+                    <Input
+                      placeholder="Dalil bo‘yicha izoh (ixtiyoriy)..."
+                      value={ev.notes || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEvidences((prev) =>
+                          prev.map((r, i) => (i === idx ? { ...r, notes: val } : r)),
+                        );
+                      }}
+                      className="h-8 text-[11px] max-w-xs"
                     />
                   </div>
                 </div>
-              ))}
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* YAKUNIY STICKY SAQLASH VA BEKOR QILISH PANELI (ARIZA KABI)            */}
+      {/* ===================================================================== */}
+      <div className="sticky bottom-4 z-30">
+        <div className="w-full p-4 sm:p-5 rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20">
+              <Radar className="h-5 w-5" />
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 4. Raqamli izlar va gumonlanuvchi identifikatorlari */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-primary" />
-            4. Raqamli Izlar va Identifikatorlar (Telegram ID, IP, Karta, Kripto)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SuspectTreeBuilder value={suspectTree} onChange={setSuspectTree} />
-        </CardContent>
-      </Card>
-
-      {/* 5. Olib qo'yilgan ashyoviy va raqamli dalillar */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <HardDrive className="h-4 w-4 text-primary" />
-            5. Olib Qo‘yilgan Ashyoviy va Raqamli Dalillar ({evidences.length})
-          </CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setEvidences((prev) => [
-                ...prev,
-                { evidence_type: 'PHONE', title: '', identifier_value: '', notes: '' },
-              ])
-            }
-            className="h-7 text-xs gap-1 cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Dalil qo‘shish
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-2.5">
-          {evidences.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">
-              Telefon (IMEI), noutbuk, SIM-karta, kripto-hamyon yoki skrinshot dalillarni qo‘shing.
-            </div>
-          ) : (
-            evidences.map((ev, idx) => (
-              <div
-                key={idx}
-                className="space-y-2 rounded-lg border border-border/70 p-2.5 bg-background/60"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                  <select
-                    value={ev.evidence_type}
-                    onChange={(e) => {
-                      const val = e.target.value as EvidenceType;
-                      setEvidences((prev) =>
-                        prev.map((r, i) => (i === idx ? { ...r, evidence_type: val } : r)),
-                      );
-                    }}
-                    className="sm:col-span-3 h-8 rounded-md border border-input bg-background px-2 text-xs"
-                  >
-                    {EVIDENCE_TYPE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <Input
-                    placeholder="Nomi (masalan: iPhone 14 Pro, Telegram skrinshot)"
-                    value={ev.title}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEvidences((prev) =>
-                        prev.map((r, i) => (i === idx ? { ...r, title: val } : r)),
-                      );
-                    }}
-                    className="sm:col-span-4 h-8 text-xs"
-                  />
-                  <Input
-                    placeholder="IMEI / Seriya / Karta / Hamyon"
-                    value={ev.identifier_value || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEvidences((prev) =>
-                        prev.map((r, i) => (i === idx ? { ...r, identifier_value: val } : r)),
-                      );
-                    }}
-                    className="sm:col-span-4 h-8 text-xs font-mono"
-                  />
-                  <div className="sm:col-span-1 flex justify-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive cursor-pointer"
-                      onClick={() => setEvidences((prev) => prev.filter((_, i) => i !== idx))}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50">
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border border-input bg-background hover:bg-muted cursor-pointer">
-                      <Upload className="h-3 w-3 text-primary" />
-                      {uploadingIdx === idx
-                        ? 'Yuklanmoqda...'
-                        : ev.file_key
-                          ? 'Faylni almashtirish'
-                          : 'Skrinshot / Fayl biriktirish'}
-                      <input
-                        type="file"
-                        className="hidden"
-                        disabled={uploadingIdx === idx}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setUploadingIdx(idx);
-                          try {
-                            const uploaded = await filesApi.uploadSingle(file, 'detected-crimes');
-                            setEvidences((prev) =>
-                              prev.map((r, i) =>
-                                i === idx
-                                  ? {
-                                      ...r,
-                                      file_key: uploaded.key,
-                                      file_name: uploaded.original_name || file.name,
-                                      title: r.title.trim() ? r.title : file.name,
-                                    }
-                                  : r,
-                              ),
-                            );
-                            toast.success('Dalil fayli yuklandi');
-                          } catch (err) {
-                            toast.error('Fayl yuklashda xato', {
-                              description: getErrorMessage(err),
-                            });
-                          } finally {
-                            setUploadingIdx(null);
-                            e.target.value = '';
-                          }
-                        }}
-                      />
-                    </label>
-                    {ev.file_key && (
-                      <a
-                        href={filesApi.getViewUrl({ key: ev.file_key })}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
-                      >
-                        <Paperclip className="h-3 w-3" />
-                        {ev.file_name || 'Biriktirilgan fayl'}
-                      </a>
-                    )}
-                  </div>
-                  <Input
-                    placeholder="Dalil bo‘yicha izoh (ixtiyoriy)..."
-                    value={ev.notes || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEvidences((prev) =>
-                        prev.map((r, i) => (i === idx ? { ...r, notes: val } : r)),
-                      );
-                    }}
-                    className="h-7 text-[11px] max-w-xs"
-                  />
-                </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-black text-foreground tracking-tight">
+                  Aniqlangan jinoyat {caseNumber ? `№ ${caseNumber}` : '(Avto kod)'}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-mono uppercase px-2 py-0 border-primary/40 text-primary font-bold"
+                >
+                  {currentStatusLabel}
+                </Badge>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 6. Status, Muddat va Yakuniy Qaror */}
-      <Card className="border-border/80 bg-card/70">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold">
-            6. Holat, Protsessual Muddat va Yakuniy Qaror
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Holati (Status)</label>
-              <select
-                value={statusId}
-                onChange={(e) => setStatusId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-              >
-                <option value="">-- Standart (Yangi) --</option>
-                {(statusesRes?.items || []).map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Tekshiruv muddati (JPK 329-m.)</label>
-              <select
-                value={slaDays}
-                onChange={(e) => setSlaDays(Number(e.target.value) || 10)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-              >
-                <option value={3}>3 kun (Tezkor)</option>
-                <option value={10}>10 kun (Standart JPK)</option>
-                <option value={30}>30 kun (Uzaytirilgan)</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Yakuniy qaror turi</label>
-              <select
-                value={decisionTypeId}
-                onChange={(e) => setDecisionTypeId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-              >
-                <option value="">-- Tanlanmagan --</option>
-                {(decisionTypes || []).map((dt) => (
-                  <option key={dt.id} value={dt.id}>
-                    {dt.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">JI / Bayonnoma raqami</label>
-              <Input
-                placeholder="JI № yoki MJTK bayonnoma №"
-                value={decisionNumber}
-                onChange={(e) => setDecisionNumber(e.target.value)}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Qaror sanasi</label>
-              <Input
-                type="date"
-                value={decisionDate}
-                onChange={(e) => setDecisionDate(e.target.value)}
-                className="h-9 text-xs"
-              />
+              <p className="text-xs text-muted-foreground">
+                Kiritilgan barcha gumonlanuvchilar, raqamli izlar, dalillar va SLA muddati saqlanadi
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Qaror bo‘yicha izoh</label>
-              <Input
-                placeholder="Sud qarori, jarima yoki tergovga yuborish izohi..."
-                value={decisionNote}
-                onChange={(e) => setDecisionNote(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Xodimning ichki qaydlari</label>
-              <Input
-                placeholder="Tezkor qaydlar..."
-                value={officerNotes}
-                onChange={(e) => setOfficerNotes(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
+          <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="default"
+              onClick={() => setIsCancelModalOpen(true)}
+              disabled={saveMut.isPending}
+              className="h-10 text-xs font-semibold px-4 gap-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              <RotateCcw className="h-4 w-4 text-slate-500" />
+              Bekor qilish
+            </Button>
+
+            <Button
+              type="button"
+              size="default"
+              disabled={!title.trim() || saveMut.isPending}
+              onClick={() => saveMut.mutate()}
+              className="h-10 text-xs font-bold px-6 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all cursor-pointer min-w-[190px]"
+            >
+              {saveMut.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saqlanmoqda...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>{isEdit ? 'O‘zgarishlarni Saqlash' : 'Saqlash & Yakunlash'}</span>
+                </>
+              )}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* BEKOR QILISH DIALOGI */}
+      <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-bold">
+              <RotateCcw className="h-5 w-5 text-slate-500" />
+              <span>{isEdit ? 'Tahrirlashni bekor qilish' : 'Formadan chiqish'}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm leading-relaxed pt-1">
+              {isEdit
+                ? 'Haqiqatan ham tahrirlash formasidan chiqmoqchimisiz? Kiritilgan oxirgi o‘zgarishlar saqlanmaydi.'
+                : 'Haqiqatan ham aniqlangan jinoyat kiritish formasidan chiqmoqchimisiz? Kiritilgan ma‘lumotlar saqlanmaydi.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelModalOpen(false)}
+              className="text-xs h-10 px-4 cursor-pointer"
+            >
+              Yo‘q, davom etish
+            </Button>
+            <Button
+              onClick={() => {
+                setIsCancelModalOpen(false);
+                navigate(isEdit && id ? `/detected-crimes/${id}` : '/detected-crimes');
+              }}
+              className="text-xs h-10 px-5 font-semibold cursor-pointer gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Ha, bekor qilinsin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
