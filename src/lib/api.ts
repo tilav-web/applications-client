@@ -1194,6 +1194,30 @@ export const documentsApi = {
     );
     return res.data;
   },
+  getByDetectedCrime: async (detectedCrimeId: string) => {
+    const res = await apiClient.get<ApplicationDocumentItem[]>(
+      `/detected-crimes/${detectedCrimeId}/documents`,
+    );
+    return res.data;
+  },
+  createBlankForDetectedCrime: async (detectedCrimeId: string, title?: string) => {
+    const res = await apiClient.post<ApplicationDocumentItem>(
+      `/detected-crimes/${detectedCrimeId}/documents/blank`,
+      { title },
+    );
+    return res.data;
+  },
+  uploadForDetectedCrime: async (detectedCrimeId: string, file: File, title?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title) formData.append('title', title);
+    const res = await apiClient.post<ApplicationDocumentItem>(
+      `/detected-crimes/${detectedCrimeId}/documents/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return res.data;
+  },
   getTemplates: async (script?: 'lotin' | 'krill') => {
     const res = await apiClient.get<DocumentTemplateItem[]>('/documents/templates', {
       params: { script },

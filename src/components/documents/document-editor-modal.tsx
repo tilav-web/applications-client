@@ -11,7 +11,7 @@ import { QuickActionsPanel } from './quick-actions-panel';
 
 interface DocumentEditorModalProps {
   documentId: string | null;
-  application: Application;
+  application?: Application | null;
   isOpen: boolean;
   onClose: () => void;
   onSaved?: () => void;
@@ -364,7 +364,7 @@ export function DocumentEditorModal({
         )}
 
         {/* TEZKOR AMALLAR UCHUN KICHIK SUZUVCHI YON TUGMA (AGAR PANEL YOPILGAN BO'LSA) */}
-        {!showQuickActions && (
+        {application && !showQuickActions && (
           <button
             type="button"
             onClick={() => setShowQuickActions(true)}
@@ -379,17 +379,19 @@ export function DocumentEditorModal({
         {/* ================================================================= */}
         {/* SLIDE-OVER SHEET (TEZKOR AMALLAR KICHIK SHEET OYNASI) */}
         {/* ================================================================= */}
-        <div
-          className={`absolute top-0 right-0 bottom-0 w-80 sm:w-96 z-40 bg-white shadow-2xl border-l border-slate-200 transition-transform duration-300 ease-in-out flex flex-col ${
-            showQuickActions ? 'translate-x-0' : 'translate-x-full pointer-events-none'
-          }`}
-        >
-          <QuickActionsPanel
-            application={application}
-            onInsert={handleInsertText}
-            onClose={() => setShowQuickActions(false)}
-          />
-        </div>
+        {application && (
+          <div
+            className={`absolute top-0 right-0 bottom-0 w-80 sm:w-96 z-40 bg-white shadow-2xl border-l border-slate-200 transition-transform duration-300 ease-in-out flex flex-col ${
+              showQuickActions ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+            }`}
+          >
+            <QuickActionsPanel
+              application={application}
+              onInsert={handleInsertText}
+              onClose={() => setShowQuickActions(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

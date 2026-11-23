@@ -7,12 +7,14 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  Download,
   Edit2,
   FileText,
   Globe,
   HardDrive,
   Loader2,
   Paperclip,
+  Plus,
   Printer,
   Radar,
   RefreshCw,
@@ -20,14 +22,17 @@ import {
   ShieldAlert,
   Trash2,
   TrendingUp,
+  UploadCloud,
   Users,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { SlaBadge } from '@/components/applications/sla-components';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
+import { CreateWordDialog } from '@/components/documents/create-word-dialog';
+import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,7 +48,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
-import { applicationStatusesApi, detectedCrimesApi, filesApi } from '@/lib/api';
+import { applicationStatusesApi, detectedCrimesApi, documentsApi, filesApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import type { ApplicationStatusItem } from '@/types/models';
@@ -80,6 +85,14 @@ export function DetectedCrimeDetailPage() {
   const [extendReason, setExtendReason] = useState('');
   const [approvalNum, setApprovalNum] = useState('');
   const [nowMs] = useState(() => Date.now());
+  const [activeEditingDocId, setActiveEditingDocId] = useState<string | null>(null);
+  const [docToDelete, setDocToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [wordDialogState, setWordDialogState] = useState<{
+    isOpen: boolean;
+    mode: 'create' | 'upload';
+    file: File | null;
+  }>({ isOpen: false, mode: 'create', file: null });
+  const wordFileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     data: item,
@@ -94,6 +107,43 @@ export function DetectedCrimeDetailPage() {
     enabled: Boolean(id),
     staleTime: 0,
     refetchOnMount: 'always',
+  });
+
+  const { data: crimeDocuments = [], refetch: refetchDocuments } = useQuery({
+    queryKey: ['detected-crime-documents', id],
+    queryFn: () => (id ? documentsApi.getByDetectedCrime(id) : []),
+    enabled: Boolean(id),
+  });
+
+  const createBlankDocMut = useMutation({
+    mutationFn: (title?: string) => documentsApi.createBlankForDetectedCrime(id as string, title),
+    onSuccess: (newDoc) => {
+      toast.success('Yangi Word rasmiy hujjati yaratildi');
+      void queryClient.invalidateQueries({ queryKey: ['detected-crime-documents', id] });
+      setActiveEditingDocId(newDoc.id);
+    },
+    onError: (err) => toast.error(`Hujjat yaratishda xatolik: ${getErrorMessage(err)}`),
+  });
+
+  const uploadWordMut = useMutation({
+    mutationFn: ({ file, title }: { file: File; title?: string }) =>
+      documentsApi.uploadForDetectedCrime(id as string, file, title),
+    onSuccess: (newDoc) => {
+      toast.success('Word hujjati muvaffaqiyatli yuklandi');
+      void queryClient.invalidateQueries({ queryKey: ['detected-crime-documents', id] });
+      if (newDoc?.id) setActiveEditingDocId(newDoc.id);
+    },
+    onError: (err) => toast.error(`Word faylini yuklashda xatolik: ${getErrorMessage(err)}`),
+  });
+
+  const deleteDocMut = useMutation({
+    mutationFn: (docId: string) => documentsApi.delete(docId),
+    onSuccess: () => {
+      toast.success('Hujjat o‘chirildi');
+      setDocToDelete(null);
+      void queryClient.invalidateQueries({ queryKey: ['detected-crime-documents', id] });
+    },
+    onError: (err) => toast.error(`Hujjatni o‘chirishda xatolik: ${getErrorMessage(err)}`),
   });
 
   const { data: statusesRes } = useQuery({
@@ -235,7 +285,6 @@ export function DetectedCrimeDetailPage() {
   const suspectCount = item.suspects?.length || 0;
   const repeatCount = (item.suspects || []).filter((s) => s.is_repeat_offender).length;
   const evidenceCount = item.evidences?.length || 0;
-  const filesCount = (item.evidences || []).filter((e) => Boolean(e.file_key)).length;
   const cluesCount = Array.isArray(item.suspect_tree) ? item.suspect_tree.length : 0;
 
   // SLA Progress hisoblash
@@ -502,12 +551,12 @@ export function DetectedCrimeDetailPage() {
         <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shrink-0">
-              <HardDrive className="h-5 w-5" />
+              <FileText className="h-5 w-5" />
             </div>
             <div className="overflow-hidden">
-              <span className="text-xs text-muted-foreground block">Ashyoviy Dalillar</span>
+              <span className="text-xs text-muted-foreground block">Rasmiy Word Hujjatlari</span>
               <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
-                {evidenceCount} ta{filesCount > 0 ? ` (${filesCount} fayl)` : ''}
+                {crimeDocuments.length} ta .docx
               </span>
             </div>
           </CardContent>
@@ -516,12 +565,12 @@ export function DetectedCrimeDetailPage() {
         <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
-              <ShieldAlert className="h-5 w-5" />
+              <HardDrive className="h-5 w-5" />
             </div>
             <div className="overflow-hidden">
-              <span className="text-xs text-muted-foreground block">Raqamli Izlar</span>
+              <span className="text-xs text-muted-foreground block">Dalillar & Izlar</span>
               <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
-                {cluesCount} ta belgi
+                {evidenceCount} dalil • {cluesCount} iz
               </span>
             </div>
           </CardContent>
@@ -753,6 +802,145 @@ export function DetectedCrimeDetailPage() {
       )}
 
       {/* ===================================================================== */}
+      {/* 7.5. RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE)                      */}
+      {/* ===================================================================== */}
+      <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2.5 text-blue-600">
+              <FileText className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Rasmiy Word Hujjatlari ({crimeDocuments.length})
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              Bildirgi, bayonnoma, qaror va boshqa .docx hujjatlarini yaratish, yuklash va
+              ONLYOFFICE da tahrirlash
+            </CardDescription>
+          </div>
+
+          {canWrite && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={wordFileInputRef}
+                type="file"
+                accept=".docx,.doc"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setWordDialogState({ isOpen: true, mode: 'upload', file });
+                  }
+                  e.target.value = '';
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => wordFileInputRef.current?.click()}
+                className="h-8 text-xs gap-1.5 cursor-pointer"
+              >
+                <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+                <span>.docx yuklash</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setWordDialogState({ isOpen: true, mode: 'create', file: null })}
+                className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Yangi Word yaratish</span>
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="p-4 sm:p-5">
+          {crimeDocuments.length > 0 ? (
+            <div className="space-y-2.5">
+              {crimeDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                        {doc.title || doc.file_name}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal">
+                          v{doc.version || 1}
+                        </Badge>
+                        <span>&bull;</span>
+                        <span>{formatDate(doc.updated_at || doc.created_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {canWrite && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setActiveEditingDocId(doc.id)}
+                        className="h-7 px-2.5 text-xs font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer shadow-2xs"
+                        title="ONLYOFFICE da ochish, tahrirlash va saqlash"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Tahrirlash</span>
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => window.open(documentsApi.getFileUrl(doc.id), '_blank')}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Yuklab olish"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    {canWrite && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })
+                        }
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                        title="O‘chirish"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-7 border border-dashed rounded-xl text-center space-y-2 bg-muted/10">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+                <FileText className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                Hozircha Word hujjati biriktirilmagan
+              </p>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Yangi rasmiy Word (.docx) hujjat yaratishingiz yoki kompyuteringizdan mavjud faylni
+                yuklab ONLYOFFICE ichida tahrirlashingiz mumkin.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===================================================================== */}
       {/* 8. ASHYOVIY VA RAQAMLI DALILLAR                                       */}
       {/* ===================================================================== */}
       <Card className="py-0 gap-0 border-border/80 shadow-2xs overflow-hidden">
@@ -868,6 +1056,41 @@ export function DetectedCrimeDetailPage() {
         variant="destructive"
         isLoading={deleteMut.isPending}
         onConfirm={() => deleteMut.mutate()}
+      />
+
+      <ConfirmDialog
+        open={!!docToDelete}
+        onOpenChange={(open) => !open && setDocToDelete(null)}
+        title="Word hujjatini o‘chirish"
+        description={`«${docToDelete?.title || ''}» hujjatini o‘chirishni tasdiqlaysizmi?`}
+        variant="destructive"
+        isLoading={deleteDocMut.isPending}
+        onConfirm={() => {
+          if (docToDelete) deleteDocMut.mutate(docToDelete.id);
+        }}
+      />
+
+      <CreateWordDialog
+        isOpen={wordDialogState.isOpen}
+        fileToUpload={wordDialogState.file}
+        applicationNumber={item.case_number}
+        isLoading={createBlankDocMut.isPending || uploadWordMut.isPending}
+        onClose={() => setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }))}
+        onSubmit={async (title, file) => {
+          if (wordDialogState.mode === 'upload' && file) {
+            await uploadWordMut.mutateAsync({ file, title });
+          } else {
+            await createBlankDocMut.mutateAsync(title);
+          }
+          setWordDialogState((prev) => ({ ...prev, isOpen: false, file: null }));
+        }}
+      />
+
+      <DocumentEditorModal
+        documentId={activeEditingDocId}
+        isOpen={!!activeEditingDocId}
+        onClose={() => setActiveEditingDocId(null)}
+        onSaved={() => void refetchDocuments()}
       />
     </div>
   );
