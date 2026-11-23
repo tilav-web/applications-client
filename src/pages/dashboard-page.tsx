@@ -37,6 +37,7 @@ import {
   YAxis,
 } from 'recharts';
 
+import { SlaDashboardWidget } from '@/components/applications/sla-components';
 import { QashqadaryoYandexMap } from '@/components/dashboard/qashqadaryo-yandex-map';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -412,6 +413,9 @@ export function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* 1.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA) */}
+          <SlaDashboardWidget />
 
           {/* ===================================================================== */}
           {/* 2. QASHQADARYO VILOYATI INTERAKTIV YANDEX XARITASI */}

@@ -1,15 +1,71 @@
 export type ApplicationStatus = 'YANGI' | 'JARAYONDA' | 'HAL_QILINDI' | 'RAD_ETILDI' | string;
 
+export type ApplicationStatusCategory = 'OPEN' | 'IN_PROGRESS' | 'EXTENDED' | 'PAUSED' | 'CLOSED';
+
 export interface ApplicationStatusItem {
   id: string;
   name: string;
   code?: string | null;
   color?: string | null;
   description?: string | null;
+  category?: ApplicationStatusCategory;
+  tracks_sla?: boolean;
+  default_sla_days?: number | null;
+  legal_article?: string | null;
+  requires_decision?: boolean;
+  requires_rejection_reason?: boolean;
   is_default?: boolean;
   sort_order?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ApplicationStatusHistoryItem {
+  id: string;
+  application_id: string;
+  action: 'CREATED' | 'STATUS_CHANGED' | 'DEADLINE_EXTENDED' | 'DEADLINE_CHANGED' | 'CLOSED';
+  from_status_id?: string | null;
+  from_status_name?: string | null;
+  to_status_id?: string | null;
+  to_status_name?: string | null;
+  old_deadline_at?: string | null;
+  new_deadline_at?: string | null;
+  prosecutor_approval_number?: string | null;
+  prosecutor_approval_date?: string | null;
+  decision_type_name?: string | null;
+  decision_number?: string | null;
+  decision_date?: string | null;
+  note?: string | null;
+  changed_by_id?: string | null;
+  changed_by?: {
+    id: string;
+    first_name?: string | null;
+    last_name?: string | null;
+  } | null;
+  created_at: string;
+}
+
+export interface SlaUrgentItem {
+  id: string;
+  application_number: string | null;
+  deadline_at: string;
+  sla_days: number | null;
+  extended_until: string | null;
+  district_name: string | null;
+  citizen_name: string | null;
+  status_name: string | null;
+  status_color: string | null;
+  hours_remaining: number;
+}
+
+export interface SlaOverviewResponse {
+  totalActive: number;
+  overdueCount: number;
+  due24hCount: number;
+  due72hCount: number;
+  extendedCount: number;
+  onTrackCount: number;
+  urgentItems: SlaUrgentItem[];
 }
 
 export type CrimeGravity = 'UNCHA_OGIR_BOLMAGAN' | 'ORTA_OGIR' | 'OGIR' | 'JUDA_OGIR';
@@ -408,6 +464,17 @@ export interface Application {
   status_id?: string | null;
   application_status?: ApplicationStatusItem | null;
   date: string | null;
+  deadline_at?: string | null;
+  sla_days?: number | null;
+  extended_until?: string | null;
+  extension_reason?: string | null;
+  prosecutor_approval_number?: string | null;
+  prosecutor_approval_date?: string | null;
+  decision_number?: string | null;
+  decision_date?: string | null;
+  decision_note?: string | null;
+  closed_at?: string | null;
+  status_history?: ApplicationStatusHistoryItem[];
   citizen_id?: string | null;
   citizen?: Citizen | null;
   district_id?: string | null;

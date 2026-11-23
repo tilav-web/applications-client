@@ -531,6 +531,15 @@ export function ReferencesPage() {
           code: formData.code || undefined,
           color: (formData.color as string) || 'blue',
           description: (formData.description as string) || undefined,
+          category: ((formData.category as string) || 'OPEN') as ApplicationStatusItem['category'],
+          tracks_sla: formData.tracks_sla !== undefined ? Boolean(formData.tracks_sla) : true,
+          default_sla_days:
+            formData.default_sla_days !== undefined && formData.default_sla_days !== ''
+              ? Number(formData.default_sla_days)
+              : null,
+          legal_article: (formData.legal_article as string) || undefined,
+          requires_decision: Boolean(formData.requires_decision),
+          requires_rejection_reason: Boolean(formData.requires_rejection_reason),
           is_default: Boolean(formData.is_default),
           sort_order: formData.sort_order ? Number(formData.sort_order) : 0,
         });
@@ -708,6 +717,21 @@ export function ReferencesPage() {
           code: formData.code || undefined,
           color: (formData.color as string) || undefined,
           description: (formData.description as string) || undefined,
+          category: (formData.category as ApplicationStatusItem['category']) || undefined,
+          tracks_sla: formData.tracks_sla !== undefined ? Boolean(formData.tracks_sla) : undefined,
+          default_sla_days:
+            formData.default_sla_days !== undefined && formData.default_sla_days !== ''
+              ? Number(formData.default_sla_days)
+              : null,
+          legal_article: (formData.legal_article as string) || null,
+          requires_decision:
+            formData.requires_decision !== undefined
+              ? Boolean(formData.requires_decision)
+              : undefined,
+          requires_rejection_reason:
+            formData.requires_rejection_reason !== undefined
+              ? Boolean(formData.requires_rejection_reason)
+              : undefined,
           is_default: formData.is_default !== undefined ? Boolean(formData.is_default) : undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
         });
@@ -3051,12 +3075,113 @@ export function ReferencesPage() {
                     >
                       <option value="blue">Ko‘k (Blue)</option>
                       <option value="amber">Sariq / Oltinrang (Amber)</option>
+                      <option value="orange">To‘q sariq (Orange)</option>
                       <option value="emerald">Yashil (Emerald)</option>
-                      <option value="rose">Qizil (Rose)</option>
+                      <option value="teal">Moviy-yashil (Teal)</option>
+                      <option value="cyan">Havorang (Cyan)</option>
+                      <option value="indigo">Indigo (Indigo)</option>
                       <option value="purple">Binafsha (Purple)</option>
+                      <option value="rose">Qizil (Rose)</option>
+                      <option value="slate">To‘q kulrang (Slate)</option>
                       <option value="gray">Kulrang (Gray)</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">
+                      Bosqich kategoriyasi (JPK)
+                    </label>
+                    <select
+                      value={(formData.category as string) || 'OPEN'}
+                      onChange={(e) => {
+                        const cat = e.target.value;
+                        const isClosedOrPaused = cat === 'CLOSED' || cat === 'PAUSED';
+                        setFormData({
+                          ...formData,
+                          category: cat,
+                          tracks_sla: !isClosedOrPaused,
+                        });
+                      }}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="OPEN">Boshlang‘ich / Qabul (OPEN)</option>
+                      <option value="IN_PROGRESS">Tekshiruv / Jarayonda (IN_PROGRESS)</option>
+                      <option value="EXTENDED">Muddati uzaytirilgan (EXTENDED)</option>
+                      <option value="PAUSED">Vaqtincha to‘xtatilgan (PAUSED)</option>
+                      <option value="CLOSED">Yakuniy / Yopilgan (CLOSED)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">
+                      Standart SLA muddati (kun)
+                    </label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={365}
+                      placeholder="3, 10, 30..."
+                      value={
+                        formData.default_sla_days !== undefined &&
+                        formData.default_sla_days !== null
+                          ? String(formData.default_sla_days)
+                          : ''
+                      }
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          default_sla_days: e.target.value ? parseInt(e.target.value, 10) : '',
+                        })
+                      }
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-medium text-foreground">Huquqiy asos (Modda)</label>
+                  <Input
+                    placeholder="Masalan: JPK 329-modda, JPK 333-m. (83/84-m.)..."
+                    value={(formData.legal_article as string) || ''}
+                    onChange={(e) => setFormData({ ...formData, legal_article: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-input bg-background text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.tracks_sla !== false}
+                      onChange={(e) => setFormData({ ...formData, tracks_sla: e.target.checked })}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    SLA taymeri yursin
+                  </label>
+                  <label className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-input bg-background text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.requires_decision)}
+                      onChange={(e) =>
+                        setFormData({ ...formData, requires_decision: e.target.checked })
+                      }
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    Qaror turi majburiy
+                  </label>
+                  <label className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-input bg-background text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.requires_rejection_reason)}
+                      onChange={(e) =>
+                        setFormData({ ...formData, requires_rejection_reason: e.target.checked })
+                      }
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    Rad sababi majburiy
+                  </label>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

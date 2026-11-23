@@ -29,6 +29,7 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { SlaProgressCard, StatusTimelineCard } from '@/components/applications/sla-components';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -603,6 +604,11 @@ export function ApplicationDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ===================================================================== */}
+      {/* 2.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA) */}
+      {/* ===================================================================== */}
+      <SlaProgressCard app={app} canEdit={canWrite} />
 
       {/* ===================================================================== */}
       {/* 3. 4 TA KPI KO'RSATKICHLAR BLOKI */}
@@ -1360,6 +1366,9 @@ export function ApplicationDetailPage() {
         isLoading={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}
       />
+
+      {/* Status va Muddat o'zgarishlari tarixi (Timeline) */}
+      <StatusTimelineCard history={app.status_history} />
 
       {/* Rasm Preview (Lightbox) modal */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>

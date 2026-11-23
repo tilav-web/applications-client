@@ -31,6 +31,10 @@ export function TelegramAdminSettingsPanel() {
   const [botToken, setBotToken] = useState('');
   const [highValueThreshold, setHighValueThreshold] = useState(50000000);
   const [slaDays, setSlaDays] = useState(10);
+  const [slaWarnHours, setSlaWarnHours] = useState(72);
+  const [slaUrgentHours, setSlaUrgentHours] = useState(24);
+  const [slaEscalateHours, setSlaEscalateHours] = useState(24);
+  const [slaMaxExtDays, setSlaMaxExtDays] = useState(30);
   const [dailyDigestEnabled, setDailyDigestEnabled] = useState(true);
   const [dailyDigestHour, setDailyDigestHour] = useState(18);
 
@@ -38,6 +42,10 @@ export function TelegramAdminSettingsPanel() {
     if (data?.rules) {
       setHighValueThreshold(data.rules.high_value_threshold);
       setSlaDays(data.rules.sla_days);
+      setSlaWarnHours(data.rules.sla_warn_hours_before ?? 72);
+      setSlaUrgentHours(data.rules.sla_urgent_hours_before ?? 24);
+      setSlaEscalateHours(data.rules.sla_escalate_hours_after ?? 24);
+      setSlaMaxExtDays(data.rules.sla_max_extension_days ?? 30);
       setDailyDigestEnabled(data.rules.daily_digest_enabled);
       setDailyDigestHour(data.rules.daily_digest_hour);
     }
@@ -87,15 +95,30 @@ export function TelegramAdminSettingsPanel() {
       notificationsApi.updateAdminRules({
         high_value_threshold: Number(highValueThreshold) || 0,
         sla_days: Number(slaDays) || 10,
+        sla_warn_hours_before: Number(slaWarnHours) || 72,
+        sla_urgent_hours_before: Number(slaUrgentHours) || 24,
+        sla_escalate_hours_after: Number(slaEscalateHours) || 24,
+        sla_max_extension_days: Number(slaMaxExtDays) || 30,
         daily_digest_enabled: dailyDigestEnabled,
         daily_digest_hour: Number(dailyDigestHour) || 18,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notification-admin-settings'] });
-      toast.success('Bildirishnoma qoidalari saqlandi');
+      toast.success('Bildirishnoma va BullMQ SLA qoidalari saqlandi');
     },
     onError: (err) => {
       toast.error('Saqlashda xatolik', { description: getErrorMessage(err) });
+    },
+  });
+
+  const reconcileMut = useMutation({
+    mutationFn: () => notificationsApi.reconcileSlaQueue(),
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ['notification-admin-settings'] });
+      toast.success(`BullMQ SLA navbati sinxronlandi (${res.scheduled} ta faol ariza)`);
+    },
+    onError: (err) => {
+      toast.error('Sinxronlashda xatolik', { description: getErrorMessage(err) });
     },
   });
 
@@ -337,6 +360,96 @@ export function TelegramAdminSettingsPanel() {
                 </p>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-3 border-t border-border/60">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">1-ogohlantirish (soat oldin)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={slaWarnHours}
+                  onChange={(e) => setSlaWarnHours(Number(e.target.value))}
+                  className="h-9 font-mono font-bold"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Masalan 72 soat (3 kun) → Tuman xodimi + yaratuvchi
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Shoshilinch (soat oldin)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={slaUrgentHours}
+                  onChange={(e) => setSlaUrgentHours(Number(e.target.value))}
+                  className="h-9 font-mono font-bold"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Masalan 24 soat (1 kun) → Tuman xodimi + yaratuvchi
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Eskalatsiya (soat keyin)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={slaEscalateHours}
+                  onChange={(e) => setSlaEscalateHours(Number(e.target.value))}
+                  className="h-9 font-mono font-bold"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Muddat o‘tgach → BOSS + SUPER_ADMIN ga CRITICAL
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Max uzaytirish (JPK 329-m.)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={slaMaxExtDays}
+                  onChange={(e) => setSlaMaxExtDays(Number(e.target.value))}
+                  className="h-9 font-mono font-bold"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Prokuror roziligi bilan (standart 30 kun)
+                </p>
+              </div>
+            </div>
+
+            {data?.queue && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    className={
+                      data.queue.connected
+                        ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
+                        : 'bg-rose-500/15 text-rose-600 border-rose-500/30'
+                    }
+                  >
+                    BullMQ + Redis: {data.queue.connected ? 'Faol' : 'Ulanmagan'}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    Rejalashtirilgan: <b className="text-foreground">{data.queue.delayed}</b> |
+                    Kutilmoqda: <b className="text-foreground">{data.queue.waiting}</b> | Xato:{' '}
+                    <b className="text-foreground">{data.queue.failed}</b>
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => reconcileMut.mutate()}
+                  loading={reconcileMut.isPending}
+                  className="h-7 text-[11px] cursor-pointer"
+                >
+                  Navbatni sinxronlash
+                </Button>
+              </div>
+            )}
 
             <div className="flex justify-end pt-2 border-t border-border/60">
               <Button

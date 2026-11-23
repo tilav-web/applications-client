@@ -15,8 +15,9 @@ import {
   User,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { SlaBadge } from '@/components/applications/sla-components';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
 import { Badge } from '@/components/ui/badge';
@@ -56,8 +57,11 @@ import type { Application, ApplicationStatus, ApplicationStatusItem } from '@/ty
 
 export function ApplicationsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+
+  const [slaFilter, setSlaFilter] = useState<string>(() => searchParams.get('sla_filter') || '');
 
   // Alohida aniq maydonlar bo'yicha filtrlar (AND mantiqida birgalikda ishlaydi)
   const [districtFilter, setDistrictFilter] = useState<string>('');
@@ -259,6 +263,7 @@ export function ApplicationsPage() {
         min_amount: debouncedMinAmount,
         max_amount: debouncedMaxAmount,
         relations_filter: relationsFilter,
+        sla_filter: slaFilter,
       },
     ],
     queryFn: () =>
@@ -278,6 +283,7 @@ export function ApplicationsPage() {
         min_amount: parseAmountParam(debouncedMinAmount),
         max_amount: parseAmountParam(debouncedMaxAmount),
         relations_filter: relationsFilter || undefined,
+        sla_filter: slaFilter || undefined,
       }),
     placeholderData: (prev) => prev,
     staleTime: 0,
@@ -830,6 +836,42 @@ export function ApplicationsPage() {
         />
       </TableFilterPanel>
 
+      {/* 1.5. PROTSESSUAL MUDDAT (SLA) TEZKOR FILTRLARI */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {[
+          { key: '', label: 'Barchasi' },
+          { key: 'overdue', label: 'Muddati o‘tganlar', cls: 'text-rose-600 border-rose-500/30' },
+          { key: 'due_24h', label: '24 soat ichida', cls: 'text-orange-600 border-orange-500/30' },
+          { key: 'due_72h', label: '3 kun ichida', cls: 'text-amber-700 border-amber-500/30' },
+          {
+            key: 'extended',
+            label: 'Uzaytirilgan (1 oy)',
+            cls: 'text-indigo-600 border-indigo-500/30',
+          },
+        ].map((f) => {
+          const active = slaFilter === f.key;
+          return (
+            <Button
+              key={f.key || 'all'}
+              type="button"
+              size="sm"
+              variant={active ? 'default' : 'outline'}
+              onClick={() => {
+                setSlaFilter(f.key);
+                setPage(1);
+                const next = new URLSearchParams(searchParams);
+                if (f.key) next.set('sla_filter', f.key);
+                else next.delete('sla_filter');
+                setSearchParams(next, { replace: true });
+              }}
+              className={cn('h-7 text-[11px] px-2.5 cursor-pointer', !active && f.cls)}
+            >
+              {f.label}
+            </Button>
+          );
+        })}
+      </div>
+
       {/* 2. ALOHIDA AJRATILGAN ARIZALAR JADVALI */}
       <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xs">
         <Table>
@@ -950,7 +992,12 @@ export function ApplicationsPage() {
                         );
                       })()}
                     </TableCell>
-                    <TableCell>{getStatusBadge(app.status, app.application_status)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        {getStatusBadge(app.status, app.application_status)}
+                        <SlaBadge app={app} />
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {app.citizen ? (
                         <div className="flex items-center gap-1.5 text-xs">

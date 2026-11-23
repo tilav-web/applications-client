@@ -54,8 +54,29 @@ export const applicationsApi = {
     min_amount?: number;
     max_amount?: number;
     relations_filter?: string;
+    sla_filter?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });
+    return res.data;
+  },
+  getSlaOverview: async () => {
+    const res = await apiClient.get<import('@/types/models').SlaOverviewResponse>(
+      '/applications/sla/overview',
+    );
+    return res.data;
+  },
+  extendDeadline: async (
+    id: string,
+    data: {
+      new_deadline_at?: string;
+      extend_days?: number;
+      reason: string;
+      prosecutor_approval_number?: string;
+      prosecutor_approval_date?: string;
+      switch_to_extended_status?: boolean;
+    },
+  ) => {
+    const res = await apiClient.post<Application>(`/applications/${id}/extend-deadline`, data);
     return res.data;
   },
   getOne: async (id: string) => {
@@ -1673,9 +1694,20 @@ export interface TelegramBotConfigView {
 export interface NotificationAdminSettingsResponse {
   bot: TelegramBotConfigView;
   linkedUsersCount: number;
+  queue?: {
+    connected: boolean;
+    delayed: number;
+    waiting: number;
+    active: number;
+    failed: number;
+  };
   rules: {
     high_value_threshold: number;
     sla_days: number;
+    sla_warn_hours_before?: number;
+    sla_urgent_hours_before?: number;
+    sla_escalate_hours_after?: number;
+    sla_max_extension_days?: number;
     daily_digest_enabled: boolean;
     daily_digest_hour: number;
   };
@@ -1738,6 +1770,10 @@ export const notificationsApi = {
   updateAdminRules: async (data: {
     high_value_threshold?: number;
     sla_days?: number;
+    sla_warn_hours_before?: number;
+    sla_urgent_hours_before?: number;
+    sla_escalate_hours_after?: number;
+    sla_max_extension_days?: number;
     daily_digest_enabled?: boolean;
     daily_digest_hour?: number;
   }) => {
@@ -1745,6 +1781,10 @@ export const notificationsApi = {
       '/notifications/admin/settings',
       data,
     );
+    return res.data;
+  },
+  reconcileSlaQueue: async () => {
+    const res = await apiClient.post<{ scheduled: number }>('/notifications/admin/sla/reconcile');
     return res.data;
   },
   configureTelegramBot: async (data: { token: string; enabled?: boolean }) => {
