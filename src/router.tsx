@@ -5,6 +5,7 @@ import { ProtectedRoute, RoleRoute } from '@/components/auth/protected-route';
 import { PublicRoute } from '@/components/auth/public-route';
 import { AppLayout } from '@/components/layout/app-layout';
 import { PageSkeleton } from '@/components/ui/page-skeletons';
+import { RouteErrorBoundary } from '@/components/ui/route-error-boundary';
 
 // Code-splitting (har bir sahifa alohida yengil chunk sifatida yuklanadi — tez sahifa almashishi + skeleton)
 const ApplicationCreatePage = lazy(() =>
@@ -77,6 +78,7 @@ export const router = createBrowserRouter([
   // Public Login Route
   {
     element: <PublicRoute />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: '/login',
@@ -93,6 +95,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         element: <AppLayout />,
