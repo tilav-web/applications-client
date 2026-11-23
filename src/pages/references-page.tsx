@@ -961,9 +961,9 @@ export function ReferencesPage() {
   const ActiveTabIcon = activeTabMeta.icon;
 
   return (
-    <div className="w-full space-y-5">
+    <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Mobil ekranlar uchun qulay bo'lim tanlash */}
-      <div className="lg:hidden space-y-2">
+      <div className="lg:hidden space-y-2 p-3 pb-2 border-b border-border/60 shrink-0 bg-card/60">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-extrabold tracking-tight">Ma&apos;lumotnomalar</h1>
           <Button size="sm" onClick={openCreateModal} className="gap-1.5 shadow-sm">
@@ -991,51 +991,47 @@ export function ReferencesPage() {
       <Tabs
         value={activeTab}
         onValueChange={(val) => setActiveTab(val as ReferenceTabKey)}
-        className="w-full"
+        className="w-full flex-1 flex flex-col min-h-0 overflow-hidden gap-0"
       >
-        <div className="flex flex-col lg:flex-row-reverse gap-5 items-start">
-          {/* O'ng tomondagi vertikal guruhlangan navigatsiya (Desktop) */}
-          <aside className="hidden lg:block w-64 shrink-0 sticky top-4">
-            <Card className="py-2 gap-0 border-border/80 bg-card/70 backdrop-blur-sm">
-              <CardContent className="p-2 space-y-4">
-                {REFERENCE_NAV_GROUPS.map((group) => (
-                  <div key={group.title} className="space-y-1">
-                    <p className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-                      {group.title}
-                    </p>
-                    <nav className="space-y-0.5">
-                      {group.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = activeTab === item.key;
-                        return (
-                          <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => setActiveTab(item.key)}
-                            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
-                              isActive
-                                ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
-                            }`}
-                          >
-                            <Icon
-                              className={`h-3.5 w-3.5 shrink-0 ${
-                                isActive ? 'text-primary-foreground' : 'text-primary/80'
-                              }`}
-                            />
-                            <span className="truncate">{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </nav>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+        <div className="flex-1 flex flex-col lg:flex-row-reverse min-h-0 overflow-hidden">
+          {/* O'ng tomondagi FIXED vertikal sidebar — faqat o'z ichi scroll bo'ladi */}
+          <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full border-l border-border/80 bg-card/70 backdrop-blur-sm overflow-y-auto p-3 space-y-4">
+            {REFERENCE_NAV_GROUPS.map((group) => (
+              <div key={group.title} className="space-y-1">
+                <p className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                  {group.title}
+                </p>
+                <nav className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setActiveTab(item.key)}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+                        }`}
+                      >
+                        <Icon
+                          className={`h-3.5 w-3.5 shrink-0 ${
+                            isActive ? 'text-primary-foreground' : 'text-primary/80'
+                          }`}
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            ))}
           </aside>
 
-          {/* Chap tomondagi asosiy tarkib */}
-          <div className="flex-1 min-w-0 w-full space-y-4">
+          {/* Chap tomondagi asosiy tarkib — alohida mustaqil scroll */}
+          <div className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-5 space-y-4">
             <div className="hidden lg:flex items-center justify-between gap-4 pb-1 border-b border-border/60">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">

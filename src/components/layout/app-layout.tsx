@@ -13,6 +13,8 @@ export function AppLayout() {
   const theme = useAppStore((state) => state.theme);
   const location = useLocation();
   const isFinancialFlow = location.pathname.startsWith('/financial-flow');
+  const isReferences = location.pathname.startsWith('/references');
+  const isSplitViewport = isFinancialFlow || isReferences;
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const isGlobalBusy = isFetching > 0 || isMutating > 0;
@@ -50,19 +52,21 @@ export function AppLayout() {
         {/* HEADER (Fixed height, right-side user info card) */}
         <AppHeader />
 
-        {/* 3. MAIN: FULL WIDTH OCCUPATION (Financial Flow bo'lsa scroll yo'q, 100% to'la kadr) */}
+        {/* 3. MAIN: FULL WIDTH OCCUPATION (Financial Flow / References bo'lsa ichki mustaqil scroll) */}
         <main
           className={cn(
             'flex-1 min-w-0 w-full',
             isFinancialFlow
               ? 'overflow-hidden p-1.5 sm:p-2 flex flex-col min-h-0'
-              : 'overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-5',
+              : isReferences
+                ? 'overflow-hidden p-0 flex flex-col min-h-0'
+                : 'overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-5',
           )}
         >
           <div
             className={cn(
               'w-full min-w-0',
-              isFinancialFlow ? 'h-full flex-1 flex flex-col min-h-0' : '',
+              isSplitViewport ? 'h-full flex-1 flex flex-col min-h-0' : '',
             )}
           >
             <Suspense fallback={<PageSkeleton />}>
