@@ -428,9 +428,6 @@ export function DashboardPage() {
             </Card>
           </div>
 
-          {/* 1.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA) */}
-          <SlaDashboardWidget />
-
           {/* ===================================================================== */}
           {/* 2. QASHQADARYO VILOYATI INTERAKTIV YANDEX XARITASI (2 TAB)            */}
           {/* ===================================================================== */}
@@ -496,6 +493,7 @@ export function DashboardPage() {
               mahallasData={mapTab === 'applications' ? mahallaData : dcMapStats?.byMahalla || []}
               allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
               isLoading={mapTab === 'applications' ? isLoading : isDcMapLoading}
+              entityLabel={mapTab === 'applications' ? 'Arizalar' : 'Aniqlangan jinoyatlar'}
               periodLabel={
                 period === 'today'
                   ? 'Bugun'
@@ -511,6 +509,9 @@ export function DashboardPage() {
               }
             />
           </div>
+
+          {/* 2.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA) */}
+          <SlaDashboardWidget />
 
           {/* ===================================================================== */}
           {/* 3. DYNAMIC CHARTS (TIMELINE & STATUS PIE) */}

@@ -48,6 +48,7 @@ interface Props {
   allowedDistrictNames?: string[];
   isLoading?: boolean;
   periodLabel?: string;
+  entityLabel?: string;
   onDistrictSelect?: (districtName: string | null) => void;
 }
 
@@ -99,6 +100,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   mahallasData = [],
   allowedDistrictNames,
   isLoading = false,
+  entityLabel = 'Arizalar',
   onDistrictSelect,
 }) => {
   const isDark = useAppStore((s) => s.theme === 'dark');
@@ -850,7 +852,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       const placemark = new ymaps.Placemark(
         currentCoords,
         {
-          hintContent: `<b>${mahalla.name}</b><br/>Arizalar: ${mahalla.count} ta<br/>Zarar: ${formatUZS(mahalla.totalLoss)}`,
+          hintContent: `<b>${mahalla.name}</b><br/>${entityLabel}: ${mahalla.count} ta<br/>Zarar: ${formatUZS(mahalla.totalLoss)}`,
         },
         {
           iconLayout: MahallaBadgeLayout,
