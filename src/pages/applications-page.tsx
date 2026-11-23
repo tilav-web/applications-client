@@ -841,8 +841,13 @@ export function ApplicationsPage() {
         {[
           { key: '', label: 'Barchasi' },
           { key: 'overdue', label: 'Muddati o‘tganlar', cls: 'text-rose-600 border-rose-500/30' },
-          { key: 'due_24h', label: '24 soat ichida', cls: 'text-orange-600 border-orange-500/30' },
-          { key: 'due_72h', label: '3 kun ichida', cls: 'text-amber-700 border-amber-500/30' },
+          {
+            key: 'due_24h',
+            label: '24 soat qolganlar',
+            cls: 'text-orange-600 border-orange-500/30',
+          },
+          { key: 'due_72h', label: '3 kun qolganlar', cls: 'text-amber-700 border-amber-500/30' },
+          { key: 'active', label: 'Tekshiruvda (10 kun)', cls: 'text-sky-600 border-sky-500/30' },
           {
             key: 'extended',
             label: 'Uzaytirilgan (1 oy)',
