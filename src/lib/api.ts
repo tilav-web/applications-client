@@ -602,6 +602,29 @@ export const detectedCrimesApi = {
     }>('/detected-crimes/stats');
     return res.data;
   },
+  getMapStats: async (params?: { period?: string; startDate?: string; endDate?: string }) => {
+    const res = await apiClient.get<{
+      total: number;
+      totalDamage: number;
+      byDistrict: Array<{
+        id: string;
+        name: string;
+        count: number;
+        totalLoss: number;
+        percent: number;
+      }>;
+      byMahalla: Array<{
+        id: string;
+        name: string;
+        district_id: string;
+        district_name: string | null;
+        count: number;
+        totalLoss: number;
+        percent: number;
+      }>;
+    }>('/detected-crimes/map-stats', { params });
+    return res.data;
+  },
   getOne: async (id: string) => {
     const res = await apiClient.get<import('@/types/models').DetectedCrime>(
       `/detected-crimes/${id}`,

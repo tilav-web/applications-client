@@ -13,6 +13,7 @@ import {
   LayoutList,
   Loader2,
   MapPin,
+  Radar,
   RefreshCw,
   Scale,
   ShieldAlert,
@@ -44,7 +45,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DashboardSkeleton } from '@/components/ui/page-skeletons';
-import { applicationsApi } from '@/lib/api';
+import { applicationsApi, detectedCrimesApi } from '@/lib/api';
 
 const formatCurrency = (amount?: number | null) => {
   if (amount === undefined || amount === null) return '0 UZS';
@@ -103,7 +104,8 @@ export function DashboardPage() {
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().substring(0, 10));
 
-  // Tab view states (list vs table) for breakdown cards
+  // Tab view states (list vs table) for breakdown cards & map layer
+  const [mapTab, setMapTab] = useState<'applications' | 'detected_crimes'>('applications');
   const [districtView, setDistrictView] = useState<'list' | 'table'>('list');
   const [crimeView, setCrimeView] = useState<'list' | 'table'>('list');
   const [providerView, setProviderView] = useState<'list' | 'table'>('list');
@@ -113,6 +115,18 @@ export function DashboardPage() {
     queryKey: ['dashboard-statistics', { period, startDate, endDate }],
     queryFn: () =>
       applicationsApi.getStatistics({
+        period,
+        startDate: period === 'custom' ? startDate : undefined,
+        endDate: period === 'custom' ? endDate : undefined,
+      }),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const { data: dcMapStats, isLoading: isDcMapLoading } = useQuery({
+    queryKey: ['detected-crimes-map-stats', { period, startDate, endDate }],
+    queryFn: () =>
+      detectedCrimesApi.getMapStats({
         period,
         startDate: period === 'custom' ? startDate : undefined,
         endDate: period === 'custom' ? endDate : undefined,
@@ -418,27 +432,85 @@ export function DashboardPage() {
           <SlaDashboardWidget />
 
           {/* ===================================================================== */}
-          {/* 2. QASHQADARYO VILOYATI INTERAKTIV YANDEX XARITASI */}
+          {/* 2. QASHQADARYO VILOYATI INTERAKTIV YANDEX XARITASI (2 TAB)            */}
           {/* ===================================================================== */}
-          <QashqadaryoYandexMap
-            districtsData={districtData}
-            mahallasData={mahallaData}
-            allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
-            isLoading={isLoading}
-            periodLabel={
-              period === 'today'
-                ? 'Bugun'
-                : period === 'week'
-                  ? 'Haftalik'
-                  : period === 'month'
-                    ? 'Oylik'
-                    : period === 'year'
-                      ? 'Yillik'
-                      : period === 'custom'
-                        ? `${startDate} — ${endDate}`
-                        : 'Barcha davr'
-            }
-          />
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex items-center rounded-xl border border-border/80 bg-card/70 p-1 shadow-2xs gap-1">
+                <button
+                  type="button"
+                  onClick={() => setMapTab('applications')}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                    mapTab === 'applications'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>Arizalar xaritasi</span>
+                  <Badge
+                    variant="secondary"
+                    className={`text-[10px] px-1.5 py-0 font-mono ${
+                      mapTab === 'applications'
+                        ? 'bg-primary-foreground/20 text-primary-foreground'
+                        : ''
+                    }`}
+                  >
+                    {summary.totalApplications}
+                  </Badge>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMapTab('detected_crimes')}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                    mapTab === 'detected_crimes'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  <Radar className="h-3.5 w-3.5" />
+                  <span>Aniqlangan jinoyatlar xaritasi</span>
+                  <Badge
+                    variant="secondary"
+                    className={`text-[10px] px-1.5 py-0 font-mono ${
+                      mapTab === 'detected_crimes' ? 'bg-white/20 text-white' : ''
+                    }`}
+                  >
+                    {dcMapStats?.total ?? 0}
+                  </Badge>
+                </button>
+              </div>
+
+              <span className="text-[11px] text-muted-foreground">
+                {mapTab === 'applications'
+                  ? 'Tumanlar va jabrlanuvchilar yashash mahallalari bo‘yicha'
+                  : 'Fosh etilgan jinoyatlar hududi va huquqbuzarlar mahallalari bo‘yicha'}
+              </span>
+            </div>
+
+            <QashqadaryoYandexMap
+              districtsData={
+                mapTab === 'applications' ? districtData : dcMapStats?.byDistrict || []
+              }
+              mahallasData={mapTab === 'applications' ? mahallaData : dcMapStats?.byMahalla || []}
+              allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
+              isLoading={mapTab === 'applications' ? isLoading : isDcMapLoading}
+              periodLabel={
+                period === 'today'
+                  ? 'Bugun'
+                  : period === 'week'
+                    ? 'Haftalik'
+                    : period === 'month'
+                      ? 'Oylik'
+                      : period === 'year'
+                        ? 'Yillik'
+                        : period === 'custom'
+                          ? `${startDate} — ${endDate}`
+                          : 'Barcha davr'
+              }
+            />
+          </div>
 
           {/* ===================================================================== */}
           {/* 3. DYNAMIC CHARTS (TIMELINE & STATUS PIE) */}
