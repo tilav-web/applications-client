@@ -1,25 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, LogOut, Palette } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { navigationConfig } from '@/config/navigation';
-import { applicationsApi } from '@/lib/api';
 import { useAuthStore } from '@/store';
 import type { NavItem } from '@/types/navigation';
 
 export function AppSidebar() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-
-  const { data: slaOverview } = useQuery({
-    queryKey: ['applications-sla-overview'],
-    queryFn: () => applicationsApi.getSlaOverview(),
-    refetchInterval: 60_000,
-    enabled: Boolean(user),
-  });
-  const overdueCount = slaOverview?.overdueCount || 0;
 
   const handleLogout = async () => {
     await logout();
@@ -72,15 +62,6 @@ export function AppSidebar() {
                     <span className="truncate">{item.title}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {item.path === '/applications' && overdueCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        title={`${overdueCount} ta muddati o‘tgan ariza`}
-                        className="text-[10px] px-1.5 py-0 h-4 bg-rose-600 text-white font-bold"
-                      >
-                        {overdueCount}
-                      </Badge>
-                    )}
                     {item.badge && (
                       <Badge
                         variant="secondary"
