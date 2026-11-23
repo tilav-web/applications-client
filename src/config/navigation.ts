@@ -8,6 +8,7 @@ import {
   FileText,
   GitFork,
   LayoutDashboard,
+  Radar,
   Settings,
   ShieldCheck,
   Users,
@@ -34,6 +35,15 @@ export const navigationConfig: NavItem[] = [
     category: 'main',
     allowedRoles: ['*'],
     description: 'Kelib tushgan fuqarolar arizalari ro‘yxati',
+  },
+  {
+    id: 'detected-crimes',
+    title: 'Aniqlangan Jinoyatlar',
+    path: '/detected-crimes',
+    icon: Radar,
+    category: 'main',
+    allowedRoles: ['*'],
+    description: 'Kiber-monitoring va tezkor tadbirlarda arizasiz fosh etilgan jinoyatlar',
   },
   {
     id: 'citizens',

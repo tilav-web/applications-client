@@ -218,6 +218,108 @@ export interface Workplace {
   updated_at?: string;
 }
 
+export interface DetectionSource {
+  id: string;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type DetectedCrimeQualification = 'PRE_INVESTIGATION' | 'CRIMINAL' | 'ADMINISTRATIVE';
+
+export type SuspectCrimeRole =
+  'TASHKILOTCHI' | 'ADMIN' | 'IJROCHI' | 'VOSITACHI' | 'KARTA_EGASI' | 'BOSHQA';
+
+export type DetentionStatus = 'USHLANGAN' | 'QIDIRUVDA' | 'TILXATDA' | 'OZODLIKDA' | 'ANIQLANMOQDA';
+
+export type EvidenceType =
+  | 'PHONE'
+  | 'LAPTOP_PC'
+  | 'SIM_CARD'
+  | 'STORAGE_MEDIA'
+  | 'CRYPTO_WALLET'
+  | 'BANK_CARD'
+  | 'SCREENSHOT_VIDEO'
+  | 'DOCUMENT'
+  | 'CASH'
+  | 'OTHER';
+
+export interface DetectedCrimeSuspect {
+  id?: string;
+  detected_crime_id?: string;
+  citizen_id: string;
+  citizen?: Citizen | null;
+  role_in_crime: SuspectCrimeRole;
+  detention_status: DetentionStatus;
+  is_repeat_offender?: boolean;
+  notes?: string | null;
+}
+
+export interface DetectedCrimeEvidence {
+  id?: string;
+  detected_crime_id?: string;
+  evidence_type: EvidenceType;
+  title: string;
+  identifier_value?: string | null;
+  seized_at?: string | null;
+  seized_from_citizen_id?: string | null;
+  seized_from_citizen?: Citizen | null;
+  file_key?: string | null;
+  file_name?: string | null;
+  notes?: string | null;
+}
+
+export interface DetectedCrime {
+  id: string;
+  case_number: string | null;
+  title: string;
+  description?: string | null;
+  report_number?: string | null;
+  report_date?: string | null;
+  kusp_number?: string | null;
+  detected_at: string;
+  qualification_type: DetectedCrimeQualification;
+  crime_id?: string | null;
+  crime?: Crime | null;
+  crime_method_id?: string | null;
+  crime_method?: CrimeMethod | null;
+  mjtk_article?: string | null;
+  detection_source_id?: string | null;
+  detection_source?: DetectionSource | null;
+  district_id?: string | null;
+  district?: District | null;
+  department_service_id?: string | null;
+  department_service?: DepartmentService | null;
+  platform?: string | null;
+  channel_or_source_url?: string | null;
+  suspect_tree?: SuspectTreeNode[] | null;
+  estimated_damage?: number | null;
+  officer_notes?: string | null;
+  status_id?: string | null;
+  application_status?: ApplicationStatusItem | null;
+  decision_type_id?: string | null;
+  decision_type?: DecisionType | null;
+  decision_number?: string | null;
+  decision_date?: string | null;
+  decision_note?: string | null;
+  deadline_at?: string | null;
+  sla_days?: number | null;
+  extended_until?: string | null;
+  extension_reason?: string | null;
+  prosecutor_approval_number?: string | null;
+  closed_at?: string | null;
+  detected_by?: UserViewItem | null;
+  created_by?: UserViewItem | null;
+  suspects?: DetectedCrimeSuspect[];
+  evidences?: DetectedCrimeEvidence[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ApplicationSource {
   id: string;
   name: string;

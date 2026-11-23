@@ -31,6 +31,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EntityNetworkGraph } from '@/components/graph/entity-network-graph';
+import { CitizenDetectedCrimesCard } from '@/components/intelligence/citizen-detected-crimes-card';
 import { DossierAnalyticsSection } from '@/components/intelligence/dossier-analytics-section';
 import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
 import { TransitTransferDialog } from '@/components/intelligence/transit-transfer-dialog';
@@ -478,6 +479,9 @@ export function CitizenDossierPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Aniqlangan Jinoyatlar / MJTK Tarixi */}
+      <CitizenDetectedCrimesCard citizenId={cit.id} />
 
       {/* Ikki tomonlama rol (Cross-Role Collision) ogohlantirish banneri */}
       {stats.isCrossRoleCollision && (

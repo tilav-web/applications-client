@@ -21,6 +21,7 @@ import {
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { DetectionSourcesReferenceTab } from '@/components/references/detection-sources-reference-tab';
 import { WorkplacesReferenceTab } from '@/components/references/workplaces-reference-tab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -131,6 +132,7 @@ type ReferenceTabKey =
   | 'crime_methods'
   | 'occupations'
   | 'workplaces'
+  | 'detection_sources'
   | 'sources'
   | 'department_services'
   | 'decision_types'
@@ -234,6 +236,12 @@ const REFERENCE_NAV_GROUPS: Array<{
         label: 'Ish joylari / Tashkilotlar',
         description: 'Maktab, shifoxona, bank va boshqa ish joylari reestri',
         icon: Building2,
+      },
+      {
+        key: 'detection_sources',
+        label: 'Aniqlash Usullari',
+        description: 'Kiber-monitoring, tezkor tadbir, OAV va boshqa aniqlash manbalari',
+        icon: Radio,
       },
     ],
   },
@@ -1035,7 +1043,7 @@ export function ReferencesPage() {
                 </div>
               </div>
 
-              {activeTab !== 'workplaces' && (
+              {activeTab !== 'workplaces' && activeTab !== 'detection_sources' && (
                 <Button
                   size="sm"
                   onClick={openCreateModal}
@@ -1050,6 +1058,11 @@ export function ReferencesPage() {
             {/* WORKPLACES TAB */}
             <TabsContent value="workplaces" className="space-y-4 mt-0">
               <WorkplacesReferenceTab />
+            </TabsContent>
+
+            {/* DETECTION SOURCES TAB */}
+            <TabsContent value="detection_sources" className="space-y-4 mt-0">
+              <DetectionSourcesReferenceTab />
             </TabsContent>
 
             {/* 1. DISTRICTS TAB */}

@@ -38,6 +38,17 @@ const ClueDossierPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import('@/pages/dashboard-page').then((m) => ({ default: m.DashboardPage })),
 );
+const DetectedCrimeDetailPage = lazy(() =>
+  import('@/pages/detected-crime-detail-page').then((m) => ({
+    default: m.DetectedCrimeDetailPage,
+  })),
+);
+const DetectedCrimeFormPage = lazy(() =>
+  import('@/pages/detected-crime-form-page').then((m) => ({ default: m.DetectedCrimeFormPage })),
+);
+const DetectedCrimesPage = lazy(() =>
+  import('@/pages/detected-crimes-page').then((m) => ({ default: m.DetectedCrimesPage })),
+);
 const FinancialFlowPage = lazy(() =>
   import('@/pages/financial-flow-page').then((m) => ({ default: m.FinancialFlowPage })),
 );
@@ -125,6 +136,30 @@ export const router = createBrowserRouter([
           {
             path: 'applications/:id',
             element: <ApplicationDetailPage />,
+          },
+          {
+            path: 'detected-crimes',
+            element: <DetectedCrimesPage />,
+          },
+          {
+            path: 'detected-crimes/create',
+            element: (
+              <RoleRoute disallowedRoles={['BOSS']}>
+                <DetectedCrimeFormPage />
+              </RoleRoute>
+            ),
+          },
+          {
+            path: 'detected-crimes/:id/edit',
+            element: (
+              <RoleRoute disallowedRoles={['BOSS']}>
+                <DetectedCrimeFormPage />
+              </RoleRoute>
+            ),
+          },
+          {
+            path: 'detected-crimes/:id',
+            element: <DetectedCrimeDetailPage />,
           },
           {
             path: 'citizens',
