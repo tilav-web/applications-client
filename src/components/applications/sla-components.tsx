@@ -50,10 +50,9 @@ export function computeSlaState(
   const hoursLeft = Math.round(diffMs / (60 * 60 * 1000));
   const absHours = Math.abs(hoursLeft);
   const days = Math.floor(absHours / 24);
-  const remHours = absHours % 24;
 
   const formatDuration = () => {
-    if (days >= 1) return remHours > 0 ? `${days} kun ${remHours} s` : `${days} kun`;
+    if (days >= 1) return `${days} kun`;
     return `${Math.max(1, absHours)} soat`;
   };
 
