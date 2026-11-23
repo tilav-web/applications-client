@@ -524,6 +524,54 @@ export const detectionSourcesApi = {
   },
 };
 
+export const detectedCrimeStatusesApi = {
+  getAll: async (includeInactive = false) => {
+    const res = await apiClient.get<import('@/types/models').DetectedCrimeStatusItem[]>(
+      '/detected-crime-statuses',
+      { params: includeInactive ? { include_inactive: 'true' } : undefined },
+    );
+    return res.data;
+  },
+  create: async (payload: {
+    name: string;
+    code?: string;
+    color?: string;
+    is_default?: boolean;
+    is_final?: boolean;
+    sort_order?: number;
+  }) => {
+    const res = await apiClient.post<import('@/types/models').DetectedCrimeStatusItem>(
+      '/detected-crime-statuses',
+      payload,
+    );
+    return res.data;
+  },
+  update: async (
+    id: string,
+    payload: {
+      name?: string;
+      code?: string;
+      color?: string;
+      is_default?: boolean;
+      is_final?: boolean;
+      sort_order?: number;
+      is_active?: boolean;
+    },
+  ) => {
+    const res = await apiClient.patch<import('@/types/models').DetectedCrimeStatusItem>(
+      `/detected-crime-statuses/${id}`,
+      payload,
+    );
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/detected-crime-statuses/${id}`,
+    );
+    return res.data;
+  },
+};
+
 export const detectedCrimesApi = {
   getAll: async (params?: {
     page?: number;
@@ -532,9 +580,9 @@ export const detectedCrimesApi = {
     district_id?: string;
     crime_id?: string;
     detection_source_id?: string;
+    crime_status_id?: string;
     status_id?: string;
     qualification_type?: string;
-    sla_filter?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<import('@/types/models').DetectedCrime>>(
       '/detected-crimes',
@@ -548,6 +596,8 @@ export const detectedCrimesApi = {
       criminalCount: number;
       adminCount: number;
       preInvCount: number;
+      finalCount: number;
+      inProgressCount: number;
       overdueCount: number;
     }>('/detected-crimes/stats');
     return res.data;

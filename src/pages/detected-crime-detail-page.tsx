@@ -4,9 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  CalendarClock,
   CheckCircle2,
-  Clock,
   Download,
   Edit2,
   FileText,
@@ -24,12 +22,10 @@ import {
   TrendingUp,
   UploadCloud,
   Users,
-  X,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { SlaBadge } from '@/components/applications/sla-components';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -37,21 +33,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
-import { applicationStatusesApi, detectedCrimesApi, documentsApi, filesApi } from '@/lib/api';
+import { detectedCrimesApi, detectedCrimeStatusesApi, documentsApi, filesApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
-import type { ApplicationStatusItem } from '@/types/models';
+import type { DetectedCrimeStatusItem } from '@/types/models';
 
 const formatCurrency = (amount?: number | string | null) => {
   if (amount === undefined || amount === null || amount === '') return '0 UZS';
@@ -80,11 +67,6 @@ export function DetectedCrimeDetailPage() {
   const { canWrite } = usePermissions();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [extendOpen, setExtendOpen] = useState(false);
-  const [extendDays, setExtendDays] = useState(30);
-  const [extendReason, setExtendReason] = useState('');
-  const [approvalNum, setApprovalNum] = useState('');
-  const [nowMs] = useState(() => Date.now());
   const [activeEditingDocId, setActiveEditingDocId] = useState<string | null>(null);
   const [docToDelete, setDocToDelete] = useState<{ id: string; title: string } | null>(null);
   const [wordDialogState, setWordDialogState] = useState<{
@@ -146,14 +128,14 @@ export function DetectedCrimeDetailPage() {
     onError: (err) => toast.error(`Hujjatni o‘chirishda xatolik: ${getErrorMessage(err)}`),
   });
 
-  const { data: statusesRes } = useQuery({
-    queryKey: ['application-statuses-all'],
-    queryFn: () => applicationStatusesApi.getAll({ limit: 100 }),
+  const { data: allStatuses = [] } = useQuery({
+    queryKey: ['detected-crime-statuses-active'],
+    queryFn: () => detectedCrimeStatusesApi.getAll(),
   });
-  const allStatuses = statusesRes?.items || [];
 
   const updateStatusMut = useMutation({
-    mutationFn: (status_id: string) => detectedCrimesApi.update(id as string, { status_id }),
+    mutationFn: (crime_status_id: string) =>
+      detectedCrimesApi.update(id as string, { crime_status_id }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['detected-crime', id], refetchType: 'all' }),
@@ -177,39 +159,21 @@ export function DetectedCrimeDetailPage() {
     onError: (err) => toast.error('Xatolik', { description: getErrorMessage(err) }),
   });
 
-  const extendMut = useMutation({
-    mutationFn: () =>
-      detectedCrimesApi.extendDeadline(id as string, {
-        extend_days: extendDays,
-        reason: extendReason,
-        prosecutor_approval_number: approvalNum || undefined,
-      }),
-    onSuccess: () => {
-      setExtendOpen(false);
-      setExtendReason('');
-      setApprovalNum('');
-      void queryClient.invalidateQueries({ queryKey: ['detected-crime', id] });
-      void queryClient.invalidateQueries({ queryKey: ['detected-crimes'] });
-      toast.success('Tekshiruv muddati JPK 329-modda bo‘yicha uzaytirildi');
-    },
-    onError: (err) => toast.error('Xatolik', { description: getErrorMessage(err) }),
-  });
-
-  const getStatusBadge = (statusItem?: ApplicationStatusItem | null) => {
-    const label = statusItem?.name || 'Yangi';
-    const color = (statusItem?.color || '').toLowerCase();
+  const getStatusBadge = (statusItem?: DetectedCrimeStatusItem | null) => {
+    const label = statusItem?.name || 'Fosh etildi';
+    const color = (statusItem?.color || 'rose').toLowerCase();
 
     if (color.includes('amber') || color.includes('yellow')) {
       return (
-        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 text-xs py-1 px-3 font-semibold">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
           {label}
         </Badge>
       );
     }
     if (color.includes('emerald') || color.includes('green')) {
       return (
-        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1 text-xs py-1 px-3 font-semibold">
           <CheckCircle2 className="h-3 w-3" />
           {label}
         </Badge>
@@ -217,22 +181,22 @@ export function DetectedCrimeDetailPage() {
     }
     if (color.includes('red') || color.includes('rose')) {
       return (
-        <Badge className="bg-red-500/10 text-red-500 border-red-500/30 gap-1 text-xs py-1 px-3 font-semibold">
-          <X className="h-3 w-3" />
+        <Badge className="bg-rose-500/10 text-rose-600 border-rose-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500 inline-block" />
           {label}
         </Badge>
       );
     }
     if (color.includes('purple') || color.includes('indigo')) {
       return (
-        <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+        <Badge className="bg-indigo-500/10 text-indigo-600 border-indigo-500/30 gap-1 text-xs py-1 px-3 font-semibold">
           <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 inline-block" />
           {label}
         </Badge>
       );
     }
     return (
-      <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs py-1 px-3 font-semibold">
+      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1 text-xs py-1 px-3 font-semibold">
         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" />
         {label}
       </Badge>
@@ -286,16 +250,7 @@ export function DetectedCrimeDetailPage() {
   const repeatCount = (item.suspects || []).filter((s) => s.is_repeat_offender).length;
   const evidenceCount = item.evidences?.length || 0;
   const cluesCount = Array.isArray(item.suspect_tree) ? item.suspect_tree.length : 0;
-
-  // SLA Progress hisoblash
-  const tracksSla = item.application_status ? item.application_status.tracks_sla : true;
-  const startMs = new Date(item.detected_at || item.created_at || nowMs).getTime();
-  const endMs = item.deadline_at ? new Date(item.deadline_at).getTime() : null;
-  const isOverdue = Boolean(tracksSla && endMs && endMs < nowMs);
-  const progressPct =
-    endMs && endMs > startMs
-      ? Math.min(100, Math.max(0, Math.round(((nowMs - startMs) / (endMs - startMs)) * 100)))
-      : 0;
+  const measuresList = Array.isArray(item.measures) ? item.measures : [];
 
   return (
     <div className="w-full space-y-6 pb-16">
@@ -318,7 +273,7 @@ export function DetectedCrimeDetailPage() {
           {/* Tezkor status o'zgartirish */}
           {canWrite && allStatuses.length > 0 && (
             <select
-              value={item.status_id || ''}
+              value={item.crime_status_id || ''}
               onChange={(e) => {
                 if (e.target.value) updateStatusMut.mutate(e.target.value);
               }}
@@ -425,7 +380,7 @@ export function DetectedCrimeDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
-          {getStatusBadge(item.application_status)}
+          {getStatusBadge(item.crime_status)}
           <Badge variant="outline" className="font-semibold text-xs py-1 px-3">
             {qualLabel}
           </Badge>
@@ -441,77 +396,47 @@ export function DetectedCrimeDetailPage() {
       </div>
 
       {/* ===================================================================== */}
-      {/* 2.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA KARTASI)          */}
+      {/* 2.5. KO'RILGAN CHORALAR VA PROTSESSUAL HARAKATLAR                     */}
       {/* ===================================================================== */}
-      {item.deadline_at && (
-        <Card
-          className={cn(
-            'py-0 gap-0 border shadow-2xs overflow-hidden',
-            isOverdue ? 'border-rose-500/40 bg-rose-500/5' : 'border-border/80 bg-card',
-          )}
-        >
-          <CardContent className="p-4 sm:p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-xl',
-                    isOverdue ? 'bg-rose-500/15 text-rose-600' : 'bg-primary/10 text-primary',
-                  )}
-                >
-                  <CalendarClock className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs sm:text-sm font-bold text-foreground">
-                      Protsessual Tekshiruv Muddati (JPK 329-modda)
-                    </span>
-                    <SlaBadge app={item} />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Boshlanish: {formatDate(item.detected_at)} &bull; Muddat:{' '}
-                    <span className="font-semibold text-foreground">
-                      {formatDate(item.deadline_at)}
-                    </span>{' '}
-                    ({item.sla_days || 10} kun)
-                    {item.prosecutor_approval_number
-                      ? ` • Prokuror roziligi: ${item.prosecutor_approval_number}`
-                      : ''}
-                  </p>
-                </div>
-              </div>
-
-              {canWrite && item.application_status?.category !== 'CLOSED' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setExtendOpen(true)}
-                  className="h-8 text-xs gap-1.5 cursor-pointer"
-                >
-                  <Clock className="h-3.5 w-3.5 text-indigo-600" />
-                  Muddatni uzaytirish
-                </Button>
-              )}
+      {measuresList.length > 0 && (
+        <Card className="py-0 gap-0 border-sky-500/30 bg-sky-500/5 shadow-2xs overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-sky-500/20">
+            <div className="flex items-center gap-2.5 text-sky-700 dark:text-sky-400">
+              <CheckCircle2 className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-bold text-foreground">
+                Ko‘rilgan Choralar va Operativ Amallar ({measuresList.length})
+              </CardTitle>
             </div>
-
-            {tracksSla && (
-              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    isOverdue ? 'bg-rose-600' : progressPct >= 75 ? 'bg-amber-500' : 'bg-primary',
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {measuresList.map((m, idx) => (
+              <div
+                key={m.id || idx}
+                className="flex items-start justify-between gap-2 rounded-xl border border-border/70 bg-background p-3 text-xs"
+              >
+                <div className="space-y-0.5">
+                  <div className="font-bold text-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>{m.title}</span>
+                  </div>
+                  {(m.reference_number || m.notes) && (
+                    <div className="text-[11px] text-muted-foreground pl-5">
+                      {m.reference_number && (
+                        <span className="font-mono font-semibold text-primary mr-2">
+                          № {m.reference_number}
+                        </span>
+                      )}
+                      {m.notes}
+                    </div>
                   )}
-                  style={{ width: `${progressPct}%` }}
-                />
+                </div>
+                {m.date && (
+                  <Badge variant="outline" className="text-[10px] font-mono shrink-0">
+                    {formatDate(m.date)}
+                  </Badge>
+                )}
               </div>
-            )}
-
-            {item.extension_reason && (
-              <div className="text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 rounded-lg px-3 py-1.5">
-                <strong>Uzaytirish sababi:</strong> {item.extension_reason}
-              </div>
-            )}
+            ))}
           </CardContent>
         </Card>
       )}
@@ -993,60 +918,6 @@ export function DetectedCrimeDetailPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Uzaytirish modali */}
-      <Dialog open={extendOpen} onOpenChange={setExtendOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base">Muddatni uzaytirish (JPK 329-modda)</DialogTitle>
-            <DialogDescription className="text-xs">
-              Prokuror roziligi bilan tekshiruv muddatini 30 kungacha uzaytiring.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Umumiy muddat (kun)</label>
-              <Input
-                type="number"
-                value={extendDays}
-                onChange={(e) => setExtendDays(Number(e.target.value) || 30)}
-                className="h-9 font-mono font-bold"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Prokuror roziligi raqami</label>
-              <Input
-                placeholder="PR-2026/..."
-                value={approvalNum}
-                onChange={(e) => setApprovalNum(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Sabab *</label>
-              <Input
-                placeholder="Ekspertiza / qo‘shimcha tekshiruv..."
-                value={extendReason}
-                onChange={(e) => setExtendReason(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setExtendOpen(false)}>
-              Bekor qilish
-            </Button>
-            <Button
-              size="sm"
-              disabled={!extendReason.trim() || extendMut.isPending}
-              loading={extendMut.isPending}
-              onClick={() => extendMut.mutate()}
-            >
-              Saqlash
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <ConfirmDialog
         open={deleteOpen}

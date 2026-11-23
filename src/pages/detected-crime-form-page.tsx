@@ -40,12 +40,12 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
-  applicationStatusesApi,
   citizensApi,
   crimesApi,
   decisionTypesApi,
   departmentServicesApi,
   detectedCrimesApi,
+  detectedCrimeStatusesApi,
   detectionSourcesApi,
   districtsApi,
   filesApi,
@@ -54,6 +54,8 @@ import { getErrorMessage } from '@/lib/error';
 import type {
   Citizen,
   DetectedCrimeEvidence,
+  DetectedCrimeMeasure,
+  DetectedCrimeMeasureType,
   DetectedCrimeQualification,
   DetentionStatus,
   EvidenceType,
@@ -85,6 +87,19 @@ const EVIDENCE_TYPE_OPTIONS: Array<{ value: EvidenceType; label: string }> = [
   { value: 'OTHER', label: 'Boshqa dalil' },
 ];
 
+const MEASURE_PRESETS: Array<{ type: DetectedCrimeMeasureType; label: string }> = [
+  { type: 'CARD_BLOCKED', label: 'Karta / bank hisobi bloklandi' },
+  { type: 'CHANNEL_BLOCKED', label: 'Telegram kanal / bot / sayt bloklashga yuborildi' },
+  { type: 'DEVICE_SEIZED', label: 'Telefon / kompyuter olib qo‘yildi' },
+  { type: 'EXPERTISE_ORDERED', label: 'Ekspertiza tayinlandi' },
+  { type: 'SUSPECT_DETAINED', label: 'Gumonlanuvchi ushlandi' },
+  { type: 'SENT_TO_INVESTIGATION', label: 'Tergovga yuborildi (JI qo‘zg‘atildi)' },
+  { type: 'SENT_TO_COURT', label: 'Sudga yuborildi (MJTK / JK)' },
+  { type: 'DAMAGE_RECOVERED', label: 'Zarar qoplandi' },
+  { type: 'TRANSFERRED_AGENCY', label: 'Boshqa organga o‘tkazildi' },
+  { type: 'OTHER', label: 'Boshqa operativ chora' },
+];
+
 export function DetectedCrimeFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
@@ -98,7 +113,7 @@ export function DetectedCrimeFormPage() {
   const [kuspNumber, setKuspNumber] = useState('');
   const [detectedAt, setDetectedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [qualificationType, setQualificationType] =
-    useState<DetectedCrimeQualification>('PRE_INVESTIGATION');
+    useState<DetectedCrimeQualification>('CRIMINAL');
   const [crimeId, setCrimeId] = useState('');
   const [mjtkArticle, setMjtkArticle] = useState('');
   const [detectionSourceId, setDetectionSourceId] = useState('');
@@ -109,8 +124,8 @@ export function DetectedCrimeFormPage() {
   const [estimatedDamage, setEstimatedDamage] = useState('');
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
-  const [statusId, setStatusId] = useState('');
-  const [slaDays, setSlaDays] = useState<number>(10);
+  const [crimeStatusId, setCrimeStatusId] = useState('');
+  const [measures, setMeasures] = useState<DetectedCrimeMeasure[]>([]);
   const [decisionTypeId, setDecisionTypeId] = useState('');
   const [decisionNumber, setDecisionNumber] = useState('');
   const [decisionDate, setDecisionDate] = useState('');
@@ -154,9 +169,9 @@ export function DetectedCrimeFormPage() {
     queryKey: ['detection-sources-active'],
     queryFn: () => detectionSourcesApi.getAll(),
   });
-  const { data: statusesRes } = useQuery({
-    queryKey: ['statuses-for-dc-form'],
-    queryFn: () => applicationStatusesApi.getAll({ page: 1, limit: 100 }),
+  const { data: crimeStatuses } = useQuery({
+    queryKey: ['detected-crime-statuses-active'],
+    queryFn: () => detectedCrimeStatusesApi.getAll(),
   });
   const { data: deptServices } = useQuery({
     queryKey: ['dept-services-for-dc-form'],
@@ -173,9 +188,9 @@ export function DetectedCrimeFormPage() {
     enabled: debouncedCitizenSearch.trim().length >= 2,
   });
 
-  const allStatuses = statusesRes?.items || [];
-  const currentStatusObj = allStatuses.find((s) => s.id === statusId);
-  const currentStatusLabel = currentStatusObj?.name || 'Yangi (Qabul qilindi)';
+  const allStatuses = crimeStatuses || [];
+  const currentStatusObj = allStatuses.find((s) => s.id === crimeStatusId);
+  const currentStatusLabel = currentStatusObj?.name || 'Fosh etildi (Qayd etildi)';
 
   useEffect(() => {
     if (!existing) return;
@@ -200,8 +215,8 @@ export function DetectedCrimeFormPage() {
     );
     setDescription(existing.description || '');
     setOfficerNotes(existing.officer_notes || '');
-    setStatusId(existing.status_id || '');
-    setSlaDays(existing.sla_days || 10);
+    setCrimeStatusId(existing.crime_status_id || '');
+    setMeasures(Array.isArray(existing.measures) ? existing.measures : []);
     setDecisionTypeId(existing.decision_type_id || '');
     setDecisionNumber(existing.decision_number || '');
     setDecisionDate(existing.decision_date ? existing.decision_date.slice(0, 10) : '');
@@ -316,8 +331,8 @@ export function DetectedCrimeFormPage() {
         estimated_damage: estimatedDamage ? Number(estimatedDamage) : null,
         description: description.trim() || null,
         officer_notes: officerNotes.trim() || null,
-        status_id: statusId || null,
-        sla_days: slaDays || 10,
+        crime_status_id: crimeStatusId || null,
+        measures: measures.filter((m) => m.title.trim()),
         decision_type_id: decisionTypeId || null,
         decision_number: decisionNumber.trim() || null,
         decision_date: decisionDate || null,
@@ -438,11 +453,11 @@ export function DetectedCrimeFormPage() {
 
             {/* Holat (Status) */}
             <select
-              value={statusId}
-              onChange={(e) => setStatusId(e.target.value)}
-              className="h-9 rounded-lg border border-input bg-white dark:bg-background px-2.5 text-xs shadow-2xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[190px]"
+              value={crimeStatusId}
+              onChange={(e) => setCrimeStatusId(e.target.value)}
+              className="h-9 rounded-lg border border-input bg-white dark:bg-background px-2.5 text-xs shadow-2xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[210px]"
             >
-              <option value="">Standart (Yangi)</option>
+              <option value="">Fosh etildi (Standart)</option>
               {allStatuses.map((st) => (
                 <option key={st.id} value={st.id}>
                   {st.name}
@@ -705,22 +720,7 @@ export function DetectedCrimeFormPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 h-4">
-                    Tekshiruv muddati (JPK 329-m.)
-                  </label>
-                  <select
-                    value={slaDays}
-                    onChange={(e) => setSlaDays(Number(e.target.value) || 10)}
-                    className="h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-xs font-semibold shadow-2xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                  >
-                    <option value={3}>3 kun (Tezkor tekshiruv)</option>
-                    <option value={10}>10 kun (Standart JPK 329-m.)</option>
-                    <option value={30}>30 kun (Uzaytirilgan)</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5 h-4">
                     JI / Bayonnoma raqami
@@ -787,6 +787,120 @@ export function DetectedCrimeFormPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 2.5-QISM: KO'RILGAN CHORALAR (OPERATIV VA PROTSESSUAL AMALLAR)    */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 space-y-4 bg-sky-50/45 dark:bg-sky-950/15 transition-colors">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-200/70 dark:border-sky-800/40 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                Ko‘rilgan Choralar va Operativ Amallar ({measures.length})
+              </h2>
+            </div>
+            <span className="text-[11px] text-muted-foreground">
+              Tezkor qo‘shish uchun tugmalardan birini bosing:
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {MEASURE_PRESETS.map((preset) => (
+              <Button
+                key={preset.type}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setMeasures((prev) => [
+                    ...prev,
+                    {
+                      id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                      measure_type: preset.type,
+                      title: preset.label,
+                      date: new Date().toISOString().slice(0, 10),
+                      reference_number: '',
+                      notes: '',
+                    },
+                  ])
+                }
+                className="h-7 text-[11px] bg-white dark:bg-background hover:bg-sky-100/60 gap-1 cursor-pointer"
+              >
+                <Plus className="h-3 w-3 text-primary" />
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+
+          {measures.length > 0 && (
+            <div className="space-y-2.5 pt-1">
+              {measures.map((m, idx) => (
+                <div
+                  key={m.id || idx}
+                  className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center rounded-xl border border-border/80 bg-white dark:bg-background p-3 shadow-2xs"
+                >
+                  <Input
+                    placeholder="Chora nomi..."
+                    value={m.title}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMeasures((prev) =>
+                        prev.map((row, i) => (i === idx ? { ...row, title: val } : row)),
+                      );
+                    }}
+                    className="sm:col-span-4 h-9 text-xs font-medium"
+                  />
+                  <Input
+                    type="date"
+                    value={m.date || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMeasures((prev) =>
+                        prev.map((row, i) => (i === idx ? { ...row, date: val } : row)),
+                      );
+                    }}
+                    className="sm:col-span-2 h-9 text-xs"
+                  />
+                  <Input
+                    placeholder="Xat / Bayonnoma №"
+                    value={m.reference_number || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMeasures((prev) =>
+                        prev.map((row, i) => (i === idx ? { ...row, reference_number: val } : row)),
+                      );
+                    }}
+                    className="sm:col-span-2 h-9 text-xs font-mono"
+                  />
+                  <Input
+                    placeholder="Natija / Izoh (masalan: 8600... karta bloklandi)"
+                    value={m.notes || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMeasures((prev) =>
+                        prev.map((row, i) => (i === idx ? { ...row, notes: val } : row)),
+                      );
+                    }}
+                    className="sm:col-span-3 h-9 text-xs"
+                  />
+                  <div className="sm:col-span-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-destructive cursor-pointer"
+                      onClick={() => setMeasures((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ================================================================= */}
@@ -1242,7 +1356,7 @@ export function DetectedCrimeFormPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {title.trim()
-                  ? 'Barcha gumonlanuvchilar, raqamli izlar, dalillar va SLA muddati saqlanadi'
+                  ? 'Barcha ko‘rilgan choralar, gumonlanuvchilar, raqamli izlar va dalillar saqlanadi'
                   : 'Saqlash uchun yuqorida «Aniqlangan holat qisqa sarlavhasi»ni kiriting'}
               </p>
             </div>

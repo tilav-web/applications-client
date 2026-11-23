@@ -21,6 +21,7 @@ import {
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { DetectedCrimeStatusesReferenceTab } from '@/components/references/detected-crime-statuses-reference-tab';
 import { DetectionSourcesReferenceTab } from '@/components/references/detection-sources-reference-tab';
 import { WorkplacesReferenceTab } from '@/components/references/workplaces-reference-tab';
 import { Badge } from '@/components/ui/badge';
@@ -133,6 +134,7 @@ type ReferenceTabKey =
   | 'occupations'
   | 'workplaces'
   | 'detection_sources'
+  | 'detected_crime_statuses'
   | 'sources'
   | 'department_services'
   | 'decision_types'
@@ -242,6 +244,12 @@ const REFERENCE_NAV_GROUPS: Array<{
         label: 'Aniqlash Usullari',
         description: 'Kiber-monitoring, tezkor tadbir, OAV va boshqa aniqlash manbalari',
         icon: Radio,
+      },
+      {
+        key: 'detected_crime_statuses',
+        label: 'Aniqlangan Jinoyat Statuslari',
+        description: 'Fosh etilgan jinoyatlar uchun alohida holatlar (tergov, sud, yakunlandi)',
+        icon: Shield,
       },
     ],
   },
@@ -1043,16 +1051,18 @@ export function ReferencesPage() {
                 </div>
               </div>
 
-              {activeTab !== 'workplaces' && activeTab !== 'detection_sources' && (
-                <Button
-                  size="sm"
-                  onClick={openCreateModal}
-                  className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  Yangi Qo&apos;shish
-                </Button>
-              )}
+              {activeTab !== 'workplaces' &&
+                activeTab !== 'detection_sources' &&
+                activeTab !== 'detected_crime_statuses' && (
+                  <Button
+                    size="sm"
+                    onClick={openCreateModal}
+                    className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Yangi Qo&apos;shish
+                  </Button>
+                )}
             </div>
 
             {/* WORKPLACES TAB */}
@@ -1063,6 +1073,11 @@ export function ReferencesPage() {
             {/* DETECTION SOURCES TAB */}
             <TabsContent value="detection_sources" className="space-y-4 mt-0">
               <DetectionSourcesReferenceTab />
+            </TabsContent>
+
+            {/* DETECTED CRIME STATUSES TAB */}
+            <TabsContent value="detected_crime_statuses" className="space-y-4 mt-0">
+              <DetectedCrimeStatusesReferenceTab />
             </TabsContent>
 
             {/* 1. DISTRICTS TAB */}

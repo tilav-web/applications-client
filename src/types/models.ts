@@ -273,6 +273,38 @@ export interface DetectedCrimeEvidence {
   notes?: string | null;
 }
 
+export interface DetectedCrimeStatusItem {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  is_default: boolean;
+  is_final: boolean;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export type DetectedCrimeMeasureType =
+  | 'CARD_BLOCKED'
+  | 'CHANNEL_BLOCKED'
+  | 'DEVICE_SEIZED'
+  | 'EXPERTISE_ORDERED'
+  | 'SUSPECT_DETAINED'
+  | 'SENT_TO_INVESTIGATION'
+  | 'SENT_TO_COURT'
+  | 'DAMAGE_RECOVERED'
+  | 'TRANSFERRED_AGENCY'
+  | 'OTHER';
+
+export interface DetectedCrimeMeasure {
+  id: string;
+  measure_type: DetectedCrimeMeasureType;
+  title: string;
+  date?: string | null;
+  reference_number?: string | null;
+  notes?: string | null;
+}
+
 export interface DetectedCrime {
   id: string;
   case_number: string | null;
@@ -299,6 +331,9 @@ export interface DetectedCrime {
   suspect_tree?: SuspectTreeNode[] | null;
   estimated_damage?: number | null;
   officer_notes?: string | null;
+  crime_status_id?: string | null;
+  crime_status?: DetectedCrimeStatusItem | null;
+  measures?: DetectedCrimeMeasure[] | null;
   status_id?: string | null;
   application_status?: ApplicationStatusItem | null;
   decision_type_id?: string | null;

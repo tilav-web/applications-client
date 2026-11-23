@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { Download, Plus, Radar, Scale, Search, ShieldAlert, Users } from 'lucide-react';
+import { CheckCircle2, Download, Plus, Radar, Scale, Search, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { SlaBadge } from '@/components/applications/sla-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,8 +20,8 @@ import {
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
-  applicationStatusesApi,
   detectedCrimesApi,
+  detectedCrimeStatusesApi,
   detectionSourcesApi,
   districtsApi,
 } from '@/lib/api';
@@ -54,9 +53,8 @@ export function DetectedCrimesPage() {
   const debouncedSearch = useDebounce(search, 300);
   const [districtId, setDistrictId] = useState('');
   const [sourceId, setSourceId] = useState('');
-  const [statusId, setStatusId] = useState('');
+  const [crimeStatusId, setCrimeStatusId] = useState('');
   const [qualType, setQualType] = useState('');
-  const [slaFilter, setSlaFilter] = useState('');
   const [exporting, setExporting] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -68,9 +66,8 @@ export function DetectedCrimesPage() {
         search: debouncedSearch,
         districtId,
         sourceId,
-        statusId,
+        crimeStatusId,
         qualType,
-        slaFilter,
       },
     ],
     queryFn: () =>
@@ -80,9 +77,8 @@ export function DetectedCrimesPage() {
         search: debouncedSearch || undefined,
         district_id: districtId || undefined,
         detection_source_id: sourceId || undefined,
-        status_id: statusId || undefined,
+        crime_status_id: crimeStatusId || undefined,
         qualification_type: qualType || undefined,
-        sla_filter: slaFilter || undefined,
       }),
   });
 
@@ -101,9 +97,9 @@ export function DetectedCrimesPage() {
     queryFn: () => detectionSourcesApi.getAll(),
   });
 
-  const { data: statusesRes } = useQuery({
-    queryKey: ['statuses-for-dc'],
-    queryFn: () => applicationStatusesApi.getAll({ page: 1, limit: 100 }),
+  const { data: crimeStatuses } = useQuery({
+    queryKey: ['detected-crime-statuses-active'],
+    queryFn: () => detectedCrimeStatusesApi.getAll(),
   });
 
   const handleExport = async () => {
@@ -113,9 +109,8 @@ export function DetectedCrimesPage() {
         search: debouncedSearch || undefined,
         district_id: districtId || undefined,
         detection_source_id: sourceId || undefined,
-        status_id: statusId || undefined,
+        status_id: crimeStatusId || undefined,
         qualification_type: qualType || undefined,
-        sla_filter: slaFilter || undefined,
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -209,17 +204,17 @@ export function DetectedCrimesPage() {
             <Scale className="h-7 w-7 text-amber-600/60" />
           </CardContent>
         </Card>
-        <Card className="border-sky-500/25 bg-sky-500/5">
+        <Card className="border-emerald-500/25 bg-emerald-500/5">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-sky-600 uppercase font-semibold">
-                Muddati o‘tganlar
+              <div className="text-[11px] text-emerald-700 uppercase font-semibold">
+                Yakunlangan (Sud qarori)
               </div>
-              <div className="text-2xl font-bold text-sky-700 mt-0.5">
-                {stats?.overdueCount ?? 0}
+              <div className="text-2xl font-bold text-emerald-700 mt-0.5">
+                {stats?.finalCount ?? 0}
               </div>
             </div>
-            <Users className="h-7 w-7 text-sky-500/60" />
+            <CheckCircle2 className="h-7 w-7 text-emerald-600/60" />
           </CardContent>
         </Card>
       </div>
@@ -288,43 +283,20 @@ export function DetectedCrimesPage() {
             </select>
 
             <select
-              value={statusId}
+              value={crimeStatusId}
               onChange={(e) => {
-                setStatusId(e.target.value);
+                setCrimeStatusId(e.target.value);
                 setPage(1);
               }}
               className="h-9 rounded-md border border-input bg-background px-2.5 text-xs"
             >
               <option value="">Barcha holatlar</option>
-              {(statusesRes?.items || []).map((st) => (
+              {(crimeStatuses || []).map((st) => (
                 <option key={st.id} value={st.id}>
                   {st.name}
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { key: '', label: 'Barchasi' },
-              { key: 'overdue', label: 'Muddati o‘tganlar' },
-              { key: 'due_72h', label: '3 kun qolganlar' },
-              { key: 'extended', label: 'Uzaytirilgan (1 oy)' },
-            ].map((f) => (
-              <Button
-                key={f.key || 'all'}
-                type="button"
-                size="sm"
-                variant={slaFilter === f.key ? 'default' : 'outline'}
-                onClick={() => {
-                  setSlaFilter(f.key);
-                  setPage(1);
-                }}
-                className="h-7 text-[11px] px-2.5 cursor-pointer"
-              >
-                {f.label}
-              </Button>
-            ))}
           </div>
         </CardContent>
       </Card>
@@ -339,7 +311,7 @@ export function DetectedCrimesPage() {
               <TableHead className="text-[11px]">Malaka & Modda</TableHead>
               <TableHead className="text-[11px]">Aniqlash usuli & Hudud</TableHead>
               <TableHead className="text-[11px]">Gumonlanuvchilar</TableHead>
-              <TableHead className="text-[11px]">Holat & Muddat</TableHead>
+              <TableHead className="text-[11px]">Holat & Choralar</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -426,9 +398,15 @@ export function DetectedCrimesPage() {
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
                         <Badge variant="outline" className="text-[10px]">
-                          {item.application_status?.name || 'Yangi'}
+                          {item.crime_status?.name ||
+                            item.application_status?.name ||
+                            'Fosh etildi'}
                         </Badge>
-                        <SlaBadge app={item} />
+                        {Array.isArray(item.measures) && item.measures.length > 0 && (
+                          <span className="text-[10px] text-emerald-600 font-medium">
+                            {item.measures.length} ta chora ko‘rilgan
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
