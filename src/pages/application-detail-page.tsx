@@ -802,6 +802,46 @@ export function ApplicationDetailPage() {
                     {app.citizen.address || '—'}
                   </p>
                 </div>
+
+                {(app.citizen.occupation_category ||
+                  app.citizen.occupation ||
+                  app.workplace ||
+                  app.citizen.workplace ||
+                  app.work_position ||
+                  app.citizen.work_position) && (
+                  <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20 sm:col-span-2 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-indigo-600 block">
+                      Kasbi va Ish Joyi:
+                    </span>
+                    <div className="text-xs font-semibold text-foreground">
+                      {[
+                        app.citizen.occupation_category?.name,
+                        app.citizen.occupation?.name,
+                        app.work_position || app.citizen.work_position,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ') || '—'}
+                    </div>
+                    {(app.workplace || app.citizen.workplace) && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Ish joyi:{' '}
+                        <b className="text-foreground">
+                          {(app.workplace || app.citizen.workplace)?.name}
+                        </b>
+                        {(app.workplace || app.citizen.workplace)?.district?.name
+                          ? ` (${(app.workplace || app.citizen.workplace)?.district?.name}${
+                              (app.workplace || app.citizen.workplace)?.mahalla?.name
+                                ? `, ${(app.workplace || app.citizen.workplace)?.mahalla?.name}`
+                                : ''
+                            })`
+                          : ''}
+                        {(app.workplace || app.citizen.workplace)?.address
+                          ? ` — ${(app.workplace || app.citizen.workplace)?.address}`
+                          : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-6 rounded-xl bg-muted/20 border border-border/50 text-center text-xs text-muted-foreground italic space-y-1">

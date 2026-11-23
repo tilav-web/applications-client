@@ -424,6 +424,61 @@ export const applicationStatusesApi = {
   },
 };
 
+export const workplacesApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    district_id?: string;
+    occupation_category_id?: string;
+    include_inactive?: boolean;
+  }) => {
+    const res = await apiClient.get<PaginatedResponse<import('@/types/models').Workplace>>(
+      '/workplaces',
+      { params },
+    );
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<import('@/types/models').Workplace>(`/workplaces/${id}`);
+    return res.data;
+  },
+  create: async (data: {
+    name: string;
+    district_id?: string | null;
+    mahalla_id?: string | null;
+    occupation_category_id?: string | null;
+    address?: string | null;
+    inn?: string | null;
+    is_active?: boolean;
+  }) => {
+    const res = await apiClient.post<import('@/types/models').Workplace>('/workplaces', data);
+    return res.data;
+  },
+  update: async (
+    id: string,
+    data: Partial<{
+      name: string;
+      district_id?: string | null;
+      mahalla_id?: string | null;
+      occupation_category_id?: string | null;
+      address?: string | null;
+      inn?: string | null;
+      is_active?: boolean;
+    }>,
+  ) => {
+    const res = await apiClient.patch<import('@/types/models').Workplace>(
+      `/workplaces/${id}`,
+      data,
+    );
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/workplaces/${id}`);
+    return res.data;
+  },
+};
+
 // 5.3. Suspect Field Configs API (Gumonlanuvchi belgilari sozlamalari)
 export const suspectFieldConfigsApi = {
   getAll: async (params?: { page?: number; limit?: number; search?: string }) => {

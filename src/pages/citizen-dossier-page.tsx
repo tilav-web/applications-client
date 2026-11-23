@@ -420,6 +420,23 @@ export function CitizenDossierPage() {
                     </span>
                   </span>
                 )}
+                {(cit.occupation_category ||
+                  cit.occupation ||
+                  cit.workplace ||
+                  cit.work_position) && (
+                  <span className="inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
+                    <span>
+                      {[
+                        cit.occupation_category?.name,
+                        cit.occupation?.name,
+                        cit.workplace?.name,
+                        cit.work_position,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </span>
+                  </span>
+                )}
               </div>
             </div>
           </div>

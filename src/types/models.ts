@@ -202,6 +202,22 @@ export interface Occupation {
   updated_at?: string;
 }
 
+export interface Workplace {
+  id: string;
+  name: string;
+  district_id?: string | null;
+  district?: District | null;
+  mahalla_id?: string | null;
+  mahalla?: Mahalla | null;
+  occupation_category_id?: string | null;
+  occupation_category?: OccupationCategory | null;
+  address?: string | null;
+  inn?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ApplicationSource {
   id: string;
   name: string;
@@ -267,6 +283,9 @@ export interface Citizen {
   occupation_category?: OccupationCategory | null;
   occupation_id?: string | null;
   occupation?: Occupation | null;
+  workplace_id?: string | null;
+  workplace?: Workplace | null;
+  work_position?: string | null;
   cards?: Card[];
   phones?: PhoneRecord[];
   digital_identifiers?: DigitalIdentifierRecord[];
@@ -495,6 +514,9 @@ export interface Application {
   rejection_reason?: RejectionReason | null;
   decision_type_id?: string | null;
   decision_type?: DecisionType | null;
+  workplace_id?: string | null;
+  workplace?: Workplace | null;
+  work_position?: string | null;
   created_by_id?: string | null;
   created_by?: UserViewItem | null;
   is_deleted?: boolean;

@@ -4,7 +4,6 @@ import {
   AlertOctagon,
   ArrowLeftRight,
   BookmarkCheck,
-  Briefcase,
   Building2,
   Calendar,
   CheckCircle2,
@@ -38,6 +37,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import {
+  EmploymentSectionCard,
+  type WorkplaceDraft,
+} from '@/components/applications/employment-section-card';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -286,9 +289,20 @@ export function ApplicationCreatePage() {
   const [showCitizenPopover, setShowCitizenPopover] = useState(false);
   const citizenPopoverRef = useRef<HTMLDivElement>(null);
 
-  // Fuqaroning kasbi
+  // Fuqaroning kasbi va ish joyi
   const [occupationCategoryId, setOccupationCategoryId] = useState<string | null>(null);
   const [occupationId, setOccupationId] = useState<string | null>(null);
+  const [selectedWorkplace, setSelectedWorkplace] = useState<
+    import('@/types/models').Workplace | null
+  >(null);
+  const [workplaceDraft, setWorkplaceDraft] = useState<WorkplaceDraft>({
+    name: '',
+    district_id: '',
+    mahalla_id: '',
+    address: '',
+    inn: '',
+  });
+  const [workPosition, setWorkPosition] = useState<string>('');
 
   // Fuqaroning yashash tumani va mahallasi
   const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(null);
@@ -677,6 +691,9 @@ export function ApplicationCreatePage() {
         setOccupationId(
           initialApp.citizen.occupation_id || initialApp.citizen.occupation?.id || null,
         );
+        const initWp = initialApp.workplace || initialApp.citizen.workplace || null;
+        if (initWp) setSelectedWorkplace(initWp);
+        setWorkPosition(initialApp.work_position || initialApp.citizen.work_position || '');
         setCitizenForm({
           first_name: initialApp.citizen.first_name || '',
           last_name: initialApp.citizen.last_name || '',
@@ -943,6 +960,8 @@ export function ApplicationCreatePage() {
     setCitizenMahallaId(c.mahalla_id || c.mahalla?.id || null);
     setOccupationCategoryId(c.occupation_category_id || c.occupation_category?.id || null);
     setOccupationId(c.occupation_id || c.occupation?.id || null);
+    setSelectedWorkplace(c.workplace || null);
+    setWorkPosition(c.work_position || '');
     setCitizenForm({
       first_name: c.first_name || '',
       last_name: c.last_name || '',
@@ -1119,6 +1138,23 @@ export function ApplicationCreatePage() {
       ) {
         payload.citizen_data = citizenDataObj;
       }
+
+      // 1.5. Ish joyi / Tashkilot va lavozimi (Snapshot + Citizen profili)
+      if (selectedWorkplace) {
+        payload.workplace_id = selectedWorkplace.id;
+      } else if (workplaceDraft.name.trim()) {
+        payload.workplace_data = {
+          name: workplaceDraft.name.trim(),
+          district_id: workplaceDraft.district_id || citizenDistrictId || null,
+          mahalla_id: workplaceDraft.mahalla_id || null,
+          occupation_category_id: occupationCategoryId || null,
+          address: workplaceDraft.address.trim() || null,
+          inn: workplaceDraft.inn.trim() || null,
+        };
+      } else {
+        payload.workplace_id = null;
+      }
+      payload.work_position = workPosition.trim() || null;
 
       // 2. Tuman
       if (selectedDistrictId) {
@@ -1799,76 +1835,7 @@ export function ApplicationCreatePage() {
               />
             </div>
 
-            {/* 5-Qator: Fuqaroning Kasbi (2-Bosqichli kaskadli tanlov) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              {/* Kasbi — toifasi */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Briefcase className="h-3.5 w-3.5 text-primary" />
-                    Kasbi — toifasi
-                  </label>
-                  {occupationCategoryId && (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Tanlandi
-                    </Badge>
-                  )}
-                </div>
-                <select
-                  value={occupationCategoryId || ''}
-                  onChange={(e) => {
-                    const catId = e.target.value || null;
-                    setOccupationCategoryId(catId);
-                    setOccupationId(null);
-                  }}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                >
-                  <option value="">-- KASB TOIFASINI TANLANG --</option>
-                  {allOccupationCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Kasbi — turi */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    Kasbi — turi / mutaxassisligi
-                  </label>
-                  {occupationId && (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Tanlandi
-                    </Badge>
-                  )}
-                </div>
-                <select
-                  value={occupationId || ''}
-                  disabled={!occupationCategoryId}
-                  onChange={(e) => setOccupationId(e.target.value || null)}
-                  className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
-                    !occupationCategoryId
-                      ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground'
-                      : ''
-                  }`}
-                >
-                  <option value="">
-                    {occupationCategoryId
-                      ? '-- KASB / MUTAXASSISLIKNI TANLANG --'
-                      : 'AVVAL TOIFANI TANLANG...'}
-                  </option>
-                  {availableOccupations.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {/* Kasb maydonlari alohida "Kasb va Ish Joyi Ma'lumotlari" bo'limiga ko'chirildi */}
 
             {/* Fuqaro Jonli Avtokomplit Popoveri */}
             {showCitizenPopover && !selectedCitizenId && matchedCitizens.length > 0 && (
@@ -1936,6 +1903,27 @@ export function ApplicationCreatePage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ================================================================= */}
+        {/* 1.5-QISM: KASB VA ISH JOYI MA'LUMOTLARI (ALOHIDA BO'LIM) */}
+        {/* ================================================================= */}
+        <div className="p-5 sm:p-6 bg-indigo-50/60 dark:bg-indigo-950/15 transition-colors">
+          <EmploymentSectionCard
+            occupationCategoryId={occupationCategoryId}
+            onOccupationCategoryChange={setOccupationCategoryId}
+            occupationId={occupationId}
+            onOccupationChange={setOccupationId}
+            allOccupationCategories={allOccupationCategories}
+            availableOccupations={availableOccupations}
+            allDistricts={allDistricts}
+            selectedWorkplace={selectedWorkplace}
+            onSelectWorkplace={setSelectedWorkplace}
+            workplaceDraft={workplaceDraft}
+            onWorkplaceDraftChange={setWorkplaceDraft}
+            workPosition={workPosition}
+            onWorkPositionChange={setWorkPosition}
+          />
         </div>
 
         {/* ================================================================= */}

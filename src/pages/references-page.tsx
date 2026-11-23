@@ -21,6 +21,7 @@ import {
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { WorkplacesReferenceTab } from '@/components/references/workplaces-reference-tab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -129,6 +130,7 @@ type ReferenceTabKey =
   | 'crimes'
   | 'crime_methods'
   | 'occupations'
+  | 'workplaces'
   | 'sources'
   | 'department_services'
   | 'decision_types'
@@ -226,6 +228,12 @@ const REFERENCE_NAV_GROUPS: Array<{
         label: 'Kasb & Toifalar',
         description: 'Fuqarolarning bandlik toifalari va kasblari',
         icon: Briefcase,
+      },
+      {
+        key: 'workplaces',
+        label: 'Ish joylari / Tashkilotlar',
+        description: 'Maktab, shifoxona, bank va boshqa ish joylari reestri',
+        icon: Building2,
       },
     ],
   },
@@ -1027,15 +1035,22 @@ export function ReferencesPage() {
                 </div>
               </div>
 
-              <Button
-                size="sm"
-                onClick={openCreateModal}
-                className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                Yangi Qo&apos;shish
-              </Button>
+              {activeTab !== 'workplaces' && (
+                <Button
+                  size="sm"
+                  onClick={openCreateModal}
+                  className="gap-2 shadow-md shadow-primary/25 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Yangi Qo&apos;shish
+                </Button>
+              )}
             </div>
+
+            {/* WORKPLACES TAB */}
+            <TabsContent value="workplaces" className="space-y-4 mt-0">
+              <WorkplacesReferenceTab />
+            </TabsContent>
 
             {/* 1. DISTRICTS TAB */}
             <TabsContent value="districts" className="space-y-4 mt-0">
