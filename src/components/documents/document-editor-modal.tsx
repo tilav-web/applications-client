@@ -1,13 +1,29 @@
 import { DocumentEditor } from '@onlyoffice/document-editor-react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronRight, Download, Loader2, Save, X, Zap } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { type ComponentProps, useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { documentsApi } from '@/lib/api';
 import type { Application } from '@/types/models';
 
 import { QuickActionsPanel } from './quick-actions-panel';
+
+interface OnlyOfficeConnector {
+  disconnect: () => void;
+  executeMethod: (name: string, params: unknown[]) => void;
+}
+
+interface OnlyOfficeDocEditorInstance {
+  serviceCommand?: (command: string, data?: unknown) => void;
+  createConnector: () => OnlyOfficeConnector;
+}
+
+interface OnlyOfficeWindow {
+  DocEditor?: {
+    instances?: Record<string, OnlyOfficeDocEditorInstance | undefined>;
+  };
+}
 
 interface DocumentEditorModalProps {
   documentId: string | null;
@@ -29,7 +45,7 @@ export function DocumentEditorModal({
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isModified, setIsModified] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const connectorRef = useRef<any>(null);
+  const connectorRef = useRef<OnlyOfficeConnector | null>(null);
 
   const editorInstanceId = useId().replace(/[^a-zA-Z0-9]/g, '_');
   const editorId = `docx_editor_${editorInstanceId}`;
@@ -64,7 +80,7 @@ export function DocumentEditorModal({
   const handleForceSave = () => {
     setIsSaving(true);
     try {
-      const docEditor = (window as any).DocEditor?.instances?.[editorId];
+      const docEditor = (window as unknown as OnlyOfficeWindow).DocEditor?.instances?.[editorId];
       if (docEditor && typeof docEditor.serviceCommand === 'function') {
         docEditor.serviceCommand('forcesave');
         setTimeout(() => {
@@ -104,14 +120,14 @@ export function DocumentEditorModal({
 
   // Document Server URL
   const documentServerUrl =
-    (import.meta as any).env?.VITE_ONLYOFFICE_URL ||
+    import.meta.env.VITE_ONLYOFFICE_URL ||
     `${window.location.protocol}//${window.location.hostname}:8084`;
 
   // ONLYOFFICE tayyor bo'lganda ishga tushuvchi callback
   const handleDocumentReady = () => {
     setIsEditorReady(true);
     try {
-      const docEditor = (window as any).DocEditor?.instances?.[editorId];
+      const docEditor = (window as unknown as OnlyOfficeWindow).DocEditor?.instances?.[editorId];
       if (docEditor) {
         const conn = docEditor.createConnector();
         connectorRef.current = conn;
@@ -122,17 +138,16 @@ export function DocumentEditorModal({
   };
 
   // ONLYOFFICE holati o'zgarganda (hujjat tahrirlanganda yoki saqlanganda)
-  const handleDocumentStateChange = (event: any) => {
-    if (event) {
-      if (event.data === true) {
-        // Hujjatda saqlanmagan yangi o'zgarishlar bor
-        setIsModified(true);
-      } else if (event.data === false) {
-        // Barcha o'zgarishlar saqlandi (alert chiqarmay, tugma default ko'rinishga o'tadi)
-        setIsModified(false);
-        setIsSaving(false);
-        onSaved?.();
-      }
+  const handleDocumentStateChange = (event: object) => {
+    const data = event && 'data' in event ? (event as { data?: boolean }).data : undefined;
+    if (data === true) {
+      // Hujjatda saqlanmagan yangi o'zgarishlar bor
+      setIsModified(true);
+    } else if (data === false) {
+      // Barcha o'zgarishlar saqlandi (alert chiqarmay, tugma default ko'rinishga o'tadi)
+      setIsModified(false);
+      setIsSaving(false);
+      onSaved?.();
     }
   };
 
@@ -353,7 +368,7 @@ export function DocumentEditorModal({
                       feedback: false,
                     },
                   },
-                } as any
+                } as unknown as ComponentProps<typeof DocumentEditor>['config']
               }
               events_onDocumentReady={handleDocumentReady}
               events_onDocumentStateChange={handleDocumentStateChange}

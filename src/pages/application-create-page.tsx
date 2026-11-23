@@ -262,7 +262,7 @@ export function ApplicationCreatePage() {
   const [applicationNumber, setApplicationNumber] = useState('');
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
-  const [suspectTree, setSuspectTree] = useState<any[]>([]);
+  const [suspectTree, setSuspectTree] = useState<unknown[]>([]);
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
   const [statusId, setStatusId] = useState<string | null>(null);
   const [sourceId, setSourceId] = useState<string | null>(null);

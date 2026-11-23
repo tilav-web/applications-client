@@ -16,7 +16,9 @@ import type {
   FullDossierResponse,
   GlobalSearchResponse,
   IGraphData,
+  IGraphNode,
   INetworkGraph,
+  LinkedApplicationInfo,
   LiveRadarResponse,
   Mahalla,
   Occupation,
@@ -1215,8 +1217,8 @@ export interface DocumentEditorConfigResponse {
     };
     mode: string;
     lang: string;
-    coEditing?: any;
-    customization?: any;
+    coEditing?: Record<string, unknown>;
+    customization?: Record<string, unknown>;
   };
   documentId: string;
   applicationId: string;
@@ -1445,9 +1447,11 @@ export const financialFlowApi = {
     return res.data;
   },
   getCardDetails: async (cardNumber: string) => {
-    const res = await apiClient.get<{ card: Card; node: any; linkedApplications: any[] }>(
-      `/financial-flow/card/${cardNumber}`,
-    );
+    const res = await apiClient.get<{
+      card: Card;
+      node: IGraphNode | null;
+      linkedApplications: LinkedApplicationInfo[];
+    }>(`/financial-flow/card/${cardNumber}`);
     return res.data;
   },
 };

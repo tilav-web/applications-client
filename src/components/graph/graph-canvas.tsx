@@ -711,8 +711,8 @@ export const GraphCanvas: React.FC<Props> = ({
           : false;
 
         ctx.beginPath();
-        if (typeof (ctx as any).roundRect === 'function') {
-          (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, 4);
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 4);
         } else {
           ctx.rect(boxX, boxY, boxWidth, boxHeight);
         }
@@ -784,8 +784,8 @@ export const GraphCanvas: React.FC<Props> = ({
 
           ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
           ctx.beginPath();
-          if (typeof (ctx as any).roundRect === 'function') {
-            (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
           } else {
             ctx.rect(badgeX, badgeY, badgeW, badgeH);
           }
@@ -959,8 +959,8 @@ export const GraphCanvas: React.FC<Props> = ({
         // Clean backdrop badge so edge lines behind don't collide with text
         ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
         ctx.beginPath();
-        if (typeof (ctx as any).roundRect === 'function') {
-          (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, 5);
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 5);
         } else {
           ctx.rect(badgeX, badgeY, badgeW, badgeH);
         }

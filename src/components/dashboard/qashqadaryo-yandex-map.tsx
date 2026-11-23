@@ -18,10 +18,112 @@ import provinceBoundaryData from '@/data/qashqadaryo-province-boundary.json';
 import realDistrictsData from '@/data/qashqadaryo-real-districts.json';
 import { useAppStore } from '@/store';
 
+type GeoJsonCoordinates = number[] | GeoJsonCoordinates[];
+type YMapsPolygonCoords = [number, number][][] | [number, number][][][];
+
+interface GeoJsonDistrictFeature {
+  properties: {
+    name: string;
+    center?: [number, number];
+  };
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon';
+    coordinates: GeoJsonCoordinates;
+  };
+}
+
+interface GeoJsonFeatureCollection {
+  features: GeoJsonDistrictFeature[];
+}
+
+interface GeoJsonProvinceBoundary {
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon';
+    coordinates: GeoJsonCoordinates;
+  };
+}
+
+interface YMapsEvent {
+  get: (key: string) => unknown;
+  preventDefault: () => void;
+}
+
+interface YMapsEventsManager {
+  add: (event: string, handler: (e: YMapsEvent) => void) => void;
+}
+
+interface YMapsOptionsManager {
+  set: (keyOrOptions: string | Record<string, unknown>, value?: unknown) => void;
+}
+
+interface YMapsGeoObject {
+  events: YMapsEventsManager;
+  options: YMapsOptionsManager;
+  geometry: {
+    getCoordinates: () => [number, number];
+  };
+}
+
+interface YMapsMapInstance {
+  setBounds: (
+    bounds: [[number, number], [number, number]],
+    options?: Record<string, unknown>,
+  ) => void;
+  getZoom: () => number;
+  setZoom: (zoom: number, options?: Record<string, unknown>) => void;
+  behaviors: {
+    enable: (behavior: string) => void;
+  };
+  events: YMapsEventsManager;
+  geoObjects: {
+    add: (obj: YMapsGeoObject) => void;
+    remove: (obj: YMapsGeoObject) => void;
+  };
+  container?: {
+    fitToViewport: () => void;
+  };
+  destroy: () => void;
+}
+
+interface YMapsNamespace {
+  ready: (cb: () => void) => void;
+  Map: new (
+    element: HTMLElement,
+    state: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => YMapsMapInstance;
+  Polygon: new (
+    geometry: YMapsPolygonCoords,
+    properties?: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => YMapsGeoObject;
+  Placemark: new (
+    geometry: [number, number],
+    properties?: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => YMapsGeoObject;
+  templateLayoutFactory: {
+    createClass: (template: string) => unknown;
+  };
+}
+
 declare global {
   interface Window {
-    ymaps: any;
+    ymaps?: YMapsNamespace;
   }
+}
+
+function toYmapsPolygonCoords(
+  type: 'Polygon' | 'MultiPolygon',
+  rawCoords: GeoJsonCoordinates,
+): YMapsPolygonCoords {
+  const flipPoint = (pt: number[]): [number, number] =>
+    pt[0] > 50 ? [pt[1], pt[0]] : [pt[0], pt[1]];
+
+  if (type === 'Polygon') {
+    return (rawCoords as number[][][]).map((ring) => ring.map(flipPoint));
+  }
+  return (rawCoords as number[][][][]).map((poly) => poly.map((ring) => ring.map(flipPoint)));
 }
 
 export interface DistrictStat {
@@ -106,10 +208,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   const isDark = useAppStore((s) => s.theme === 'dark');
   const outerWrapperRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const districtPolygonsRef = useRef<any[]>([]);
-  const placemarksRef = useRef<any[]>([]);
-  const mahallaPlacemarksRef = useRef<any[]>([]);
+  const mapInstanceRef = useRef<YMapsMapInstance | null>(null);
+  const districtPolygonsRef = useRef<YMapsGeoObject[]>([]);
+  const placemarksRef = useRef<YMapsGeoObject[]>([]);
+  const mahallaPlacemarksRef = useRef<YMapsGeoObject[]>([]);
 
   const [isYmapsReady, setIsYmapsReady] = useState(false);
   const [selectedDistrictName, setSelectedDistrictName] = useState<string | null>(null);
@@ -255,7 +357,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
   // Tuman xodimi (DISTRICT_OFFICER) uchun faqat ruxsat etilgan tumanlar chegaralari
   const visibleDistrictFeatures = useMemo(() => {
-    const allFeatures = (realDistrictsData as any).features as any[];
+    const allFeatures = (realDistrictsData as unknown as GeoJsonFeatureCollection).features;
     if (!allowedDistrictNames) return allFeatures;
     const normalize = (s: string) =>
       s
@@ -263,7 +365,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         .replace(/['`‘’]/g, '')
         .trim();
     const allowedSet = new Set(allowedDistrictNames.map(normalize));
-    return allFeatures.filter((feat: any) => allowedSet.has(normalize(feat.properties.name || '')));
+    return allFeatures.filter((feat) => allowedSet.has(normalize(feat.properties.name || '')));
   }, [allowedDistrictNames]);
 
   // Xarita uchun standart chegaralar (DISTRICT_OFFICER bo'lsa biriktirilgan tumanlarga yaqinlashadi)
@@ -275,19 +377,20 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       maxLat = -999,
       minLng = 999,
       maxLng = -999;
-    const walk = (c: any) => {
+    const walk = (c: GeoJsonCoordinates) => {
       if (typeof c[0] === 'number') {
-        const lat = c[0] > 50 ? c[1] : c[0];
-        const lng = c[0] > 50 ? c[0] : c[1];
+        const pt = c as number[];
+        const lat = pt[0] > 50 ? pt[1] : pt[0];
+        const lng = pt[0] > 50 ? pt[0] : pt[1];
         if (lat < minLat) minLat = lat;
         if (lat > maxLat) maxLat = lat;
         if (lng < minLng) minLng = lng;
         if (lng > maxLng) maxLng = lng;
-      } else if (Array.isArray(c)) {
-        c.forEach(walk);
+      } else {
+        (c as GeoJsonCoordinates[]).forEach(walk);
       }
     };
-    visibleDistrictFeatures.forEach((feat: any) => walk(feat.geometry.coordinates));
+    visibleDistrictFeatures.forEach((feat) => walk(feat.geometry.coordinates));
     if (minLat === 999) return PROVINCE_BOUNDS;
     return [
       [minLat, minLng],
@@ -396,7 +499,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
       // Tanlangan tumanning aniq geometrik chegaralariga (Bounds) silliq yaqinlashish
       const feat = visibleDistrictFeatures.find(
-        (f: any) => f.properties.name.toLowerCase() === districtName.toLowerCase(),
+        (f) => f.properties.name.toLowerCase() === districtName.toLowerCase(),
       );
 
       if (feat) {
@@ -404,16 +507,17 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           maxLat = -999,
           minLng = 999,
           maxLng = -999;
-        const walk = (c: any) => {
+        const walk = (c: GeoJsonCoordinates) => {
           if (typeof c[0] === 'number') {
-            const lat = c[0] > 50 ? c[1] : c[0];
-            const lng = c[0] > 50 ? c[0] : c[1];
+            const pt = c as number[];
+            const lat = pt[0] > 50 ? pt[1] : pt[0];
+            const lng = pt[0] > 50 ? pt[0] : pt[1];
             if (lat < minLat) minLat = lat;
             if (lat > maxLat) maxLat = lat;
             if (lng < minLng) minLng = lng;
             if (lng > maxLng) maxLng = lng;
           } else {
-            c.forEach(walk);
+            (c as GeoJsonCoordinates[]).forEach(walk);
           }
         };
         walk(feat.geometry.coordinates);
@@ -462,6 +566,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
     try {
       const ymaps = window.ymaps;
+      if (!ymaps) return;
       const map = new ymaps.Map(
         mapContainerRef.current,
         {
@@ -490,7 +595,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       map.behaviors.enable('dblClickZoom');
 
       // Qashqadaryodan tashqariga bosilganda viloyat umumiy xaritasiga qaytarish
-      map.events.add('click', (e: any) => {
+      map.events.add('click', (e) => {
         if (e.get('target') === map && selectedDistrictNameRef.current) {
           handleSelectDistrict(null);
         }
@@ -530,19 +635,11 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
     // Tuman tanlanganda viloyat tashqi chegarasi qora rangda paydo bo'lishi
     if (isZoomedIn && provinceBoundaryData) {
-      const rawProvinceCoords = (provinceBoundaryData as any).geometry.coordinates;
-      let provinceYmapsCoords: any;
-      if ((provinceBoundaryData as any).geometry.type === 'Polygon') {
-        provinceYmapsCoords = rawProvinceCoords.map((ring: any[]) =>
-          ring.map((pt: any[]) => (pt[0] > 50 ? [pt[1], pt[0]] : [pt[0], pt[1]])),
-        );
-      } else if ((provinceBoundaryData as any).geometry.type === 'MultiPolygon') {
-        provinceYmapsCoords = rawProvinceCoords.map((poly: any[]) =>
-          poly.map((ring: any[]) =>
-            ring.map((pt: any[]) => (pt[0] > 50 ? [pt[1], pt[0]] : [pt[0], pt[1]])),
-          ),
-        );
-      }
+      const provinceGeo = provinceBoundaryData as unknown as GeoJsonProvinceBoundary;
+      const provinceYmapsCoords = toYmapsPolygonCoords(
+        provinceGeo.geometry.type,
+        provinceGeo.geometry.coordinates,
+      );
 
       const provincePolygon = new ymaps.Polygon(
         provinceYmapsCoords,
@@ -572,7 +669,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     }
 
     // Ruxsat etilgan tuman chegaralari (DISTRICT_OFFICER uchun faqat biriktirilgan tumanlar)
-    visibleDistrictFeatures.forEach((feat: any) => {
+    visibleDistrictFeatures.forEach((feat) => {
       const dName = feat.properties.name;
       const isSelected = selectedDistrictName?.toLowerCase() === dName.toLowerCase();
 
@@ -585,19 +682,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       const colors = getRiskBadgeColor(stat.count, maxDistrictCount);
 
       // GeoJSON [lng, lat] ni Yandex [lat, lng] formatiga o'tkazish
-      const rawCoords = feat.geometry.coordinates;
-      let ymapsCoords: any;
-      if (feat.geometry.type === 'Polygon') {
-        ymapsCoords = rawCoords.map((ring: any[]) =>
-          ring.map((pt: any[]) => (pt[0] > 50 ? [pt[1], pt[0]] : [pt[0], pt[1]])),
-        );
-      } else if (feat.geometry.type === 'MultiPolygon') {
-        ymapsCoords = rawCoords.map((poly: any[]) =>
-          poly.map((ring: any[]) =>
-            ring.map((pt: any[]) => (pt[0] > 50 ? [pt[1], pt[0]] : [pt[0], pt[1]])),
-          ),
-        );
-      }
+      const ymapsCoords = toYmapsPolygonCoords(feat.geometry.type, feat.geometry.coordinates);
 
       const defaultStroke = isSelected
         ? isDark
@@ -718,7 +803,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         });
 
         // 2 marta bosganda surishni ochish (yoki bir marta bosganda yaqinlashish)
-        let clickTimer: any = null;
+        let clickTimer: ReturnType<typeof setTimeout> | null = null;
         placemark.events.add('click', () => {
           if (isMoveMode) return;
           if (clickTimer) {
@@ -735,7 +820,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           }, 250);
         });
 
-        placemark.events.add('dblclick', (e: any) => {
+        placemark.events.add('dblclick', (e) => {
           e.preventDefault();
           if (clickTimer) {
             clearTimeout(clickTimer);
@@ -873,7 +958,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       });
 
       // 2 marta bosganda surishni ochish
-      placemark.events.add('dblclick', (e: any) => {
+      placemark.events.add('dblclick', (e) => {
         e.preventDefault();
         placemark.options.set('draggable', true);
         setIsMoveMode(true);

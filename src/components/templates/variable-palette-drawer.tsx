@@ -9,6 +9,7 @@ import {
   Copy,
   CreditCard,
   FileText,
+  type LucideIcon,
   Plus,
   PlusCircle,
   Scale,
@@ -35,7 +36,7 @@ interface VariablePaletteDrawerProps {
   onClose?: () => void;
 }
 
-const CATEGORY_ICONS: Record<string, any> = {
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
   citizen: User,
   application: FileText,
   app: FileText,

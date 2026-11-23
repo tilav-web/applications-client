@@ -92,9 +92,10 @@ export function CreateTemplateDialog({ isOpen, onClose, onSuccess }: CreateTempl
         onSuccess(res);
         handleClose();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string } | null;
       toast.error(
-        'Xatolik: ' + (err.response?.data?.message || err.message || 'Xatolik yuz berdi'),
+        'Xatolik: ' + (apiErr?.response?.data?.message || apiErr?.message || 'Xatolik yuz berdi'),
       );
     } finally {
       setIsSubmitting(false);

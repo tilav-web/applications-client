@@ -3,6 +3,7 @@ import {
   Copy,
   CreditCard,
   FileText,
+  type LucideIcon,
   MapPin,
   Phone,
   Search,
@@ -30,7 +31,7 @@ interface QuickActionsPanelProps {
 interface ActionItem {
   id: string;
   category: string;
-  categoryIcon: any;
+  categoryIcon: LucideIcon;
   label: string;
   value: string;
   description?: string;

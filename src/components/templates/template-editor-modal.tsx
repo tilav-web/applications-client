@@ -1,7 +1,7 @@
 import { DocumentEditor } from '@onlyoffice/document-editor-react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Eye, FileCode2, Loader2, Save, Sparkles, X } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { type ComponentProps, useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
@@ -9,6 +9,22 @@ import { templatesApi } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 
 import { VariablePaletteDrawer } from './variable-palette-drawer';
+
+interface OnlyOfficeConnector {
+  disconnect: () => void;
+  executeMethod: (name: string, params: unknown[]) => void;
+}
+
+interface OnlyOfficeDocEditorInstance {
+  serviceCommand?: (command: string, data?: unknown) => void;
+  createConnector: () => OnlyOfficeConnector;
+}
+
+interface OnlyOfficeWindow {
+  DocEditor?: {
+    instances?: Record<string, OnlyOfficeDocEditorInstance | undefined>;
+  };
+}
 
 interface TemplateEditorModalProps {
   templateId: string | null;
@@ -28,7 +44,7 @@ export function TemplateEditorModal({
   const [isModified, setIsModified] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const connectorRef = useRef<any>(null);
+  const connectorRef = useRef<OnlyOfficeConnector | null>(null);
 
   const editorInstanceId = useId().replace(/[^a-zA-Z0-9]/g, '_');
   const editorId = `tpl_editor_${editorInstanceId}`;
@@ -69,7 +85,7 @@ export function TemplateEditorModal({
   const handleForceSave = () => {
     setIsSaving(true);
     try {
-      const docEditor = (window as any).DocEditor?.instances?.[editorId];
+      const docEditor = (window as unknown as OnlyOfficeWindow).DocEditor?.instances?.[editorId];
       if (docEditor && typeof docEditor.serviceCommand === 'function') {
         docEditor.serviceCommand('forcesave');
         setTimeout(() => {
@@ -111,13 +127,13 @@ export function TemplateEditorModal({
   if (!isOpen || !templateId) return null;
 
   const documentServerUrl =
-    (import.meta as any).env?.VITE_ONLYOFFICE_URL ||
+    import.meta.env.VITE_ONLYOFFICE_URL ||
     `${window.location.protocol}//${window.location.hostname}:8084`;
 
   const handleDocumentReady = () => {
     setIsEditorReady(true);
     try {
-      const docEditor = (window as any).DocEditor?.instances?.[editorId];
+      const docEditor = (window as unknown as OnlyOfficeWindow).DocEditor?.instances?.[editorId];
       if (docEditor) {
         const conn = docEditor.createConnector();
         connectorRef.current = conn;
@@ -127,7 +143,7 @@ export function TemplateEditorModal({
     }
   };
 
-  const handleDocumentStateChange = (event: any) => {
+  const handleDocumentStateChange = (event: { data?: boolean }) => {
     if (event) {
       if (event.data === true) {
         setIsModified(true);
@@ -174,8 +190,9 @@ export function TemplateEditorModal({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       toast.success('Namunaviy ariza bilan to‘ldirilgan Word hujjati yuklab olindi!');
-    } catch (e: any) {
-      toast.error('Sinov generatsiyasida xatolik: ' + (e.message || 'Xatolik'));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Xatolik';
+      toast.error('Sinov generatsiyasida xatolik: ' + msg);
     } finally {
       setIsTesting(false);
     }
@@ -290,7 +307,9 @@ export function TemplateEditorModal({
                 Shablonni yuklashda xatolik yuz berdi
               </p>
               <p className="text-xs text-muted-foreground">
-                {(configError as any)?.message || 'Xatolik tafsilotlari mavjud emas'}
+                {configError instanceof Error
+                  ? configError.message
+                  : 'Xatolik tafsilotlari mavjud emas'}
               </p>
               <Button variant="outline" size="sm" onClick={onClose}>
                 Yopish
@@ -310,7 +329,7 @@ export function TemplateEditorModal({
                       onDocumentReady: handleDocumentReady,
                       onDocumentStateChange: handleDocumentStateChange,
                     },
-                  } as any
+                  } as unknown as ComponentProps<typeof DocumentEditor>['config']
                 }
               />
             </div>

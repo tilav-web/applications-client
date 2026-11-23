@@ -22,10 +22,22 @@ import { cn } from '@/lib/utils';
 import type { SuspectFieldConfig, SuspectFieldItem } from '@/types/models';
 
 interface SuspectTreeBuilderProps {
-  value: SuspectFieldItem[] | any[] | null | undefined;
-  onChange?: (items: any[]) => void;
+  value: readonly unknown[] | null | undefined;
+  onChange?: (items: SuspectFieldItem[]) => void;
   readOnly?: boolean;
   excludeAppId?: string;
+}
+
+interface RawSuspectNode {
+  id?: string;
+  field_key?: string;
+  key?: string;
+  field_label?: string;
+  label?: string;
+  value?: string;
+  note?: string;
+  description?: string;
+  children?: RawSuspectNode[];
 }
 
 // Fallback parametrlar (agar API hali yuklanmagan bo'lsa)
@@ -108,8 +120,8 @@ function normalizeSuspectData(val: unknown): SuspectFieldItem[] {
   const result: SuspectFieldItem[] = [];
 
   for (let i = 0; i < val.length; i++) {
-    const item = val[i];
-    if (!item) continue;
+    const item = val[i] as RawSuspectNode | null | undefined;
+    if (!item || typeof item !== 'object') continue;
 
     // Yangi format: { field_key, value, note }
     if (item.field_key !== undefined || (item.value !== undefined && !item.children)) {
@@ -122,7 +134,7 @@ function normalizeSuspectData(val: unknown): SuspectFieldItem[] {
       });
     } else {
       // Eski daraxt formati: { label, children }
-      const walk = (nodes: any[], path: string[] = []) => {
+      const walk = (nodes: RawSuspectNode[], path: string[] = []) => {
         for (const n of nodes) {
           if (!n) continue;
           const text = (n.label || n.value || '').trim();

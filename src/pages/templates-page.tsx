@@ -41,8 +41,9 @@ export function TemplatesPage() {
       toast.success('Shablon o‘chirildi');
       queryClient.invalidateQueries({ queryKey: ['templates'] });
     },
-    onError: (err: any) => {
-      toast.error('O‘chirishda xatolik: ' + (err.message || 'Xatolik yuz berdi'));
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Xatolik yuz berdi';
+      toast.error('O‘chirishda xatolik: ' + msg);
     },
   });
 
@@ -63,8 +64,9 @@ export function TemplatesPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       toast.success('Namunaviy ariza bilan to‘ldirilgan Word hujjati yuklab olindi!');
-    } catch (e: any) {
-      toast.error('Sinov generatsiyasida xatolik: ' + (e.message || 'Xatolik'));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Xatolik';
+      toast.error('Sinov generatsiyasida xatolik: ' + msg);
     } finally {
       setTestingTemplateId(null);
     }
