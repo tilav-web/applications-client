@@ -22,7 +22,7 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
@@ -50,6 +50,7 @@ import {
   districtsApi,
   filesApi,
 } from '@/lib/api';
+import { formatLocalDateISO, toLocalDateInputValue } from '@/lib/date';
 import { getErrorMessage } from '@/lib/error';
 import type {
   Citizen,
@@ -111,7 +112,7 @@ export function DetectedCrimeFormPage() {
   const [reportNumber, setReportNumber] = useState('');
   const [reportDate, setReportDate] = useState('');
   const [kuspNumber, setKuspNumber] = useState('');
-  const [detectedAt, setDetectedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [detectedAt, setDetectedAt] = useState(() => formatLocalDateISO());
   const [qualificationType, setQualificationType] =
     useState<DetectedCrimeQualification>('CRIMINAL');
   const [crimeId, setCrimeId] = useState('');
@@ -151,10 +152,13 @@ export function DetectedCrimeFormPage() {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
+  const hydratedIdRef = useRef<string | null>(null);
   const { data: existing, isLoading: isLoadingExisting } = useQuery({
     queryKey: ['detected-crime', id],
     queryFn: () => detectedCrimesApi.getOne(id as string),
     enabled: isEdit,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: districtsRes } = useQuery({
@@ -193,13 +197,14 @@ export function DetectedCrimeFormPage() {
   const currentStatusLabel = currentStatusObj?.name || 'Fosh etildi (Qayd etildi)';
 
   useEffect(() => {
-    if (!existing) return;
+    if (!existing || hydratedIdRef.current === existing.id) return;
+    hydratedIdRef.current = existing.id;
     setTitle(existing.title || '');
     setCaseNumber(existing.case_number || '');
     setReportNumber(existing.report_number || '');
-    setReportDate(existing.report_date ? existing.report_date.slice(0, 10) : '');
+    setReportDate(toLocalDateInputValue(existing.report_date));
     setKuspNumber(existing.kusp_number || '');
-    setDetectedAt(existing.detected_at ? existing.detected_at.slice(0, 10) : '');
+    setDetectedAt(toLocalDateInputValue(existing.detected_at));
     setQualificationType(existing.qualification_type || 'PRE_INVESTIGATION');
     setCrimeId(existing.crime_id || '');
     setMjtkArticle(existing.mjtk_article || '');
@@ -219,7 +224,7 @@ export function DetectedCrimeFormPage() {
     setMeasures(Array.isArray(existing.measures) ? existing.measures : []);
     setDecisionTypeId(existing.decision_type_id || '');
     setDecisionNumber(existing.decision_number || '');
-    setDecisionDate(existing.decision_date ? existing.decision_date.slice(0, 10) : '');
+    setDecisionDate(toLocalDateInputValue(existing.decision_date));
     setDecisionNote(existing.decision_note || '');
     setSuspectTree(Array.isArray(existing.suspect_tree) ? existing.suspect_tree : []);
     setSuspects(

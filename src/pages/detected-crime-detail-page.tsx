@@ -824,7 +824,13 @@ export function DetectedCrimeDetailPage() {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() => window.open(documentsApi.getFileUrl(doc.id), '_blank')}
+                      onClick={() =>
+                        window.open(
+                          documentsApi.getFileUrl(doc.id),
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                      }
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
                       title="Yuklab olish"
                     >

@@ -5,6 +5,7 @@ import { type ComponentProps, useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { documentsApi } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import type { Application } from '@/types/models';
 
 import { QuickActionsPanel } from './quick-actions-panel';
@@ -46,6 +47,7 @@ export function DocumentEditorModal({
   const [isModified, setIsModified] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const connectorRef = useRef<OnlyOfficeConnector | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editorInstanceId = useId().replace(/[^a-zA-Z0-9]/g, '_');
   const editorId = `docx_editor_${editorInstanceId}`;
@@ -62,8 +64,28 @@ export function DocumentEditorModal({
     enabled: !!documentId && isOpen,
   });
 
-  // 2. Tozalash: Modal yopilganda connector ni uzish
+  const isReadOnlyMode =
+    configData?.editorConfig?.mode === 'view' || configData?.document?.permissions?.edit === false;
+
+  // 2. Tozalash: Modal yopilganda yoki unmount bo'lganda connector va timerlarni uzish
   useEffect(() => {
+    if (!isOpen) {
+      if (connectorRef.current) {
+        try {
+          connectorRef.current.disconnect();
+        } catch (e) {
+          console.warn('Disconnect error:', e);
+        }
+        connectorRef.current = null;
+      }
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      setIsEditorReady(false);
+      setIsModified(false);
+      setIsSaving(false);
+    }
     return () => {
       if (connectorRef.current) {
         try {
@@ -73,17 +95,24 @@ export function DocumentEditorModal({
         }
         connectorRef.current = null;
       }
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
     };
-  }, []);
+  }, [isOpen, documentId]);
 
   // Hujjatni majburiy saqlash (Ctrl+S yoki tugma orqali)
   const handleForceSave = () => {
+    if (isReadOnlyMode) return;
     setIsSaving(true);
     try {
       const docEditor = (window as unknown as OnlyOfficeWindow).DocEditor?.instances?.[editorId];
       if (docEditor && typeof docEditor.serviceCommand === 'function') {
         docEditor.serviceCommand('forcesave');
-        setTimeout(() => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          saveTimerRef.current = null;
           setIsModified(false);
           setIsSaving(false);
           onSaved?.();
@@ -98,23 +127,28 @@ export function DocumentEditorModal({
     onSaved?.();
   };
 
+  const handleForceSaveRef = useRef(handleForceSave);
+  useEffect(() => {
+    handleForceSaveRef.current = handleForceSave;
+  });
+
   // 3. Klaviatura orqali tezkor saqlash (Ctrl + S yoki Cmd + S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S' || e.code === 'KeyS')) {
         e.preventDefault();
         e.stopPropagation();
-        handleForceSave();
+        handleForceSaveRef.current();
       }
     };
 
-    if (isOpen) {
+    if (isOpen && !isReadOnlyMode) {
       window.addEventListener('keydown', handleKeyDown, true);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isOpen]);
+  }, [isOpen, isReadOnlyMode]);
 
   if (!isOpen || !documentId) return null;
 
@@ -164,14 +198,14 @@ export function DocumentEditorModal({
     }
 
     // Fallback: Clipboard
-    navigator.clipboard.writeText(text);
+    void copyTextToClipboard(text);
     setIsModified(true);
   };
 
   // Faylni to'g'ridan-to'g'ri yuklab olish
   const handleDownload = () => {
     const downloadUrl = documentsApi.getFileUrl(documentId);
-    window.open(downloadUrl, '_blank');
+    window.open(downloadUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -204,72 +238,76 @@ export function DocumentEditorModal({
         {/* O'NG TOMON: Tugmalar (Tezkor amallar Sheet tugmasi, Saqlash, Yuklab olish, Yopish) */}
         <div className="flex items-center gap-2 shrink-0">
           {/* TEZKOR AMALLARNI OCHISH TUGMASI (KICHIK VA TOZA OFFICE USLUBIDA) */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowQuickActions(!showQuickActions)}
-            className={`h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 transition-all shadow-none ${
-              showQuickActions
-                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:text-white'
-                : 'bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border-blue-200'
-            }`}
-            title="Arizachi ma'lumotlarini kursorga joylash paneli"
-          >
-            <Zap className="h-3.5 w-3.5" />
-            <span>Tezkor amallar</span>
-            <ChevronRight
-              className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                showQuickActions ? 'rotate-90' : ''
+          {!isReadOnlyMode && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowQuickActions(!showQuickActions)}
+              className={`h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 transition-all shadow-none ${
+                showQuickActions
+                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:text-white'
+                  : 'bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border-blue-200'
               }`}
-            />
-          </Button>
+              title="Arizachi ma'lumotlarini kursorga joylash paneli"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span>Tezkor amallar</span>
+              <ChevronRight
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                  showQuickActions ? 'rotate-90' : ''
+                }`}
+              />
+            </Button>
+          )}
 
           {/* SAQLASH TUGMASI (O'ZGARISH BO'LSA KO'K VA PULSATING, SAQLANGAN BO'LSA DEFAULT OQ) */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleForceSave}
-            disabled={isSaving}
-            className={`h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 transition-all shadow-none ${
-              isSaving
-                ? 'bg-blue-50 text-blue-700 border-blue-300'
-                : isModified
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600 shadow-xs'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-            }`}
-            title={
-              isModified ? 'O‘zgarishlarni saqlash (Ctrl + S)' : 'Barcha o‘zgarishlar saqlangan'
-            }
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-                <span className="hidden sm:inline">Saqlanmoqda...</span>
-              </>
-            ) : isModified ? (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
-                </span>
-                <Save className="h-3.5 w-3.5 text-white" />
-                <span>Saqlash</span>
-                <kbd className="hidden lg:inline-flex text-[10px] bg-blue-700 text-blue-100 px-1 py-0.5 rounded border border-blue-500 font-mono font-medium">
-                  Ctrl+S
-                </kbd>
-              </>
-            ) : (
-              <>
-                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="hidden sm:inline font-medium text-slate-600">Saqlangan</span>
-                <kbd className="hidden lg:inline-flex text-[10px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded border border-slate-200 font-mono">
-                  Ctrl+S
-                </kbd>
-              </>
-            )}
-          </Button>
+          {!isReadOnlyMode && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleForceSave}
+              disabled={isSaving}
+              className={`h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 transition-all shadow-none ${
+                isSaving
+                  ? 'bg-blue-50 text-blue-700 border-blue-300'
+                  : isModified
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600 shadow-xs'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+              }`}
+              title={
+                isModified ? 'O‘zgarishlarni saqlash (Ctrl + S)' : 'Barcha o‘zgarishlar saqlangan'
+              }
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+                  <span className="hidden sm:inline">Saqlanmoqda...</span>
+                </>
+              ) : isModified ? (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                  </span>
+                  <Save className="h-3.5 w-3.5 text-white" />
+                  <span>Saqlash</span>
+                  <kbd className="hidden lg:inline-flex text-[10px] bg-blue-700 text-blue-100 px-1 py-0.5 rounded border border-blue-500 font-mono font-medium">
+                    Ctrl+S
+                  </kbd>
+                </>
+              ) : (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="hidden sm:inline font-medium text-slate-600">Saqlangan</span>
+                  <kbd className="hidden lg:inline-flex text-[10px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded border border-slate-200 font-mono">
+                    Ctrl+S
+                  </kbd>
+                </>
+              )}
+            </Button>
+          )}
 
           <Button
             type="button"
@@ -356,16 +394,16 @@ export function DocumentEditorModal({
                   },
                   editorConfig: {
                     ...configData.editorConfig,
-                    mode: 'edit',
-                    lang: 'ru',
+                    mode: configData.editorConfig?.mode || 'edit',
+                    lang: configData.editorConfig?.lang || 'ru',
                     customization: {
-                      ...configData.editorConfig?.customization,
                       uiTheme: 'theme-classic-light',
-                      forcesave: true,
-                      autosave: true,
+                      forcesave: !isReadOnlyMode,
+                      autosave: !isReadOnlyMode,
                       compactHeader: false,
                       toolbarNoTabs: false,
                       feedback: false,
+                      ...configData.editorConfig?.customization,
                     },
                   },
                 } as unknown as ComponentProps<typeof DocumentEditor>['config']
@@ -379,7 +417,7 @@ export function DocumentEditorModal({
         )}
 
         {/* TEZKOR AMALLAR UCHUN KICHIK SUZUVCHI YON TUGMA (AGAR PANEL YOPILGAN BO'LSA) */}
-        {application && !showQuickActions && (
+        {application && !isReadOnlyMode && !showQuickActions && (
           <button
             type="button"
             onClick={() => setShowQuickActions(true)}

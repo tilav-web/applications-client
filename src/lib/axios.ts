@@ -110,7 +110,7 @@ apiClient.interceptors.response.use(
         const { data } = await axios.post<{ access_token: string }>(
           `${BASE_URL}/auth/refresh`,
           {},
-          { withCredentials: true },
+          { withCredentials: true, timeout: 15000 },
         );
 
         const newAccessToken = data.access_token;
@@ -129,6 +129,7 @@ apiClient.interceptors.response.use(
         inMemoryAccessToken = null;
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth-storage');
+        localStorage.removeItem('global_recent_searches_v1');
         if (authClearCallback) {
           authClearCallback();
         }

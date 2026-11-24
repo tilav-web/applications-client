@@ -106,7 +106,7 @@ export function AppHeader() {
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Badge className="text-[9px] px-1 py-0 bg-primary/20 text-primary border-0 font-mono">
-                    {user?.role || 'SUPER_ADMIN'}
+                    {user?.role || '—'}
                   </Badge>
                   {user?.is_root && (
                     <Badge className="text-[9px] px-1 py-0 bg-amber-500/20 text-amber-600 dark:text-amber-400 border-0 font-mono">

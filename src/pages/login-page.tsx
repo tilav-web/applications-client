@@ -25,7 +25,7 @@ export function LoginPage() {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!username.trim() || !password.trim()) {
+    if (!username.trim() || !password) {
       setErrorMessage('Login va parolni kiriting');
       return;
     }
@@ -34,7 +34,7 @@ export function LoginPage() {
       setIsLoading(true);
       const { data } = await apiClient.post<LoginResponse>('/auth/login', {
         username: username.trim(),
-        password: password.trim(),
+        password,
       });
 
       setAuth(data.access_token, data.user);

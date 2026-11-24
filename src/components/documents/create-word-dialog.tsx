@@ -57,6 +57,7 @@ export function CreateWordDialog({
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isLoading) return;
     const finalTitle = title.trim() || (fileToUpload ? fileToUpload.name : 'Rasmiy hujjat');
     onSubmit(finalTitle, fileToUpload);
   };

@@ -7,7 +7,19 @@ import {
   setInMemoryAccessToken,
   setTokenUpdateCallback,
 } from '@/lib/axios';
+import { queryClient } from '@/lib/query-client';
 import type { AuthUser } from '@/types/auth';
+
+function clearClientSessionCaches() {
+  setInMemoryAccessToken(null);
+  try {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('global_recent_searches_v1');
+  } catch {
+    // ignore storage errors
+  }
+  queryClient.clear();
+}
 
 interface AuthState {
   user: AuthUser | null;
@@ -54,8 +66,7 @@ export const useAuthStore = create<AuthState>()(
           });
           return data;
         } catch {
-          setInMemoryAccessToken(null);
-          localStorage.removeItem('auth_token');
+          clearClientSessionCaches();
           set({
             user: null,
             token: null,
@@ -72,8 +83,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           // Ignore network errors on logout
         } finally {
-          setInMemoryAccessToken(null);
-          localStorage.removeItem('auth_token');
+          clearClientSessionCaches();
           set({
             user: null,
             token: null,
@@ -96,7 +106,7 @@ export const useAuthStore = create<AuthState>()(
 
 // Axios interceptorlaridan keladigan yangilanishlarni Zustand holatiga sinxronlash
 setAuthClearCallback(() => {
-  setInMemoryAccessToken(null);
+  clearClientSessionCaches();
   useAuthStore.setState({
     user: null,
     token: null,

@@ -37,22 +37,23 @@ export function RoleRoute({
   children,
 }: RoleRouteProps) {
   const user = useAuthStore((state) => state.user);
+  const isLoading = useAuthStore((state) => state.isLoading);
   const role = user?.role;
 
-  if (role) {
-    if (disallowedRoles && disallowedRoles.includes(role)) {
-      return <Navigate to="/" replace />;
-    }
-    if (allowedRoles && !allowedRoles.includes('*') && !allowedRoles.includes(role)) {
-      return <Navigate to="/" replace />;
-    }
-    if (
-      requiresRoot &&
-      typeof user?.is_root === 'boolean' &&
-      !(role === 'SUPER_ADMIN' && user.is_root)
-    ) {
-      return <Navigate to="/" replace />;
-    }
+  // Fail-closed: profil hali yuklanmagan bo'lsa ruxsat bermaymiz
+  if (!role) {
+    if (isLoading) return null;
+    return <Navigate to="/" replace />;
+  }
+
+  if (disallowedRoles && disallowedRoles.includes(role)) {
+    return <Navigate to="/" replace />;
+  }
+  if (allowedRoles && !allowedRoles.includes('*') && !allowedRoles.includes(role)) {
+    return <Navigate to="/" replace />;
+  }
+  if (requiresRoot && !(role === 'SUPER_ADMIN' && user?.is_root === true)) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

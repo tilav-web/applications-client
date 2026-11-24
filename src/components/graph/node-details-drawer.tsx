@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import type { IGraphNode, LinkedApplicationInfo } from '@/types/models';
 
 interface Props {
@@ -60,10 +61,15 @@ export const NodeDetailsDrawer: React.FC<Props> = ({ node, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success('Karta raqami nusxalandi!');
-    setTimeout(() => setCopied(false), 2000);
+    void copyTextToClipboard(text).then((ok) => {
+      if (!ok) {
+        toast.error('Nusxa olib bo‘lmadi');
+        return;
+      }
+      setCopied(true);
+      toast.success('Karta raqami nusxalandi!');
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const isDropper = node.role === 'MULE_DROPPER' || (node.riskScore && node.riskScore >= 70);

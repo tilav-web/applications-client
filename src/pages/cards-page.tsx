@@ -51,6 +51,7 @@ import {
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/use-permissions';
 import { banksApi, cardsApi, citizensApi } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import type { Card } from '@/types/models';
@@ -371,8 +372,12 @@ export function CardsPage() {
                 {selection.singleSelected.card_number && (
                   <DropdownMenuItem
                     onClick={() => {
-                      navigator.clipboard.writeText(selection.singleSelected!.card_number!);
-                      toast.success('Karta raqami nusxalandi');
+                      void copyTextToClipboard(selection.singleSelected!.card_number!).then(
+                        (ok) => {
+                          if (ok) toast.success('Karta raqami nusxalandi');
+                          else toast.error('Nusxa olib bo‘lmadi');
+                        },
+                      );
                     }}
                     className="gap-2 cursor-pointer text-xs py-2"
                   >

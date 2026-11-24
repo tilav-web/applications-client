@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { intelligenceApi } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { getErrorMessage } from '@/lib/error';
 
 const formatMoney = (val?: number | null, cur = 'UZS') =>
@@ -230,12 +231,17 @@ export function CardDossierPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    navigator.clipboard.writeText(
+                    void copyTextToClipboard(
                       (card.card_number || displayNum).replace(/\s+/g, ''),
-                    );
-                    setCopied(true);
-                    toast.success('Karta raqami nusxalandi');
-                    setTimeout(() => setCopied(false), 1800);
+                    ).then((ok) => {
+                      if (!ok) {
+                        toast.error('Nusxa olib bo‘lmadi');
+                        return;
+                      }
+                      setCopied(true);
+                      toast.success('Karta raqami nusxalandi');
+                      setTimeout(() => setCopied(false), 1800);
+                    });
                   }}
                   className="h-7 px-2 text-xs gap-1 cursor-pointer shrink-0"
                 >

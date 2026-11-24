@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCircle2, Copy, ExternalLink, Send, Unlink } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/sonner';
 import { type NotificationPrefs, notificationsApi } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { getErrorMessage } from '@/lib/error';
 
 const PREF_ITEMS: Array<{ key: keyof NotificationPrefs; label: string; desc: string }> = [
@@ -109,9 +110,11 @@ export function TelegramProfileCard() {
   const prefs = data?.prefs;
   const isConnected = Boolean(data?.telegram_connected);
 
-  if (isConnected && deepLink) {
-    setDeepLink(null);
-  }
+  useEffect(() => {
+    if (isConnected && deepLink) {
+      setDeepLink(null);
+    }
+  }, [isConnected, deepLink]);
 
   return (
     <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
@@ -237,8 +240,10 @@ export function TelegramProfileCard() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      void navigator.clipboard.writeText(deepLink);
-                      toast.success('Havola nusxalandi');
+                      void copyTextToClipboard(deepLink).then((ok) => {
+                        if (ok) toast.success('Havola nusxalandi');
+                        else toast.error('Havolani nusxalab bo‘lmadi');
+                      });
                     }}
                     className="h-8 gap-1 text-xs cursor-pointer"
                   >

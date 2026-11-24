@@ -15,14 +15,17 @@ import { GraphFilterBar } from '@/components/graph/graph-filter-bar';
 import { NodeDetailsDrawer } from '@/components/graph/node-details-drawer';
 import { TransitTransferDialog } from '@/components/intelligence/transit-transfer-dialog';
 import { Button } from '@/components/ui/button';
+import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/use-permissions';
 import { financialFlowApi } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
 import type { IGraphNode } from '@/types/models';
 
 export function FinancialFlowPage() {
   const { canWrite } = usePermissions();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [searchCard, setSearchCard] = useState('');
+  const debouncedSearchCard = useDebounce(searchCard, 350);
   const [riskLevel, setRiskLevel] = useState('ALL');
   const [minAmount, setMinAmount] = useState(0);
   const [clusteringEnabled, setClusteringEnabled] = useState(true);
@@ -80,10 +83,14 @@ export function FinancialFlowPage() {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ['financial-flow-graph', { searchCard, riskLevel, minAmount }],
+    queryKey: queryKeys.financialFlow.graph({
+      searchCard: debouncedSearchCard,
+      riskLevel,
+      minAmount,
+    }),
     queryFn: () =>
       financialFlowApi.getGraph({
-        searchCard: searchCard.trim() || undefined,
+        searchCard: debouncedSearchCard.trim() || undefined,
         riskLevel: riskLevel !== 'ALL' ? riskLevel : undefined,
         minAmount: minAmount > 0 ? minAmount : undefined,
       }),

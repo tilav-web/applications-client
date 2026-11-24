@@ -16,14 +16,16 @@ export function AppSidebar() {
     navigate('/login', { replace: true });
   };
 
-  // Filter navigation items dynamically based on the authenticated user's role
-  const userRole = user?.role || 'SUPER_ADMIN';
-  const isRootSuperAdmin = userRole === 'SUPER_ADMIN' && Boolean(user?.is_root);
-  const allowedItems = navigationConfig.filter(
-    (item) =>
-      (item.allowedRoles.includes('*') || item.allowedRoles.includes(userRole)) &&
-      (!item.requiresRoot || isRootSuperAdmin),
-  );
+  // Filter navigation items dynamically based on the authenticated user's role (fail-closed)
+  const userRole = user?.role || '';
+  const isRootSuperAdmin = userRole === 'SUPER_ADMIN' && user?.is_root === true;
+  const allowedItems = userRole
+    ? navigationConfig.filter(
+        (item) =>
+          (item.allowedRoles.includes('*') || item.allowedRoles.includes(userRole)) &&
+          (!item.requiresRoot || isRootSuperAdmin),
+      )
+    : [];
 
   const mainItems = allowedItems.filter((i) => i.category === 'main');
   const operationItems = allowedItems.filter((i) => i.category === 'operations');

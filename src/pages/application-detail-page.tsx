@@ -1175,7 +1175,11 @@ export function ApplicationDetailPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        window.open(documentsApi.getFileUrl(doc.id), '_blank');
+                        window.open(
+                          documentsApi.getFileUrl(doc.id),
+                          '_blank',
+                          'noopener,noreferrer',
+                        );
                       }}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
                       title="Faylni yuklab olish"
@@ -1281,7 +1285,9 @@ export function ApplicationDetailPage() {
                   >
                     <div
                       onClick={() =>
-                        isImg ? setPreviewImage(previewUrl) : window.open(previewUrl, '_blank')
+                        isImg
+                          ? setPreviewImage(previewUrl)
+                          : window.open(previewUrl, '_blank', 'noopener,noreferrer')
                       }
                       className="aspect-square w-full bg-muted/40 flex items-center justify-center overflow-hidden cursor-pointer relative"
                     >

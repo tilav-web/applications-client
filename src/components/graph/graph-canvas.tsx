@@ -170,6 +170,8 @@ export const GraphCanvas: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+  const transformRef = useRef(transform);
+  const selectedNodeRef = useRef(selectedNode);
   const [simNodes, setSimNodes] = useState<SimNode[]>([]);
   const [containerSize, setContainerSize] = useState({ width: 900, height: 600 });
   const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
@@ -332,10 +334,26 @@ export const GraphCanvas: React.FC<Props> = ({
     if (w === undefined) {
       ctx.font = font;
       w = ctx.measureText(text).width;
+      if (textWidthCache.current.size >= 500) {
+        const firstKey = textWidthCache.current.keys().next().value;
+        if (firstKey !== undefined) {
+          textWidthCache.current.delete(firstKey);
+        }
+      }
       textWidthCache.current.set(key, w);
     }
     return w;
   };
+
+  useEffect(() => {
+    transformRef.current = transform;
+    requestRender(10);
+  }, [transform, requestRender]);
+
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+    requestRender(20);
+  }, [selectedNode, requestRender]);
 
   // Initialize nodes simulation positions with Smart Topology & Pre-warming
   useEffect(() => {
@@ -504,14 +522,15 @@ export const GraphCanvas: React.FC<Props> = ({
     let active = true;
 
     const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+      const curTransform = transformRef.current;
       ctx.save();
       ctx.strokeStyle = '#f1f5f9';
       ctx.lineWidth = 1;
       const gridSize = 50;
-      const startX = -transform.x / transform.k;
-      const endX = startX + width / transform.k;
-      const startY = -transform.y / transform.k;
-      const endY = startY + height / transform.k;
+      const startX = -curTransform.x / curTransform.k;
+      const endX = startX + width / curTransform.k;
+      const startY = -curTransform.y / curTransform.k;
+      const endY = startY + height / curTransform.k;
 
       ctx.beginPath();
       for (let x = Math.floor(startX / gridSize) * gridSize; x < endX; x += gridSize) {
@@ -527,6 +546,8 @@ export const GraphCanvas: React.FC<Props> = ({
     };
 
     const renderGraph = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+      const curTransform = transformRef.current;
+      const curSelected = selectedNodeRef.current;
       const dpr = window.devicePixelRatio || 1;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -535,8 +556,8 @@ export const GraphCanvas: React.FC<Props> = ({
       ctx.fillRect(0, 0, width, height);
 
       ctx.save();
-      ctx.translate(transform.x, transform.y);
-      ctx.scale(transform.k, transform.k);
+      ctx.translate(curTransform.x, curTransform.y);
+      ctx.scale(curTransform.k, curTransform.k);
 
       const nodeById = new Map<string, SimNode>();
       simNodes.forEach((n) => nodeById.set(n.id, n));
@@ -545,17 +566,17 @@ export const GraphCanvas: React.FC<Props> = ({
       drawGrid(ctx, width, height);
 
       // Viewport Frustum Culling (ekrandan tashqaridagi ob'ektlarni chizishdan saqlash)
-      const viewMinX = -transform.x / transform.k - 120;
-      const viewMaxX = (width - transform.x) / transform.k + 120;
-      const viewMinY = -transform.y / transform.k - 120;
-      const viewMaxY = (height - transform.y) / transform.k + 120;
+      const viewMinX = -curTransform.x / curTransform.k - 120;
+      const viewMaxX = (width - curTransform.x) / curTransform.k + 120;
+      const viewMinY = -curTransform.y / curTransform.k - 120;
+      const viewMaxY = (height - curTransform.y) / curTransform.k + 120;
 
       const connectedNodeIds = new Set<string>();
-      if (selectedNode) {
-        connectedNodeIds.add(selectedNode.id);
+      if (curSelected) {
+        connectedNodeIds.add(curSelected.id);
         displayEdges.forEach((e) => {
-          if (e.from === selectedNode.id) connectedNodeIds.add(e.to);
-          if (e.to === selectedNode.id) connectedNodeIds.add(e.from);
+          if (e.from === curSelected.id) connectedNodeIds.add(e.to);
+          if (e.to === curSelected.id) connectedNodeIds.add(e.from);
         });
       }
 
@@ -575,10 +596,10 @@ export const GraphCanvas: React.FC<Props> = ({
           return;
         }
 
-        const isHighlighted = selectedNode
-          ? edge.from === selectedNode.id || edge.to === selectedNode.id
+        const isHighlighted = curSelected
+          ? edge.from === curSelected.id || edge.to === curSelected.id
           : true;
-        const alpha = selectedNode ? (isHighlighted ? 0.95 : 0.2) : 0.85;
+        const alpha = curSelected ? (isHighlighted ? 0.95 : 0.2) : 0.85;
 
         const dx = tgt.x - src.x;
         const dy = tgt.y - src.y;
@@ -671,7 +692,7 @@ export const GraphCanvas: React.FC<Props> = ({
 
         // Animated pulse particle (faqat diqqat markazidagi kartalar qirralarida nurlanadi)
         const isFocusedEdge =
-          (selectedNode && (edge.from === selectedNode.id || edge.to === selectedNode.id)) ||
+          (curSelected && (edge.from === curSelected.id || edge.to === curSelected.id)) ||
           (hoveredNode.current &&
             (edge.from === hoveredNode.current.id || edge.to === hoveredNode.current.id));
 
@@ -706,8 +727,8 @@ export const GraphCanvas: React.FC<Props> = ({
         const boxX = midX - boxWidth / 2;
         const boxY = midY - boxHeight / 2;
 
-        const isEdgeActive = selectedNode
-          ? edge.from === selectedNode.id || edge.to === selectedNode.id
+        const isEdgeActive = curSelected
+          ? edge.from === curSelected.id || edge.to === curSelected.id
           : false;
 
         ctx.beginPath();
@@ -741,10 +762,10 @@ export const GraphCanvas: React.FC<Props> = ({
         ) {
           return;
         }
-        const isSelected = selectedNode?.id === node.id;
+        const isSelected = curSelected?.id === node.id;
         const isHovered = hoveredNode.current?.id === node.id;
-        const isConnected = selectedNode ? connectedNodeIds.has(node.id) : true;
-        const alpha = selectedNode ? (isConnected ? 1 : 0.2) : 1;
+        const isConnected = curSelected ? connectedNodeIds.has(node.id) : true;
+        const alpha = curSelected ? (isConnected ? 1 : 0.2) : 1;
 
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -1059,7 +1080,35 @@ export const GraphCanvas: React.FC<Props> = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
     };
-  }, [simNodes, displayEdges, transform, selectedNode, calcNodeRadius, formatUZS, requestRender]);
+  }, [simNodes, displayEdges, calcNodeRadius, formatUZS, requestRender]);
+
+  // Native non-passive wheel listener (Chrome passive-listener preventDefault ogohlantirishini yo'qotadi)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const cur = transformRef.current;
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+      const newK = Math.min(Math.max(cur.k * zoomFactor, 0.3), 3.0);
+
+      const newX = mouseX - (mouseX - cur.x) * (newK / cur.k);
+      const newY = mouseY - (mouseY - cur.y) * (newK / cur.k);
+
+      const next = { x: newX, y: newY, k: newK };
+      transformRef.current = next;
+      setTransform(next);
+      requestRender(20);
+    };
+    canvas.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onNativeWheel);
+    };
+  }, [requestRender]);
 
   // Screen coordinate to graph coordinate
   const screenToGraph = useCallback(
@@ -1090,6 +1139,11 @@ export const GraphCanvas: React.FC<Props> = ({
 
   // Mouse / Pointer event handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
     mouseDownClientPos.current = { x: e.clientX, y: e.clientY };
     const rect = e.currentTarget.getBoundingClientRect();
     const sx = e.clientX - rect.left;
@@ -1104,7 +1158,10 @@ export const GraphCanvas: React.FC<Props> = ({
     } else {
       isNodeHitOnDown.current = false;
       isDraggingCanvas.current = true;
-      dragStart.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+      dragStart.current = {
+        x: e.clientX - transformRef.current.x,
+        y: e.clientY - transformRef.current.y,
+      };
     }
     requestRender(45);
   };
@@ -1143,6 +1200,13 @@ export const GraphCanvas: React.FC<Props> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
     const distMoved = Math.hypot(
       e.clientX - mouseDownClientPos.current.x,
       e.clientY - mouseDownClientPos.current.y,
@@ -1168,20 +1232,17 @@ export const GraphCanvas: React.FC<Props> = ({
     requestRender(40);
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-    const newK = Math.min(Math.max(transform.k * zoomFactor, 0.3), 3.0);
-
-    const newX = mouseX - (mouseX - transform.x) * (newK / transform.k);
-    const newY = mouseY - (mouseY - transform.y) * (newK / transform.k);
-
-    setTransform({ x: newX, y: newY, k: newK });
-    requestRender(20);
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
+    draggedNode.current = null;
+    isDraggingCanvas.current = false;
+    requestRender(10);
   };
 
   const handleZoom = (factor: number) => {
@@ -1256,7 +1317,7 @@ export const GraphCanvas: React.FC<Props> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onWheel={handleWheel}
+        onPointerCancel={handlePointerCancel}
         className="block cursor-grab active:cursor-grabbing w-full h-full"
       />
 

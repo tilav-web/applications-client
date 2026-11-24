@@ -45,6 +45,7 @@ export function TemplateEditorModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const connectorRef = useRef<OnlyOfficeConnector | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editorInstanceId = useId().replace(/[^a-zA-Z0-9]/g, '_');
   const editorId = `tpl_editor_${editorInstanceId}`;
@@ -61,6 +62,11 @@ export function TemplateEditorModal({
     enabled: !!templateId && isOpen,
   });
 
+  const isReadOnlyMode =
+    (configData as { editorConfig?: { mode?: string } } | null)?.editorConfig?.mode === 'view' ||
+    (configData as { document?: { permissions?: { edit?: boolean } } } | null)?.document
+      ?.permissions?.edit === false;
+
   // 2. Fetch Variables Dictionary for Drawer
   const { data: variablesCategories = [] } = useQuery({
     queryKey: ['template-variables'],
@@ -68,8 +74,25 @@ export function TemplateEditorModal({
     enabled: isOpen,
   });
 
-  // 3. Cleanup on unmount
+  // 3. Cleanup on close or unmount
   useEffect(() => {
+    if (!isOpen) {
+      if (connectorRef.current) {
+        try {
+          connectorRef.current.disconnect();
+        } catch (e) {
+          console.warn('Disconnect error:', e);
+        }
+        connectorRef.current = null;
+      }
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      setIsEditorReady(false);
+      setIsModified(false);
+      setIsSaving(false);
+    }
     return () => {
       if (connectorRef.current) {
         try {
@@ -79,16 +102,23 @@ export function TemplateEditorModal({
         }
         connectorRef.current = null;
       }
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
     };
-  }, []);
+  }, [isOpen, templateId]);
 
   const handleForceSave = () => {
+    if (isReadOnlyMode) return;
     setIsSaving(true);
     try {
       const docEditor = (window as unknown as OnlyOfficeWindow).DocEditor?.instances?.[editorId];
       if (docEditor && typeof docEditor.serviceCommand === 'function') {
         docEditor.serviceCommand('forcesave');
-        setTimeout(() => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          saveTimerRef.current = null;
           setIsModified(false);
           setIsSaving(false);
           toast.success('Shablon saqlandi');
@@ -99,12 +129,19 @@ export function TemplateEditorModal({
     } catch (err) {
       console.error('forcesave error:', err);
     }
-    setTimeout(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
       setIsModified(false);
       setIsSaving(false);
       onSaved?.();
     }, 1000);
   };
+
+  const handleForceSaveRef = useRef(handleForceSave);
+  useEffect(() => {
+    handleForceSaveRef.current = handleForceSave;
+  });
 
   // 4. Keyboard save shortcut (Ctrl + S)
   useEffect(() => {
@@ -112,17 +149,17 @@ export function TemplateEditorModal({
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S' || e.code === 'KeyS')) {
         e.preventDefault();
         e.stopPropagation();
-        handleForceSave();
+        handleForceSaveRef.current();
       }
     };
 
-    if (isOpen) {
+    if (isOpen && !isReadOnlyMode) {
       window.addEventListener('keydown', handleKeyDown, true);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isOpen]);
+  }, [isOpen, isReadOnlyMode]);
 
   if (!isOpen || !templateId) return null;
 
@@ -250,30 +287,32 @@ export function TemplateEditorModal({
           </Button>
 
           {/* Save Button */}
-          <Button
-            variant={isModified ? 'default' : 'outline'}
-            size="sm"
-            onClick={handleForceSave}
-            disabled={isSaving}
-            className="gap-1.5 h-8 text-xs min-w-[90px]"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Saqlanmoqda...
-              </>
-            ) : isModified ? (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                Saqlash *
-              </>
-            ) : (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
-                Saqlangan
-              </>
-            )}
-          </Button>
+          {!isReadOnlyMode && (
+            <Button
+              variant={isModified ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleForceSave}
+              disabled={isSaving}
+              className="gap-1.5 h-8 text-xs min-w-[90px]"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Saqlanmoqda...
+                </>
+              ) : isModified ? (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  Saqlash *
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  Saqlangan
+                </>
+              )}
+            </Button>
+          )}
 
           {/* Close Button */}
           <Button

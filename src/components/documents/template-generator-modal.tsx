@@ -81,53 +81,71 @@ export function TemplateGeneratorModal({
 
   // 1. Load available templates
   useEffect(() => {
-    if (isOpen) {
-      setIsLoadingTemplates(true);
-      documentsApi
-        .getTemplates(script)
-        .then((data) => {
-          setTemplates(data);
-          if (data.length > 0 && !data.some((t) => t.id === selectedTemplateId)) {
-            setSelectedTemplateId(initialTemplateId || data[0].id);
+    if (!isOpen) return;
+    let cancelled = false;
+    setIsLoadingTemplates(true);
+    documentsApi
+      .getTemplates(script)
+      .then((data) => {
+        if (cancelled) return;
+        setTemplates(data);
+        setSelectedTemplateId((prev) => {
+          if (data.length > 0 && !data.some((t) => t.id === prev)) {
+            return initialTemplateId || data[0].id;
           }
-        })
-        .catch((err) => {
-          toast.error(`Shablonlarni yuklashda xatolik: ${getErrorMessage(err)}`);
-        })
-        .finally(() => {
-          setIsLoadingTemplates(false);
+          return prev;
         });
-    }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast.error(`Shablonlarni yuklashda xatolik: ${getErrorMessage(err)}`);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingTemplates(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, script, initialTemplateId]);
 
   // 2. Load preview / prefilled data whenever template or script changes
   useEffect(() => {
-    if (isOpen && applicationId && selectedTemplateId) {
-      if (selectedTemplateId === 'blank') {
-        setFieldValues({});
-        setDocumentTitle(script === 'krill' ? 'Янги ҳужжат' : 'Yangi hujjat');
-        return;
-      }
-
-      setIsLoadingPreview(true);
-      documentsApi
-        .getTemplatePreview(applicationId, selectedTemplateId, script)
-        .then((previewRes) => {
-          setFieldValues(previewRes.prefilledData || {});
-          // Qisqa va lo'nda standart nom: masalan "Tushuntirish xati", "Bayonnoma", "Sanksiya qarori"
-          const shortTitle =
-            previewRes.template.defaultDocTitle ||
-            previewRes.template.title.split('(')[0].trim() ||
-            'Rasmiy hujjat';
-          setDocumentTitle(shortTitle);
-        })
-        .catch((err) => {
-          toast.error(`Shablon ma'lumotlarini to'ldirishda xatolik: ${getErrorMessage(err)}`);
-        })
-        .finally(() => {
-          setIsLoadingPreview(false);
-        });
+    if (!isOpen || !applicationId || !selectedTemplateId) return;
+    if (selectedTemplateId === 'blank') {
+      setFieldValues({});
+      setDocumentTitle(script === 'krill' ? 'Янги ҳужжат' : 'Yangi hujjat');
+      setIsLoadingPreview(false);
+      return;
     }
+
+    let cancelled = false;
+    setIsLoadingPreview(true);
+    documentsApi
+      .getTemplatePreview(applicationId, selectedTemplateId, script)
+      .then((previewRes) => {
+        if (cancelled) return;
+        setFieldValues(previewRes.prefilledData || {});
+        // Qisqa va lo'nda standart nom: masalan "Tushuntirish xati", "Bayonnoma", "Sanksiya qarori"
+        const shortTitle =
+          previewRes.template.defaultDocTitle ||
+          previewRes.template.title.split('(')[0].trim() ||
+          'Rasmiy hujjat';
+        setDocumentTitle(shortTitle);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast.error(`Shablon ma'lumotlarini to'ldirishda xatolik: ${getErrorMessage(err)}`);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingPreview(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, applicationId, selectedTemplateId, script]);
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);

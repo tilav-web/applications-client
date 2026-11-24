@@ -1,43 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertCircle,
   AlertOctagon,
-  ArrowLeftRight,
   BookmarkCheck,
   Building2,
-  Calendar,
   CheckCircle2,
-  Clock,
-  CreditCard,
-  Download,
-  Edit2,
-  ExternalLink,
-  File as FileIcon,
   FileText,
-  FileUp,
   Layers,
   Loader2,
   MapPin,
-  Paperclip,
-  Plus,
   Radio,
   RotateCcw,
   Save,
   Scale,
   Shield,
-  ShieldAlert,
   Sparkles,
   Trash2,
-  UploadCloud,
   User,
-  UserCheck,
-  UserPlus,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import type {
+  AppCustomFieldState,
+  FinancialTransferEntry,
+} from '@/components/applications/application-form.types';
 import { EmploymentSectionCard } from '@/components/applications/employment-section-card';
+import { EvidenceAndCitizensSection } from '@/components/applications/evidence-and-citizens-section';
+import { FinancialTransfersSection } from '@/components/applications/financial-transfers-section';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -72,8 +62,6 @@ import {
   districtsApi,
   documentsApi,
   filesApi,
-  getFileDownloadUrl,
-  getFileViewUrl,
   mahallasApi,
   occupationCategoriesApi,
   occupationsApi,
@@ -81,108 +69,15 @@ import {
   rejectionReasonsApi,
   type UploadedFile,
 } from '@/lib/api';
+import { formatLocalDateISO, toLocalDateInputValue } from '@/lib/date';
 import { getErrorMessage } from '@/lib/error';
-import {
-  formatAmountInput,
-  formatAmountWords,
-  formatCardNumberDisplay,
-  formatTitleCase,
-  formatUzbekName,
-} from '@/lib/formatters';
-import type {
-  ApplicationStatus,
-  Citizen,
-  CrimeGravity,
-  CrimeMethod,
-  CustomFieldType,
-  TransferCustomField,
-} from '@/types/models';
+import { formatTitleCase, formatUzbekName } from '@/lib/formatters';
+import type { ApplicationStatus, Citizen, CrimeMethod, CustomFieldType } from '@/types/models';
 
-export interface AppCustomFieldState {
-  clientId: string;
-  type: CustomFieldType;
-  label: string;
-  key: string;
-  value: unknown;
-  order: number;
-  citizen_id?: string | null;
-  card_id?: string | null;
-  crime_id?: string | null;
-  district_id?: string | null;
-  transfer_id?: string | null;
-  inline_citizen?: {
-    first_name: string;
-    last_name: string;
-    middle_name?: string;
-    passport: string;
-    phone_number: string;
-    pinfl?: string;
-    birth_date?: string;
-    gender?: 'male' | 'female' | '';
-    address?: string;
-    district_id?: string | null;
-    district_name?: string;
-    mahalla_id?: string | null;
-    mahalla_name?: string;
-  };
-  inline_card?: {
-    card_number: string;
-    expire_date?: string;
-    full_name?: string;
-    bank_name?: string;
-    bank_mfo?: string;
-  };
-  inline_crime?: {
-    article: string;
-    title?: string;
-    clause?: string;
-    gravity?: CrimeGravity;
-  };
-  inline_district?: {
-    name: string;
-    code?: string;
-  };
-  inline_transfer?: {
-    amount: string | number;
-    currency: string;
-    payment_provider_id?: string;
-    payment_provider_name?: string;
-    receiver_card_id?: string;
-    receiver_card_number?: string;
-    receiver_card_full_name?: string;
-    receiver_bank_name?: string;
-    transfer_date?: string;
-    transfer_time?: string;
-    transfer_custom_fields?: TransferCustomField[];
-  };
-  isUploading?: boolean;
-}
-
-export interface FinancialTransferEntry {
-  clientId: string;
-  victimCardId: string | null;
-  victimCardNumber: string;
-  victimCardFullName: string;
-  victimBankName: string;
-  transferId: string | null;
-  amount: string;
-  currency: string;
-  providerId: string | null;
-  providerName: string;
-  transferDate: string; // YYYY-MM-DD
-  transferTime: string; // HH:MM
-  receiverCardId: string | null;
-  receiverCardNumber: string;
-  receiverCardFullName: string;
-  receiverBankName: string;
-}
-
-const formatFileSize = (bytes?: number) => {
-  if (!bytes) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
+export type {
+  AppCustomFieldState,
+  FinancialTransferEntry,
+} from '@/components/applications/application-form.types';
 
 let transferClientIdCounter = 0;
 const createDefaultTransferEntry = (): FinancialTransferEntry => ({
@@ -203,48 +98,6 @@ const createDefaultTransferEntry = (): FinancialTransferEntry => ({
   receiverCardFullName: '',
   receiverBankName: '',
 });
-
-function CustomCitizenMahallaSelect({
-  districtId,
-  mahallaId,
-  onSelect,
-}: {
-  districtId: string | null;
-  mahallaId: string | null;
-  onSelect: (id: string | null, name: string) => void;
-}) {
-  const { data: mahallasData } = useQuery({
-    queryKey: ['custom-citizen-mahallas-select', districtId],
-    queryFn: () => mahallasApi.getAll({ district_id: districtId!, limit: 200 }),
-    enabled: Boolean(districtId),
-  });
-
-  const items = mahallasData?.items || [];
-
-  return (
-    <select
-      value={mahallaId || ''}
-      disabled={!districtId}
-      onChange={(e) => {
-        const val = e.target.value;
-        const found = items.find((m) => m.id === val);
-        onSelect(val || null, found?.name || '');
-      }}
-      className={`h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
-        !districtId ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground' : ''
-      }`}
-    >
-      <option value="">
-        {districtId ? '-- MAHALLANI TANLANG --' : 'AVVAL TUMANNI TANLANG...'}
-      </option>
-      {items.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 export function ApplicationCreatePage() {
   const { id } = useParams<{ id: string }>();
@@ -268,7 +121,7 @@ export function ApplicationCreatePage() {
   const [status, setStatus] = useState<ApplicationStatus>('YANGI');
   const [statusId, setStatusId] = useState<string | null>(null);
   const [sourceId, setSourceId] = useState<string | null>(null);
-  const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
+  const [date, setDate] = useState(() => formatLocalDateISO());
 
   // ==========================================================================
   // 2. ARIZACHI FUQARO ANKETASI
@@ -455,10 +308,13 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // QUERY & DATA FETCHING
   // ==========================================================================
+  const hydratedAppIdRef = useRef<string | null>(null);
   const { data: initialApp, isLoading } = useQuery({
     queryKey: ['application-draft', id],
     queryFn: () => applicationsApi.getOne(id as string),
     enabled: !!id,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const isExplicitEditRoute = location.pathname.includes('/applications/edit/');
@@ -579,11 +435,31 @@ export function ApplicationCreatePage() {
     return groups;
   }, [allCrimeMethods]);
 
-  const { data: cardsData } = useQuery({
-    queryKey: ['cards-autocomplete'],
-    queryFn: () => cardsApi.getAll({ limit: 100 }),
+  const currentActiveTransfer =
+    activeTransferPopover !== null ? financialTransfers[activeTransferPopover.index] : null;
+
+  const activeVictimCardDigits = (currentActiveTransfer?.victimCardNumber || '').replace(/\D/g, '');
+  const activeReceiverCardDigits = (currentActiveTransfer?.receiverCardNumber || '').replace(
+    /\D/g,
+    '',
+  );
+  const debouncedVictimCardQuery = useDebounce(activeVictimCardDigits, 250);
+  const debouncedReceiverCardQuery = useDebounce(activeReceiverCardDigits, 250);
+
+  const { data: victimCardsSearchData } = useQuery({
+    queryKey: ['cards-search-victim', debouncedVictimCardQuery],
+    queryFn: () => cardsApi.getAll({ search: debouncedVictimCardQuery, limit: 15 }),
+    enabled: activeTransferPopover?.type === 'victimCard' && debouncedVictimCardQuery.length >= 4,
+    placeholderData: (prev) => prev,
   });
-  const allCards = cardsData?.items || [];
+
+  const { data: receiverCardsSearchData } = useQuery({
+    queryKey: ['cards-search-receiver', debouncedReceiverCardQuery],
+    queryFn: () => cardsApi.getAll({ search: debouncedReceiverCardQuery, limit: 15 }),
+    enabled:
+      activeTransferPopover?.type === 'receiverCard' && debouncedReceiverCardQuery.length >= 4,
+    placeholderData: (prev) => prev,
+  });
 
   const { data: banksData } = useQuery({
     queryKey: ['banks-autocomplete'],
@@ -650,241 +526,236 @@ export function ApplicationCreatePage() {
   // POPULATE INITIAL DATA
   // ==========================================================================
   useEffect(() => {
-    if (initialApp) {
-      setApplicationNumber(initialApp.application_number || '');
-      setDescription(initialApp.description || '');
-      setOfficerNotes(initialApp.officer_notes || '');
-      if (initialApp.suspect_tree && Array.isArray(initialApp.suspect_tree)) {
-        setSuspectTree(initialApp.suspect_tree);
-      }
-      setStatus(initialApp.status || initialApp.application_status?.code || 'YANGI');
-      setStatusId(initialApp.status_id || initialApp.application_status?.id || null);
-      setSourceId(initialApp.source_id || initialApp.source?.id || null);
-      setDepartmentServiceId(
-        initialApp.department_service_id || initialApp.department_service?.id || null,
+    if (!initialApp) return;
+    // Bir marta yuklangandan keyin fon refetch'lari tahrirlanayotgan formani qayta yozmasin
+    if (hydratedAppIdRef.current === initialApp.id) return;
+    hydratedAppIdRef.current = initialApp.id;
+
+    setApplicationNumber(initialApp.application_number || '');
+    setDescription(initialApp.description || '');
+    setOfficerNotes(initialApp.officer_notes || '');
+    if (initialApp.suspect_tree && Array.isArray(initialApp.suspect_tree)) {
+      setSuspectTree(initialApp.suspect_tree);
+    }
+    setStatus(initialApp.status || initialApp.application_status?.code || 'YANGI');
+    setStatusId(initialApp.status_id || initialApp.application_status?.id || null);
+    setSourceId(initialApp.source_id || initialApp.source?.id || null);
+    setDepartmentServiceId(
+      initialApp.department_service_id || initialApp.department_service?.id || null,
+    );
+    setDecisionTypeId(initialApp.decision_type_id || initialApp.decision_type?.id || null);
+    setRejectionReasonId(initialApp.rejection_reason_id || initialApp.rejection_reason?.id || null);
+    setSlaDays(initialApp.sla_days ? String(initialApp.sla_days) : '');
+    setDecisionNumber(initialApp.decision_number || '');
+    setDecisionDate(toLocalDateInputValue(initialApp.decision_date));
+    setDecisionNote(initialApp.decision_note || '');
+    if (initialApp.date) {
+      setDate(toLocalDateInputValue(initialApp.date));
+    }
+
+    if (initialApp.citizen) {
+      setSelectedCitizenId(initialApp.citizen.id);
+      setCitizenDistrictId(
+        initialApp.citizen.district_id || initialApp.citizen.district?.id || null,
       );
-      setDecisionTypeId(initialApp.decision_type_id || initialApp.decision_type?.id || null);
-      setRejectionReasonId(
-        initialApp.rejection_reason_id || initialApp.rejection_reason?.id || null,
+      setCitizenMahallaId(initialApp.citizen.mahalla_id || initialApp.citizen.mahalla?.id || null);
+      setOccupationCategoryId(
+        initialApp.citizen.occupation_category_id ||
+          initialApp.citizen.occupation_category?.id ||
+          null,
       );
-      setSlaDays(initialApp.sla_days ? String(initialApp.sla_days) : '');
-      setDecisionNumber(initialApp.decision_number || '');
-      setDecisionDate(
-        initialApp.decision_date
-          ? new Date(initialApp.decision_date).toISOString().slice(0, 10)
+      setOccupationId(
+        initialApp.citizen.occupation_id || initialApp.citizen.occupation?.id || null,
+      );
+      const initWp = initialApp.workplace || initialApp.citizen.workplace || null;
+      if (initWp) setSelectedWorkplace(initWp);
+      setWorkPosition(initialApp.work_position || initialApp.citizen.work_position || '');
+      setCitizenForm({
+        first_name: initialApp.citizen.first_name || '',
+        last_name: initialApp.citizen.last_name || '',
+        middle_name: initialApp.citizen.middle_name || '',
+        passport: initialApp.citizen.passport || '',
+        phone_number: initialApp.citizen.phone_number || '',
+        pinfl: initialApp.citizen.pinfl || '',
+        address: initialApp.citizen.address || '',
+        birth_date: initialApp.citizen.birth_date
+          ? String(initialApp.citizen.birth_date).substring(0, 10)
           : '',
-      );
-      setDecisionNote(initialApp.decision_note || '');
-      if (initialApp.date) {
-        setDate(new Date(initialApp.date).toISOString().substring(0, 10));
-      }
+        gender: (initialApp.citizen.gender as 'male' | 'female') || '',
+      });
+    }
 
-      if (initialApp.citizen) {
-        setSelectedCitizenId(initialApp.citizen.id);
-        setCitizenDistrictId(
-          initialApp.citizen.district_id || initialApp.citizen.district?.id || null,
-        );
-        setCitizenMahallaId(
-          initialApp.citizen.mahalla_id || initialApp.citizen.mahalla?.id || null,
-        );
-        setOccupationCategoryId(
-          initialApp.citizen.occupation_category_id ||
-            initialApp.citizen.occupation_category?.id ||
-            null,
-        );
-        setOccupationId(
-          initialApp.citizen.occupation_id || initialApp.citizen.occupation?.id || null,
-        );
-        const initWp = initialApp.workplace || initialApp.citizen.workplace || null;
-        if (initWp) setSelectedWorkplace(initWp);
-        setWorkPosition(initialApp.work_position || initialApp.citizen.work_position || '');
-        setCitizenForm({
-          first_name: initialApp.citizen.first_name || '',
-          last_name: initialApp.citizen.last_name || '',
-          middle_name: initialApp.citizen.middle_name || '',
-          passport: initialApp.citizen.passport || '',
-          phone_number: initialApp.citizen.phone_number || '',
-          pinfl: initialApp.citizen.pinfl || '',
-          address: initialApp.citizen.address || '',
-          birth_date: initialApp.citizen.birth_date
-            ? String(initialApp.citizen.birth_date).substring(0, 10)
-            : '',
-          gender: (initialApp.citizen.gender as 'male' | 'female') || '',
-        });
-      }
+    if (initialApp.district) {
+      setSelectedDistrictId(initialApp.district.id);
+      setDistrictForm({
+        name: initialApp.district.name || '',
+      });
+    }
 
-      if (initialApp.district) {
-        setSelectedDistrictId(initialApp.district.id);
-        setDistrictForm({
-          name: initialApp.district.name || '',
-        });
-      }
+    if (initialApp.crime) {
+      setSelectedCrimeId(initialApp.crime.id);
+      setCrimeForm({
+        article: initialApp.crime.article || initialApp.crime.title || '',
+      });
+    }
 
-      if (initialApp.crime) {
-        setSelectedCrimeId(initialApp.crime.id);
-        setCrimeForm({
-          article: initialApp.crime.article || initialApp.crime.title || '',
-        });
-      }
+    if (initialApp.crime_method_id || initialApp.crime_method) {
+      setSelectedCrimeMethodId(initialApp.crime_method_id || initialApp.crime_method?.id || null);
+    }
 
-      if (initialApp.crime_method_id || initialApp.crime_method) {
-        setSelectedCrimeMethodId(initialApp.crime_method_id || initialApp.crime_method?.id || null);
-      }
-
-      if (Array.isArray(initialApp.custom_fields) && initialApp.custom_fields.length > 0) {
-        const prefilledMethodVals: Record<string, string> = {};
-        for (const cf of initialApp.custom_fields) {
-          if (cf.key && cf.value !== null && cf.value !== undefined) {
-            prefilledMethodVals[cf.key] = String(cf.value);
-          }
+    if (Array.isArray(initialApp.custom_fields) && initialApp.custom_fields.length > 0) {
+      const prefilledMethodVals: Record<string, string> = {};
+      for (const cf of initialApp.custom_fields) {
+        if (cf.key && cf.value !== null && cf.value !== undefined) {
+          prefilledMethodVals[cf.key] = String(cf.value);
         }
-        setMethodFieldValues(prefilledMethodVals);
       }
+      setMethodFieldValues(prefilledMethodVals);
+    }
 
-      const hasPrimaryFinancial = Boolean(
-        initialApp.card || initialApp.card_id || initialApp.transfer || initialApp.transfer_id,
-      );
+    const hasPrimaryFinancial = Boolean(
+      initialApp.card || initialApp.card_id || initialApp.transfer || initialApp.transfer_id,
+    );
 
-      const loadedTransfers: FinancialTransferEntry[] = [];
+    const loadedTransfers: FinancialTransferEntry[] = [];
 
-      if (hasPrimaryFinancial) {
-        loadedTransfers.push({
-          clientId: 'primary_ft',
-          victimCardId: initialApp.card?.id || initialApp.card_id || null,
-          victimCardNumber: initialApp.card?.card_number || '',
-          victimCardFullName: initialApp.card?.full_name || '',
-          victimBankName: initialApp.card?.bank?.name || '',
-          transferId: initialApp.transfer?.id || initialApp.transfer_id || null,
-          amount: initialApp.transfer?.amount ? String(initialApp.transfer.amount) : '',
-          currency: initialApp.transfer?.currency || 'UZS',
-          providerId: initialApp.transfer?.payment_provider?.id || null,
-          providerName: initialApp.transfer?.payment_provider?.name || '',
-          transferDate: initialApp.transfer?.transfer_date || '',
-          transferTime: initialApp.transfer?.transfer_time || '',
-          receiverCardId: initialApp.transfer?.receiver_card?.id || null,
-          receiverCardNumber: initialApp.transfer?.receiver_card?.card_number || '',
-          receiverCardFullName: initialApp.transfer?.receiver_card?.full_name || '',
-          receiverBankName: initialApp.transfer?.receiver_card?.bank?.name || '',
-        });
-      }
+    if (hasPrimaryFinancial) {
+      loadedTransfers.push({
+        clientId: 'primary_ft',
+        victimCardId: initialApp.card?.id || initialApp.card_id || null,
+        victimCardNumber: initialApp.card?.card_number || '',
+        victimCardFullName: initialApp.card?.full_name || '',
+        victimBankName: initialApp.card?.bank?.name || '',
+        transferId: initialApp.transfer?.id || initialApp.transfer_id || null,
+        amount: initialApp.transfer?.amount ? String(initialApp.transfer.amount) : '',
+        currency: initialApp.transfer?.currency || 'UZS',
+        providerId: initialApp.transfer?.payment_provider?.id || null,
+        providerName: initialApp.transfer?.payment_provider?.name || '',
+        transferDate: initialApp.transfer?.transfer_date || '',
+        transferTime: initialApp.transfer?.transfer_time || '',
+        receiverCardId: initialApp.transfer?.receiver_card?.id || null,
+        receiverCardNumber: initialApp.transfer?.receiver_card?.card_number || '',
+        receiverCardFullName: initialApp.transfer?.receiver_card?.full_name || '',
+        receiverBankName: initialApp.transfer?.receiver_card?.bank?.name || '',
+      });
+    }
 
-      if (initialApp.custom_fields) {
-        const loadedEvidence: UploadedFile[] = [];
-        const nonEvidenceFields: AppCustomFieldState[] = [];
+    if (initialApp.custom_fields) {
+      const loadedEvidence: UploadedFile[] = [];
+      const nonEvidenceFields: AppCustomFieldState[] = [];
 
-        initialApp.custom_fields.forEach((cf, idx) => {
-          if (
-            cf.key === 'evidence_attachments' ||
-            cf.label?.toLowerCase().includes('isbot') ||
-            cf.label?.toLowerCase().includes('hujjat')
-          ) {
-            if (Array.isArray(cf.value)) {
-              cf.value.forEach((v) => {
-                if (typeof v === 'string') {
-                  const fname = v.split('/').pop() || 'fayl';
-                  loadedEvidence.push({
-                    url: v,
-                    proxy_url: v,
-                    key: fname,
-                    filename: fname,
-                    original_name: fname,
-                    size: 0,
-                    mimetype: 'application/octet-stream',
-                  });
-                } else if (v && typeof v === 'object' && 'url' in v) {
-                  loadedEvidence.push(v as UploadedFile);
+      initialApp.custom_fields.forEach((cf, idx) => {
+        if (
+          cf.key === 'evidence_attachments' ||
+          cf.label?.toLowerCase().includes('isbot') ||
+          cf.label?.toLowerCase().includes('hujjat')
+        ) {
+          if (Array.isArray(cf.value)) {
+            cf.value.forEach((v) => {
+              if (typeof v === 'string') {
+                const fname = v.split('/').pop() || 'fayl';
+                loadedEvidence.push({
+                  url: v,
+                  proxy_url: v,
+                  key: fname,
+                  filename: fname,
+                  original_name: fname,
+                  size: 0,
+                  mimetype: 'application/octet-stream',
+                });
+              } else if (v && typeof v === 'object' && 'url' in v) {
+                loadedEvidence.push(v as UploadedFile);
+              }
+            });
+          }
+        } else if (cf.type === 'TRANSFER' || cf.transfer) {
+          const t = cf.transfer;
+          const sc = cf.card || t?.sender_card;
+          const rc = t?.receiver_card;
+          loadedTransfers.push({
+            clientId: cf.id || `custom_ft_${idx}`,
+            victimCardId: sc?.id || cf.card_id || null,
+            victimCardNumber: sc?.card_number || '',
+            victimCardFullName: sc?.full_name || '',
+            victimBankName: sc?.bank?.name || '',
+            transferId: t?.id || cf.transfer_id || null,
+            amount: t?.amount ? String(t.amount) : '',
+            currency: t?.currency || 'UZS',
+            providerId: t?.payment_provider?.id || null,
+            providerName: t?.payment_provider?.name || '',
+            transferDate: t?.transfer_date || '',
+            transferTime: t?.transfer_time || '',
+            receiverCardId: rc?.id || null,
+            receiverCardNumber: rc?.card_number || '',
+            receiverCardFullName: rc?.full_name || '',
+            receiverBankName: rc?.bank?.name || '',
+          });
+        } else {
+          nonEvidenceFields.push({
+            clientId: cf.id || `cf_loaded_${idx}`,
+            type: cf.type || 'TEXT',
+            label: cf.label || '',
+            key: cf.key || '',
+            value: cf.value,
+            order: cf.order ?? idx,
+            citizen_id: cf.citizen_id,
+            card_id: cf.card_id,
+            crime_id: cf.crime_id,
+            district_id: cf.district_id,
+            transfer_id: cf.transfer_id,
+            inline_citizen: cf.citizen
+              ? {
+                  first_name: cf.citizen.first_name || '',
+                  last_name: cf.citizen.last_name || '',
+                  middle_name: cf.citizen.middle_name || '',
+                  passport: cf.citizen.passport || '',
+                  phone_number: cf.citizen.phone_number || '',
+                  pinfl: cf.citizen.pinfl || '',
+                  birth_date: cf.citizen.birth_date
+                    ? String(cf.citizen.birth_date).substring(0, 10)
+                    : '',
+                  gender: (cf.citizen.gender as 'male' | 'female') || '',
+                  address: cf.citizen.address || '',
+                  district_id: cf.citizen.district_id || cf.citizen.district?.id || null,
+                  district_name: cf.citizen.district?.name || '',
+                  mahalla_id: cf.citizen.mahalla_id || cf.citizen.mahalla?.id || null,
+                  mahalla_name: cf.citizen.mahalla?.name || '',
                 }
-              });
-            }
-          } else if (cf.type === 'TRANSFER' || cf.transfer) {
-            const t = cf.transfer;
-            const sc = cf.card || t?.sender_card;
-            const rc = t?.receiver_card;
-            loadedTransfers.push({
-              clientId: cf.id || `custom_ft_${idx}`,
-              victimCardId: sc?.id || cf.card_id || null,
-              victimCardNumber: sc?.card_number || '',
-              victimCardFullName: sc?.full_name || '',
-              victimBankName: sc?.bank?.name || '',
-              transferId: t?.id || cf.transfer_id || null,
-              amount: t?.amount ? String(t.amount) : '',
-              currency: t?.currency || 'UZS',
-              providerId: t?.payment_provider?.id || null,
-              providerName: t?.payment_provider?.name || '',
-              transferDate: t?.transfer_date || '',
-              transferTime: t?.transfer_time || '',
-              receiverCardId: rc?.id || null,
-              receiverCardNumber: rc?.card_number || '',
-              receiverCardFullName: rc?.full_name || '',
-              receiverBankName: rc?.bank?.name || '',
-            });
-          } else {
-            nonEvidenceFields.push({
-              clientId: cf.id || `cf_loaded_${idx}`,
-              type: cf.type || 'TEXT',
-              label: cf.label || '',
-              key: cf.key || '',
-              value: cf.value,
-              order: cf.order ?? idx,
-              citizen_id: cf.citizen_id,
-              card_id: cf.card_id,
-              crime_id: cf.crime_id,
-              district_id: cf.district_id,
-              transfer_id: cf.transfer_id,
-              inline_citizen: cf.citizen
-                ? {
-                    first_name: cf.citizen.first_name || '',
-                    last_name: cf.citizen.last_name || '',
-                    middle_name: cf.citizen.middle_name || '',
-                    passport: cf.citizen.passport || '',
-                    phone_number: cf.citizen.phone_number || '',
-                    pinfl: cf.citizen.pinfl || '',
-                    birth_date: cf.citizen.birth_date
-                      ? String(cf.citizen.birth_date).substring(0, 10)
-                      : '',
-                    gender: (cf.citizen.gender as 'male' | 'female') || '',
-                    address: cf.citizen.address || '',
-                    district_id: cf.citizen.district_id || cf.citizen.district?.id || null,
-                    district_name: cf.citizen.district?.name || '',
-                    mahalla_id: cf.citizen.mahalla_id || cf.citizen.mahalla?.id || null,
-                    mahalla_name: cf.citizen.mahalla?.name || '',
-                  }
-                : undefined,
-              inline_card: cf.card
-                ? {
-                    card_number: cf.card.card_number || '',
-                    expire_date: cf.card.expire_date || '',
-                    full_name: cf.card.full_name || '',
-                    bank_name: cf.card.bank?.name || '',
-                  }
-                : undefined,
-              inline_crime: cf.crime
-                ? {
-                    article: cf.crime.article || '',
-                    title: cf.crime.title || '',
-                    clause: '',
-                  }
-                : undefined,
-              inline_district: cf.district
-                ? {
-                    name: cf.district.name || '',
-                  }
-                : undefined,
-              inline_transfer: undefined,
-            });
-          }
-        });
-
-        if (loadedEvidence.length > 0) {
-          setEvidenceFiles(loadedEvidence);
+              : undefined,
+            inline_card: cf.card
+              ? {
+                  card_number: cf.card.card_number || '',
+                  expire_date: cf.card.expire_date || '',
+                  full_name: cf.card.full_name || '',
+                  bank_name: cf.card.bank?.name || '',
+                }
+              : undefined,
+            inline_crime: cf.crime
+              ? {
+                  article: cf.crime.article || '',
+                  title: cf.crime.title || '',
+                  clause: '',
+                }
+              : undefined,
+            inline_district: cf.district
+              ? {
+                  name: cf.district.name || '',
+                }
+              : undefined,
+            inline_transfer: undefined,
+          });
         }
-        setCustomFields(nonEvidenceFields);
-      }
+      });
 
-      if (loadedTransfers.length > 0) {
-        setHasFinancialLoss(true);
-        setFinancialTransfers(loadedTransfers);
+      if (loadedEvidence.length > 0) {
+        setEvidenceFiles(loadedEvidence);
       }
+      setCustomFields(nonEvidenceFields);
+    }
+
+    if (loadedTransfers.length > 0) {
+      setHasFinancialLoss(true);
+      setFinancialTransfers(loadedTransfers);
     }
   }, [initialApp]);
 
@@ -935,25 +806,17 @@ export function ApplicationCreatePage() {
   }, []);
 
   // ==========================================================================
-  // AUTOCOMPLETE FILTERLASH
+  // AUTOCOMPLETE FILTERLASH (Server-side debounced qidiruv natijalari)
   // ==========================================================================
-  const currentActiveTransfer =
-    activeTransferPopover !== null ? financialTransfers[activeTransferPopover.index] : null;
-
-  const activeVictimCardNumber = currentActiveTransfer?.victimCardNumber || '';
-  const activeReceiverCardNumber = currentActiveTransfer?.receiverCardNumber || '';
-
   const filteredVictimCards = useMemo(() => {
-    const q = activeVictimCardNumber.replace(/\D/g, '');
-    if (!q) return [];
-    return allCards.filter((c) => (c.card_number || '').replace(/\D/g, '').includes(q));
-  }, [allCards, activeVictimCardNumber]);
+    if (debouncedVictimCardQuery.length < 4) return [];
+    return victimCardsSearchData?.items || [];
+  }, [victimCardsSearchData, debouncedVictimCardQuery]);
 
   const filteredReceiverCards = useMemo(() => {
-    const q = activeReceiverCardNumber.replace(/\D/g, '');
-    if (!q) return [];
-    return allCards.filter((c) => (c.card_number || '').replace(/\D/g, '').includes(q));
-  }, [allCards, activeReceiverCardNumber]);
+    if (debouncedReceiverCardQuery.length < 4) return [];
+    return receiverCardsSearchData?.items || [];
+  }, [receiverCardsSearchData, debouncedReceiverCardQuery]);
 
   // ==========================================================================
   // SELECTION HANDLERS
@@ -1176,8 +1039,7 @@ export function ApplicationCreatePage() {
         const fieldKey = mf.key || mf.label;
         const val = (methodFieldValues[fieldKey] || '').trim();
         if (mf.is_required && !val) {
-          toast.error(`"${mf.label}" maydonini to‘ldirish majburiy!`);
-          return;
+          throw new Error(`"${mf.label}" maydonini to‘ldirish majburiy!`);
         }
       }
 
@@ -1566,7 +1428,7 @@ export function ApplicationCreatePage() {
                 </div>
                 {showAppNumberWarning && (
                   <span className="text-[11px] font-medium text-red-500 px-1">
-                    Ariza raqamini kiritish tavsiya etiladi
+                    Ariza raqamini kiritish talab etiladi
                   </span>
                 )}
               </div>
@@ -1853,7 +1715,7 @@ export function ApplicationCreatePage() {
                 Aniq Yashash Manzili (Ko‘cha, uy, xonadon)
               </label>
               <Input
-                placeholder="TOSHKENT SH., 9-MAVZE, 12-UY, 45-XONADON..."
+                placeholder="A. Temur ko'chasi, 9-MAVZE, 12-UY, 45-XONADON..."
                 value={citizenForm.address}
                 onChange={(e) =>
                   setCitizenForm({ ...citizenForm, address: e.target.value.toUpperCase() })
@@ -2369,1322 +2231,49 @@ export function ApplicationCreatePage() {
           </div>
         </div>
 
-        {/* ================================================================= */}
-        {/* 3-QISM: BANK KARTASI VA NOQONUNIY O'TKAZMA (MOLIYAVIY ZARAR) */}
-        {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-5 bg-emerald-50 dark:bg-emerald-950/20 transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/70 dark:border-emerald-800/40 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                <CreditCard className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                  3. Bank Plastik Kartasi & Noqonuniy Pul O‘tkazmasi
-                </h2>
-                <p className="text-[11px] text-muted-foreground">
-                  Mazkur holatda bank kartalari orqali moliyaviy zarar yetkazilgan bo‘lsa yoqing
-                </p>
-              </div>
-            </div>
+        <FinancialTransfersSection
+          hasFinancialLoss={hasFinancialLoss}
+          setHasFinancialLoss={setHasFinancialLoss}
+          transferContainerRef={transferContainerRef}
+          financialTransfers={financialTransfers}
+          activeTransferPopover={activeTransferPopover}
+          setActiveTransferPopover={setActiveTransferPopover}
+          filteredVictimCards={filteredVictimCards}
+          filteredReceiverCards={filteredReceiverCards}
+          allBanks={allBanks}
+          allProviders={allProviders}
+          onUpdateTransferEntry={handleUpdateTransferEntry}
+          onAddTransferEntry={handleAddTransferEntry}
+          onRemoveTransferEntry={handleRemoveTransferEntry}
+          onFillApplicantName={handleFillApplicantName}
+        />
 
-            {/* INTERAKTIV TOGGLE SWITCH */}
-            <div className="flex items-center gap-2.5 self-start sm:self-auto bg-card border border-border px-3 py-1.5 rounded-xl shadow-sm">
-              <span className="text-xs font-semibold text-foreground select-none">
-                Pul o‘tkazmasi bormi?
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={hasFinancialLoss}
-                onClick={() => setHasFinancialLoss(!hasFinancialLoss)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                  hasFinancialLoss ? 'bg-primary' : 'bg-muted-foreground/30'
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    hasFinancialLoss ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {!hasFinancialLoss ? (
-            <div className="p-4 rounded-xl border border-dashed border-border/80 bg-background/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2.5">
-                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span>
-                  Ushbu ariza bo‘yicha bank kartasi yoki pul o‘tkazmasi kiritilmagan. Agar karta
-                  orqali mablag‘ yechilgan bo‘lsa, yuqoridagi tugmani yoqing.
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setHasFinancialLoss(true)}
-                className="h-8 text-xs shrink-0 gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Karta va o‘tkazmani kiritish
-              </Button>
-            </div>
-          ) : (
-            <div
-              ref={transferContainerRef}
-              className="space-y-6 animate-in fade-in-50 duration-200"
-            >
-              {financialTransfers.map((entry, index) => (
-                <div
-                  key={entry.clientId}
-                  className="p-4 sm:p-5 rounded-2xl border border-border bg-card/70 shadow-sm space-y-4"
-                >
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                        {index + 1}
-                      </span>
-                      <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                        {index === 0
-                          ? '1-O‘tkazma shakli (Asosiy)'
-                          : `${index + 1}-O‘tkazma shakli`}
-                      </span>
-                    </div>
-                    {financialTransfers.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveTransferEntry(index)}
-                        className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1 px-2"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        O‘chirish
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* 1. JABRLANUVCHI KARTASI */}
-                    <div className="p-4 rounded-xl border border-border bg-muted/10 shadow-sm space-y-3 relative">
-                      <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                          <CreditCard className="h-4 w-4 text-primary" />
-                          Jabrlanuvchi Bank Kartasi
-                        </span>
-                        {entry.victimCardId ? (
-                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Bazadagi karta
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleUpdateTransferEntry(index, { victimCardId: null })
-                              }
-                              className="ml-1 hover:text-foreground"
-                              title="Bog‘lanishni bekor qilish"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ) : entry.victimCardNumber ? (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            Yangi karta
-                          </Badge>
-                        ) : null}
-                      </div>
-
-                      <div className="relative space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Karta raqami (16 talik) *
-                        </label>
-                        <Input
-                          placeholder="8600 0000 0000 0000"
-                          value={formatCardNumberDisplay(entry.victimCardNumber)}
-                          onFocus={() => setActiveTransferPopover({ index, type: 'victimCard' })}
-                          onChange={(e) => {
-                            const val = formatCardNumberDisplay(e.target.value);
-                            handleUpdateTransferEntry(index, {
-                              victimCardNumber: val,
-                              victimCardId: null,
-                            });
-                            setActiveTransferPopover({ index, type: 'victimCard' });
-                          }}
-                          className="h-9 text-xs font-mono font-bold tracking-wider"
-                          maxLength={19}
-                        />
-                        {activeTransferPopover?.index === index &&
-                          activeTransferPopover.type === 'victimCard' &&
-                          filteredVictimCards.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                              <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
-                                Bazada mavjud kartalar:
-                              </div>
-                              {filteredVictimCards.map((c) => (
-                                <div
-                                  key={c.id}
-                                  onClick={() => {
-                                    handleUpdateTransferEntry(index, {
-                                      victimCardId: c.id,
-                                      victimCardNumber: formatCardNumberDisplay(
-                                        c.card_number || '',
-                                      ),
-                                      victimCardFullName: c.full_name || '',
-                                      victimBankName: c.bank?.name || '',
-                                    });
-                                    setActiveTransferPopover(null);
-                                  }}
-                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
-                                >
-                                  <span className="font-bold text-foreground">
-                                    {formatCardNumberDisplay(c.card_number)}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {c.bank?.name || 'Bank'}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-semibold text-muted-foreground">
-                            Karta egasining F.I.SH.
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => handleFillApplicantName(index)}
-                            className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1 cursor-pointer bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded transition-colors"
-                          >
-                            <UserCheck className="h-3 w-3" />
-                            Arizachining o‘zi
-                          </button>
-                        </div>
-                        <Input
-                          placeholder="ESHMURODOV TOSHPULAT..."
-                          value={entry.victimCardFullName}
-                          onChange={(e) =>
-                            handleUpdateTransferEntry(index, {
-                              victimCardFullName: e.target.value.toUpperCase(),
-                            })
-                          }
-                          className="h-9 text-xs uppercase"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Xizmat ko‘rsatuvchi bank
-                        </label>
-                        <select
-                          value={entry.victimBankName || ''}
-                          onChange={(e) =>
-                            handleUpdateTransferEntry(index, {
-                              victimBankName: e.target.value,
-                            })
-                          }
-                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                        >
-                          <option value="">-- BANKNI TANLANG --</option>
-                          {allBanks.map((b) => (
-                            <option key={b.id} value={b.name || ''}>
-                              {b.name?.toUpperCase()}
-                            </option>
-                          ))}
-                          {entry.victimBankName &&
-                            !allBanks.some(
-                              (b) =>
-                                b.name?.trim().toUpperCase() ===
-                                entry.victimBankName?.trim().toUpperCase(),
-                            ) && (
-                              <option value={entry.victimBankName}>
-                                {entry.victimBankName.toUpperCase()}
-                              </option>
-                            )}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* 2. O'TKAZMA MA'LUMOTI */}
-                    <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 shadow-sm space-y-3">
-                      <div className="flex items-center justify-between border-b border-primary/20 pb-2">
-                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                          <ArrowLeftRight className="h-4 w-4 text-primary" />
-                          O‘tkazma Ma‘lumoti
-                        </span>
-                        {entry.transferDate && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] border-primary/40 text-primary"
-                          >
-                            {entry.transferDate}{' '}
-                            {entry.transferTime ? `(${entry.transferTime})` : ''}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="col-span-2 space-y-1">
-                          <label className="text-[11px] font-semibold text-foreground">
-                            O‘tkazma Summasi *
-                          </label>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="1 000 000"
-                            value={formatAmountInput(entry.amount)}
-                            onChange={(e) =>
-                              handleUpdateTransferEntry(index, {
-                                amount: formatAmountInput(e.target.value),
-                              })
-                            }
-                            className="h-9 text-xs font-mono font-bold text-emerald-400 bg-background"
-                          />
-                          {entry.amount && (
-                            <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 pt-0.5">
-                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                              <span>{formatAmountWords(entry.amount, entry.currency)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-muted-foreground">
-                            Valyuta
-                          </label>
-                          <select
-                            value={entry.currency}
-                            onChange={(e) =>
-                              handleUpdateTransferEntry(index, { currency: e.target.value })
-                            }
-                            className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs font-mono font-bold"
-                          >
-                            <option value="UZS">UZS</option>
-                            <option value="USD">USD</option>
-                            <option value="RUB">RUB</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          To‘lov Provayderi / Ilova Nomi
-                        </label>
-                        <select
-                          value={entry.providerName || ''}
-                          onChange={(e) => {
-                            const pName = e.target.value;
-                            const found = allProviders.find(
-                              (p) => p.name?.toUpperCase() === pName.toUpperCase(),
-                            );
-                            handleUpdateTransferEntry(index, {
-                              providerName: pName,
-                              providerId: found?.id || null,
-                            });
-                          }}
-                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                        >
-                          <option value="">-- PROVAYDERNI TANLANG --</option>
-                          {allProviders.map((p) => (
-                            <option key={p.id} value={p.name || ''}>
-                              {p.name?.toUpperCase()}
-                            </option>
-                          ))}
-                          {entry.providerName &&
-                            !allProviders.some(
-                              (p) =>
-                                p.name?.trim().toUpperCase() ===
-                                entry.providerName?.trim().toUpperCase(),
-                            ) && (
-                              <option value={entry.providerName}>
-                                {entry.providerName.toUpperCase()}
-                              </option>
-                            )}
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-primary" /> O‘tkazma Sanasi
-                          </label>
-                          <Input
-                            type="date"
-                            value={entry.transferDate}
-                            onChange={(e) => {
-                              const newDate = e.target.value;
-                              handleUpdateTransferEntry(index, {
-                                transferDate: newDate,
-                                transferTime: newDate ? entry.transferTime : '',
-                              });
-                            }}
-                            className="h-9 text-xs bg-background"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-primary" /> O‘tkazma Vaqti
-                          </label>
-                          <Input
-                            type="time"
-                            value={entry.transferTime}
-                            disabled={!entry.transferDate}
-                            onChange={(e) =>
-                              handleUpdateTransferEntry(index, { transferTime: e.target.value })
-                            }
-                            className={`h-9 text-xs bg-background ${!entry.transferDate ? 'opacity-50 cursor-not-allowed bg-muted' : ''}`}
-                            title={
-                              !entry.transferDate ? 'Avval o‘tkazma sanasini tanlang' : undefined
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 3. FIRIBGAR (QABUL QILUVCHI) KARTASI */}
-                    <div className="p-4 rounded-xl border border-red-500/30 bg-muted/10 shadow-sm space-y-3 relative">
-                      <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                          <ShieldAlert className="h-4 w-4 text-red-400" />
-                          Qabul Qiluvchi (Firibgar) Kartasi
-                        </span>
-                        {entry.receiverCardId ? (
-                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Bazadagi karta
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleUpdateTransferEntry(index, { receiverCardId: null })
-                              }
-                              className="ml-1 hover:text-foreground"
-                              title="Bog‘lanishni bekor qilish"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ) : entry.receiverCardNumber ? (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            Yangi karta
-                          </Badge>
-                        ) : null}
-                      </div>
-
-                      <div className="relative space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Karta raqami (16 talik) *
-                        </label>
-                        <Input
-                          placeholder="9860 0000 0000 0000"
-                          value={formatCardNumberDisplay(entry.receiverCardNumber)}
-                          onFocus={() => setActiveTransferPopover({ index, type: 'receiverCard' })}
-                          onChange={(e) => {
-                            const val = formatCardNumberDisplay(e.target.value);
-                            handleUpdateTransferEntry(index, {
-                              receiverCardNumber: val,
-                              receiverCardId: null,
-                            });
-                            setActiveTransferPopover({ index, type: 'receiverCard' });
-                          }}
-                          className="h-9 text-xs font-mono font-bold tracking-wider"
-                          maxLength={19}
-                        />
-                        {activeTransferPopover?.index === index &&
-                          activeTransferPopover.type === 'receiverCard' &&
-                          filteredReceiverCards.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                              <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
-                                Bazada mavjud kartalar:
-                              </div>
-                              {filteredReceiverCards.map((c) => (
-                                <div
-                                  key={c.id}
-                                  onClick={() => {
-                                    handleUpdateTransferEntry(index, {
-                                      receiverCardId: c.id,
-                                      receiverCardNumber: formatCardNumberDisplay(
-                                        c.card_number || '',
-                                      ),
-                                      receiverCardFullName: c.full_name || '',
-                                      receiverBankName: c.bank?.name || '',
-                                    });
-                                    setActiveTransferPopover(null);
-                                  }}
-                                  className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
-                                >
-                                  <span className="font-bold text-foreground">
-                                    {formatCardNumberDisplay(c.card_number)}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {c.bank?.name || 'Bank'}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Karta egasining F.I.SH.
-                        </label>
-                        <Input
-                          placeholder="FIRIBGAR / NOMA‘LUM SHAXS F.I.SH."
-                          value={entry.receiverCardFullName}
-                          onChange={(e) =>
-                            handleUpdateTransferEntry(index, {
-                              receiverCardFullName: e.target.value.toUpperCase(),
-                            })
-                          }
-                          className="h-9 text-xs uppercase"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Firibgar kartasi banki
-                        </label>
-                        <select
-                          value={entry.receiverBankName || ''}
-                          onChange={(e) =>
-                            handleUpdateTransferEntry(index, {
-                              receiverBankName: e.target.value,
-                            })
-                          }
-                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                        >
-                          <option value="">-- BANKNI TANLANG --</option>
-                          {allBanks.map((b) => (
-                            <option key={b.id} value={b.name || ''}>
-                              {b.name?.toUpperCase()}
-                            </option>
-                          ))}
-                          {entry.receiverBankName &&
-                            !allBanks.some(
-                              (b) =>
-                                b.name?.trim().toUpperCase() ===
-                                entry.receiverBankName?.trim().toUpperCase(),
-                            ) && (
-                              <option value={entry.receiverBankName}>
-                                {entry.receiverBankName.toUpperCase()}
-                              </option>
-                            )}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* + TUGMASI: YANGI KARTA VA O'TKAZMA SHAKLI QO'SHISH */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleAddTransferEntry}
-                className="w-full border-dashed py-5 text-xs font-semibold gap-2 border-primary/40 hover:border-primary text-primary hover:bg-primary/5 transition-all shadow-sm"
-              >
-                <Plus className="h-4 w-4" />
-                Yangi karta & o‘tkazma shaklini qo‘shish
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* ================================================================= */}
-        {/* 4-QISM: HUJJATLAR, ISBOTLAR VA QO'SHIMCHA SUBYEKTLAR */}
-        {/* ================================================================= */}
-        <div className="p-5 sm:p-6 space-y-6 bg-amber-50 dark:bg-amber-950/20 transition-colors">
-          <div className="flex items-center gap-2.5 border-b border-amber-200/70 dark:border-amber-800/40 pb-3">
-            <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-              <Paperclip className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                4. Isbotlar, Kvitansiyalar va Qo‘shimcha Subyektlar
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                Tergov dalillari (chek skrinshotlari, PDF ko‘chirmalar) va ishga aloqador boshqa
-                shaxslar
-              </p>
-            </div>
-          </div>
-
-          {/* A. YAGONA MINIO FAYL VA ISBOTLAR YUKLASH ZONASI */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <UploadCloud className="h-4 w-4 text-primary" />
-                Ishga oid fayl va skrinshotlar ({evidenceFiles.length} ta ilova)
-              </span>
-              <input
-                ref={evidenceInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => handleUploadEvidenceFiles(e.target.files)}
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => evidenceInputRef.current?.click()}
-                disabled={isUploadingEvidence}
-                className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-              >
-                {isUploadingEvidence ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Yuklanmoqda...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileUp className="h-3.5 w-3.5" />
-                    <span>+ Fayl tanlash</span>
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {/* DRAG & DROP ZONE */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDraggingEvidence(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setIsDraggingEvidence(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDraggingEvidence(false);
-                handleUploadEvidenceFiles(e.dataTransfer.files);
-              }}
-              onClick={() => evidenceInputRef.current?.click()}
-              className={`p-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center ${
-                isDraggingEvidence
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border/80 hover:border-primary/50 bg-muted/10'
-              }`}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                {isUploadingEvidence ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <UploadCloud className="h-5 w-5" />
-                )}
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold text-foreground">
-                  Fayllarni shu yerga tashlang yoki bosing
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  PNG, JPG, PDF, DOCX, MP3, MP4 formatdagi kvitansiya, audio yoki skrinshotlar
-                </p>
-              </div>
-            </div>
-
-            {/* YUKLANGAN FAYLLAR GRIDI */}
-            {evidenceFiles.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
-                {evidenceFiles.map((f, idx) => {
-                  const previewUrl = getFileViewUrl(f);
-                  const downloadUrl = getFileDownloadUrl(f);
-                  const isImg =
-                    f.mimetype?.startsWith('image/') ||
-                    f.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ||
-                    f.original_name?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ||
-                    f.key?.match(/\.(jpg|jpeg|png|webp|gif)$/i);
-
-                  return (
-                    <div
-                      key={idx}
-                      className="p-2.5 rounded-xl border border-border bg-card shadow-sm flex items-center justify-between gap-3 group"
-                    >
-                      <div className="flex items-center gap-2.5 overflow-hidden">
-                        {isImg ? (
-                          <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden border border-border/80 bg-muted/30 flex items-center justify-center">
-                            <img
-                              src={previewUrl}
-                              alt={f.original_name || 'Isbot'}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="h-10 w-10 shrink-0 rounded-lg border border-border/80 bg-muted/30 flex items-center justify-center text-primary">
-                            <FileIcon className="h-5 w-5" />
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate">
-                            {f.original_name || 'Fayl'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground font-mono">
-                            {formatFileSize(f.size)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <a
-                          href={downloadUrl || previewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition"
-                          title="Ochish / Yuklab olish"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEvidenceFile(idx)}
-                          className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition"
-                          title="O‘chirish"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* B. RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) */}
-          <div className="pt-4 border-t border-border/40 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 font-serif font-black text-xs">
-                  W
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-foreground">
-                    Rasmiy Word Hujjatlari ({appDocuments.length} ta hujjat)
-                  </span>
-                  <p className="text-[11px] text-muted-foreground">
-                    Tergov hujjati yoki blank. Kompyuterdan Word yuklash yoki yangi Word yaratib
-                    tizimda ONLYOFFICE orqali tahrirlash
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <input
-                  ref={wordFileInputRef}
-                  type="file"
-                  accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setWordDialogState({
-                        isOpen: true,
-                        mode: 'upload',
-                        file,
-                      });
-                      e.target.value = '';
-                    }
-                  }}
-                />
-
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    if (!id) {
-                      toast.info('Rasmiy Word hujjat yaratish uchun avval arizani saqlang');
-                      return;
-                    }
-                    setTemplateModalState({
-                      isOpen: true,
-                      initialTemplateId: 'tushuntirish-telegram',
-                    });
-                  }}
-                  className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
-                  title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Shablondan yaratish</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (!id) {
-                      toast.info('Word faylini biriktirish uchun avval arizani saqlang');
-                      return;
-                    }
-                    wordFileInputRef.current?.click();
-                  }}
-                  disabled={uploadWordMutation.isPending}
-                  className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
-                  title="Kompyuterdan mavjud Word (.docx / .doc) faylini yuklash"
-                >
-                  {uploadWordMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
-                  )}
-                  <span>Kompyuterdan yuklash</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    if (!id) {
-                      toast.info('Yangi Word hujjat ochish uchun avval arizani saqlang');
-                      return;
-                    }
-                    setTemplateModalState({
-                      isOpen: true,
-                      initialTemplateId: 'blank',
-                    });
-                  }}
-                  className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
-                  title="Yangi bo‘sh Word blank yaratish va ONLYOFFICE da tahrirlash"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Yangi Word</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* YUKLANGAN WORD HUJJATLARI GRIDI */}
-            {appDocuments.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
-                {appDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="p-3 rounded-xl border border-border/80 bg-card hover:border-blue-400 transition shadow-2xs flex items-center justify-between gap-3 group"
-                  >
-                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#185abd] text-white font-serif font-black text-xs shadow-2xs">
-                        W
-                      </div>
-                      <div className="min-w-0">
-                        <p
-                          className="text-xs font-semibold text-foreground truncate"
-                          title={doc.title || doc.file_name}
-                        >
-                          {doc.title || doc.file_name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground font-mono">
-                          {(doc.size / 1024).toFixed(1)} KB &bull; v{doc.version || 1}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => setActiveEditingDocId(doc.id)}
-                        className="h-7 px-2 text-[11px] font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer"
-                        title="ONLYOFFICE muharririda ochish va tahrirlash"
-                      >
-                        <Edit2 className="h-3 w-3" />
-                        <span>Tahrirlash</span>
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          window.open(documentsApi.getFileUrl(doc.id), '_blank');
-                        }}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-                        title="Yuklab olish"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          setDocToDelete({ id: doc.id, title: doc.title || doc.file_name })
-                        }
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
-                        title="O‘chirish"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-xl border border-dashed border-border/80 bg-muted/10 text-center space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Hozircha biriktirilgan Word hujjati yo‘q
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Yuqoridagi tugmalar orqali kompyuterdan Word faylni yuklashingiz yoki yangi bo‘sh
-                  Word yaratib OnlyOffice'da to‘ldirishingiz mumkin.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* C. QO'SHIMCHA FUQAROLAR */}
-          <div className="pt-4 border-t border-border/40 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <span className="text-xs font-bold text-foreground">
-                  Ishga aloqador qo‘shimcha fuqarolar (
-                  {customFields.filter((cf) => cf.type === 'CITIZEN').length})
-                </span>
-                <p className="text-[11px] text-muted-foreground">
-                  Gumonlanuvchilar, guvohlar, sheriklar yoki boshqa aloqador shaxslarni kiritish
-                </p>
-              </div>
-            </div>
-
-            {/* QO'SHILGAN FUQAROLAR KARTOCHKALARI */}
-            {customFields.filter((cf) => cf.type === 'CITIZEN').length > 0 && (
-              <div className="space-y-4 pt-1">
-                {customFields
-                  .filter((cf) => cf.type === 'CITIZEN')
-                  .map((cf) => {
-                    const citDistId = cf.inline_citizen?.district_id || null;
-                    const citMahId = cf.inline_citizen?.mahalla_id || null;
-
-                    return (
-                      <div
-                        key={cf.clientId}
-                        className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3.5"
-                      >
-                        {/* Karta sarlavhasi: Icon + Fuqaro Roli Inputi + O'chirish tugmasi */}
-                        <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2.5">
-                          <div className="flex items-center gap-2.5 flex-1">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
-                              <UserPlus className="h-4 w-4" />
-                            </div>
-                            <Input
-                              placeholder="Fuqaro maqomi / Roli (Masalan: Gumonlanuvchi, Guvoh, Sherik...)"
-                              value={cf.label}
-                              onChange={(e) =>
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  label: e.target.value.toUpperCase(),
-                                }))
-                              }
-                              className="h-9 text-xs font-bold w-full max-w-md uppercase text-primary placeholder:text-muted-foreground/60 placeholder:normal-case placeholder:font-normal"
-                            />
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveCustomFieldItem(cf.clientId)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0"
-                            title="Fuqaroni ro‘yxatdan o‘chirish"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {/* FUQARO ANKETASI */}
-                        <div className="space-y-3">
-                          {/* 1-Qator: Ism, Familiya, Sharif */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Ism *
-                              </label>
-                              <Input
-                                placeholder="ISM"
-                                value={cf.inline_citizen?.first_name || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value.toUpperCase();
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      first_name: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9 text-xs uppercase font-medium"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Familiya
-                              </label>
-                              <Input
-                                placeholder="FAMILIYA"
-                                value={cf.inline_citizen?.last_name || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value.toUpperCase();
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      last_name: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9 text-xs uppercase font-medium"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Sharif (Otasining ismi)
-                              </label>
-                              <Input
-                                placeholder="SHARIF"
-                                value={cf.inline_citizen?.middle_name || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value.toUpperCase();
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      middle_name: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9 text-xs uppercase font-medium"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 2-Qator: Tug'ilgan sana, Jinsi */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Tug‘ilgan Sana
-                              </label>
-                              <Input
-                                type="date"
-                                value={cf.inline_citizen?.birth_date || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      birth_date: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9 text-xs cursor-pointer"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Jinsi
-                              </label>
-                              <div className="grid grid-cols-2 gap-2 h-9">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                      ...f,
-                                      inline_citizen: {
-                                        ...(f.inline_citizen || {
-                                          first_name: '',
-                                          last_name: '',
-                                          middle_name: '',
-                                          passport: '',
-                                          phone_number: '',
-                                        }),
-                                        gender: f.inline_citizen?.gender === 'male' ? '' : 'male',
-                                      },
-                                    }));
-                                  }}
-                                  className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
-                                    cf.inline_citizen?.gender === 'male'
-                                      ? 'bg-blue-600 text-white border-blue-600'
-                                      : 'bg-background hover:bg-muted text-foreground border-input'
-                                  }`}
-                                >
-                                  <MaleIcon className="h-3.5 w-3.5" /> Erkak
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                      ...f,
-                                      inline_citizen: {
-                                        ...(f.inline_citizen || {
-                                          first_name: '',
-                                          last_name: '',
-                                          middle_name: '',
-                                          passport: '',
-                                          phone_number: '',
-                                        }),
-                                        gender:
-                                          f.inline_citizen?.gender === 'female' ? '' : 'female',
-                                      },
-                                    }));
-                                  }}
-                                  className={`h-full flex items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors cursor-pointer ${
-                                    cf.inline_citizen?.gender === 'female'
-                                      ? 'bg-pink-600 text-white border-pink-600'
-                                      : 'bg-background hover:bg-muted text-foreground border-input'
-                                  }`}
-                                >
-                                  <FemaleIcon className="h-3.5 w-3.5" /> Ayol
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 3-Qator: Telefon, Pasport, JSHSHIR */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Telefon raqami
-                              </label>
-                              <PhoneInput
-                                value={cf.inline_citizen?.phone_number}
-                                onChange={(val) => {
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      phone_number: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                Pasport seriya & raqam
-                              </label>
-                              <Input
-                                placeholder="AA1234567"
-                                value={cf.inline_citizen?.passport || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value
-                                    .toUpperCase()
-                                    .replace(/[^A-Z0-9]/g, '')
-                                    .slice(0, 9);
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      passport: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9 text-xs font-mono font-bold uppercase"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-muted-foreground">
-                                JSHSHIR (PINFL - 14 ta raqam)
-                              </label>
-                              <Input
-                                placeholder="14 TALIK RAQAM"
-                                value={cf.inline_citizen?.pinfl || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, '').slice(0, 14);
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        middle_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      pinfl: val,
-                                    },
-                                  }));
-                                }}
-                                className="h-9 text-xs font-mono"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 3-Qator: Yashash Tumani va Yashash Mahallasi */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {/* Yashash Tumani */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                                  <MapPin className="h-3 w-3 text-primary" />
-                                  Yashash Tumani
-                                </label>
-                                {citDistId && (
-                                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
-                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                    Tanlandi
-                                  </Badge>
-                                )}
-                              </div>
-                              <select
-                                value={citDistId || ''}
-                                onChange={(e) => {
-                                  const dId = e.target.value;
-                                  const found = allDistricts.find((d) => d.id === dId);
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      district_id: dId || null,
-                                      district_name: found?.name || '',
-                                      mahalla_id: null,
-                                      mahalla_name: '',
-                                    },
-                                  }));
-                                }}
-                                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                              >
-                                <option value="">-- TUMANNI TANLANG --</option>
-                                {allDistricts.map((d) => (
-                                  <option key={d.id} value={d.id}>
-                                    {d.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Yashash Mahallasi */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                                  <Building2 className="h-3 w-3 text-primary" />
-                                  Yashash Mahallasi
-                                </label>
-                                {citMahId && (
-                                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
-                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                    Tanlandi
-                                  </Badge>
-                                )}
-                              </div>
-                              <CustomCitizenMahallaSelect
-                                districtId={citDistId}
-                                mahallaId={citMahId}
-                                onSelect={(mId, mName) => {
-                                  handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                    ...f,
-                                    inline_citizen: {
-                                      ...(f.inline_citizen || {
-                                        first_name: '',
-                                        last_name: '',
-                                        passport: '',
-                                        phone_number: '',
-                                      }),
-                                      mahalla_id: mId,
-                                      mahalla_name: mName,
-                                    },
-                                  }));
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 4-Qator: Aniq yashash manzili */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground">
-                              Aniq yashash manzili (Ko‘cha, uy, xonadon...)
-                            </label>
-                            <Input
-                              placeholder="VILOYAT, TUMAN, KO‘CHA, UY..."
-                              value={cf.inline_citizen?.address || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.toUpperCase();
-                                handleUpdateCustomFieldItem(cf.clientId, (f) => ({
-                                  ...f,
-                                  inline_citizen: {
-                                    ...(f.inline_citizen || {
-                                      first_name: '',
-                                      last_name: '',
-                                      middle_name: '',
-                                      passport: '',
-                                      phone_number: '',
-                                    }),
-                                    address: val,
-                                  },
-                                }));
-                              }}
-                              className="h-9 text-xs uppercase"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-
-            {/* PASTDAGI UZUN TUGMA (HUDDI KARTA KABI) */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleAddCustomFieldItem('CITIZEN', '')}
-              className="w-full h-11 border-dashed border-2 border-primary/40 hover:border-primary hover:bg-primary/5 text-primary text-xs font-semibold gap-2 shadow-sm rounded-xl transition-all"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Fuqaro qo‘shish</span>
-            </Button>
-          </div>
-        </div>
+        <EvidenceAndCitizensSection
+          applicationId={id}
+          evidenceFiles={evidenceFiles}
+          isUploadingEvidence={isUploadingEvidence}
+          isDraggingEvidence={isDraggingEvidence}
+          setIsDraggingEvidence={setIsDraggingEvidence}
+          evidenceInputRef={evidenceInputRef}
+          onUploadEvidenceFiles={handleUploadEvidenceFiles}
+          onRemoveEvidenceFile={handleRemoveEvidenceFile}
+          appDocuments={appDocuments}
+          wordFileInputRef={wordFileInputRef}
+          isUploadingWord={uploadWordMutation.isPending}
+          onOpenWordUploadDialog={(file) =>
+            setWordDialogState({ isOpen: true, mode: 'upload', file })
+          }
+          onOpenTemplateModal={(initialTemplateId) =>
+            setTemplateModalState({ isOpen: true, initialTemplateId })
+          }
+          onEditDocument={(docId) => setActiveEditingDocId(docId)}
+          onRequestDeleteDocument={(doc) => setDocToDelete(doc)}
+          customFields={customFields}
+          allDistricts={allDistricts}
+          onAddCustomFieldItem={handleAddCustomFieldItem}
+          onRemoveCustomFieldItem={handleRemoveCustomFieldItem}
+          onUpdateCustomFieldItem={handleUpdateCustomFieldItem}
+        />
       </div>
 
       {/* ===================================================================== */}

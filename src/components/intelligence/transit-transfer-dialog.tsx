@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRightLeft, Settings2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
@@ -17,8 +17,21 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
 import { intelligenceApi, transferChannelsApi } from '@/lib/api';
+import { formatLocalDateISO } from '@/lib/date';
 import { getErrorMessage } from '@/lib/error';
 import type { Card, TransferChannel } from '@/types/models';
+
+function parseDecimalAmount(raw: string): number {
+  const cleaned = raw
+    .replace(/\s+/g, '')
+    .replace(',', '.')
+    .replace(/[^0-9.]/g, '');
+  if (!cleaned) return 0;
+  const parts = cleaned.split('.');
+  const normalized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
 
 interface TransitTransferDialogProps {
   open: boolean;
@@ -140,9 +153,25 @@ export function TransitTransferDialog({
   const [counterpartyOwnerName, setCounterpartyOwnerName] = useState('');
   const [amount, setAmount] = useState('');
   const [providerName, setProviderName] = useState('Click');
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transferDate, setTransferDate] = useState(() => formatLocalDateISO());
   const [transferTime, setTransferTime] = useState('12:00');
   const [transactionId, setTransactionId] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    if (availableCards.length > 0) {
+      setSelectedOwnCardId((prev) =>
+        availableCards.some((c) => c.id === prev) ? prev : availableCards[0].id,
+      );
+    } else {
+      setSelectedOwnCardId('');
+    }
+    if (defaultSenderCardNumber) {
+      setOwnCardNumber(defaultSenderCardNumber);
+    }
+  }, [open, availableCards, defaultSenderCardNumber]);
+
+  const parsedAmount = parseDecimalAmount(amount);
 
   const activeChannel =
     channels.find((c) => c.code === selectedChannelCode) || channels[0] || FALLBACK_CHANNELS[0];
@@ -160,7 +189,7 @@ export function TransitTransferDialog({
           return intelligenceApi.createTransitTransfer({
             sender_card_id: chosenOwnCard?.id || undefined,
             sender_card_number: ownNum || undefined,
-            amount: Number(amount.replace(/\D/g, '')),
+            amount: parsedAmount,
             payment_provider_name: platformStr || providerName,
             transfer_date: transferDate,
             transfer_time: transferTime,
@@ -188,7 +217,7 @@ export function TransitTransferDialog({
           sender_card_number: ownNum || undefined,
           receiver_card_number: counterpartyCardNumber,
           receiver_owner_name: counterpartyOwnerName || undefined,
-          amount: Number(amount.replace(/\D/g, '')),
+          amount: parsedAmount,
           payment_provider_name: providerName,
           transfer_date: transferDate,
           transfer_time: transferTime,
@@ -202,7 +231,7 @@ export function TransitTransferDialog({
         sender_owner_name: counterpartyOwnerName || undefined,
         receiver_card_id: chosenOwnCard?.id || undefined,
         receiver_card_number: ownNum || undefined,
-        amount: Number(amount.replace(/\D/g, '')),
+        amount: parsedAmount,
         payment_provider_name: providerName,
         transfer_date: transferDate,
         transfer_time: transferTime,
@@ -231,7 +260,7 @@ export function TransitTransferDialog({
 
   const isSubmitDisabled =
     mutation.isPending ||
-    !Number(amount.replace(/\D/g, '')) ||
+    parsedAmount <= 0 ||
     (isOutgoingNonCard
       ? destinationValue.trim().length < 2
       : counterpartyCardNumber.replace(/\D/g, '').length < 8);

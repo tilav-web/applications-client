@@ -26,13 +26,14 @@ import { toast } from '@/components/ui/sonner';
 import { FilterInput, FilterSelect, TableFilterPanel } from '@/components/ui/table-filter-panel';
 import { useDebounce } from '@/hooks/use-debounce';
 import { crimesApi, districtsApi, reportsApi } from '@/lib/api';
+import { formatLocalDateISO } from '@/lib/date';
 import { getErrorMessage } from '@/lib/error';
 
 type ReportTab = 'matrix' | 'services' | 'registry';
 
 export function ReportsPage() {
   const [searchParams] = useSearchParams();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = formatLocalDateISO();
 
   const initialTabParam = searchParams.get('tab');
   const initialDateParam = searchParams.get('date');
@@ -190,18 +191,18 @@ export function ReportsPage() {
     toast.info('Hisobot ma’lumotlari yangilandi');
   };
 
-  // Quick Date setters
+  // Quick Date setters (mahalliy vaqt mintaqasi bo'yicha)
   const setQuickDate = (type: 'today' | 'yesterday' | 'monthStart') => {
     const now = new Date();
     if (type === 'today') {
-      setDate(now.toISOString().slice(0, 10));
+      setDate(formatLocalDateISO(now));
     } else if (type === 'yesterday') {
       const yesterday = new Date(now);
       yesterday.setDate(now.getDate() - 1);
-      setDate(yesterday.toISOString().slice(0, 10));
+      setDate(formatLocalDateISO(yesterday));
     } else if (type === 'monthStart') {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      setDate(start.toISOString().slice(0, 10));
+      setDate(formatLocalDateISO(start));
     }
   };
 

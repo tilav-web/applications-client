@@ -221,6 +221,7 @@ export function UsersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (createMutation.isPending || updateMutation.isPending) return;
     if (editingUser) {
       const updatePayload: Record<string, unknown> = {
         username: formData.username,
@@ -231,8 +232,8 @@ export function UsersPage() {
         assigned_district_ids:
           formData.role === 'DISTRICT_OFFICER' ? formData.assigned_district_ids : [],
       };
-      if (formData.password.trim()) {
-        updatePayload.password = formData.password.trim();
+      if (formData.password.length > 0) {
+        updatePayload.password = formData.password;
       }
       updateMutation.mutate({ id: editingUser.id, data: updatePayload });
     } else {
@@ -757,7 +758,7 @@ export function UsersPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       required={!editingUser}
-                      minLength={6}
+                      minLength={8}
                       className="h-10 pl-9 text-xs sm:text-sm"
                     />
                   </div>

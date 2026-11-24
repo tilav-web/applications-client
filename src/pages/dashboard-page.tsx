@@ -46,6 +46,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { DashboardSkeleton } from '@/components/ui/page-skeletons';
 import { applicationsApi, detectedCrimesApi } from '@/lib/api';
+import { formatLocalDateISO } from '@/lib/date';
 
 const formatCurrency = (amount?: number | null) => {
   if (amount === undefined || amount === null) return '0 UZS';
@@ -100,9 +101,9 @@ export function DashboardPage() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().substring(0, 10);
+    return formatLocalDateISO(d);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().substring(0, 10));
+  const [endDate, setEndDate] = useState(() => formatLocalDateISO());
 
   // Tab view states (list vs table) for breakdown cards & map layer
   const [mapTab, setMapTab] = useState<'applications' | 'detected_crimes'>('applications');

@@ -1,13 +1,24 @@
 import { QueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0, // Stale-while-revalidate: ma'lumot keshdan zudlik bilan chiqadi va fonda serverdan yangilanadi
+      staleTime: 30_000, // 30 soniya kesh — sahifalar o'rtasida keraksiz qayta so'rovlarni kamaytiradi
       gcTime: 1000 * 60 * 15, // 15 minut kesh xotirada saqlanadi
-      retry: 1,
-      refetchOnWindowFocus: true, // Brauzer oynasiga qaytganda ma'lumotlarni yangilash
-      refetchOnMount: 'always', // Sahifaga o'tganda har doim eng so'nggi ma'lumotlarni tekshirib olish
+      retry: (failureCount, error) => {
+        if (failureCount >= 2) return false;
+        if (isAxiosError(error)) {
+          const status = error.response?.status;
+          // 4xx foydalanuvchi / ruxsat xatolarida qayta urinmaymiz
+          if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+            return false;
+          }
+        }
+        return true;
+      },
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
     },
     mutations: {
       retry: 0,

@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   Check,
   Expand,
@@ -13,9 +14,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import mahallasCoordsData from '@/data/qashqadaryo-mahallas-coords.json';
-import provinceBoundaryData from '@/data/qashqadaryo-province-boundary.json';
-import realDistrictsData from '@/data/qashqadaryo-real-districts.json';
+import { queryKeys } from '@/lib/query-keys';
 import { useAppStore } from '@/store';
 
 type GeoJsonCoordinates = number[] | GeoJsonCoordinates[];
@@ -154,13 +153,22 @@ interface Props {
   onDistrictSelect?: (districtName: string | null) => void;
 }
 
-const YANDEX_API_KEY = '0faa0d3b-2049-4fbc-b77e-437de12c50a3';
+const YANDEX_API_KEY = (import.meta.env.VITE_YANDEX_MAPS_API_KEY || '').trim();
 const PROVINCE_BOUNDS: [[number, number], [number, number]] = [
   [38.0075, 64.3777],
   [39.57, 67.6851],
 ];
 const DEFAULT_CENTER: [number, number] = [38.7888, 66.0314];
 const DEFAULT_ZOOM = 8;
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 const formatUZS = (val?: number | null) => {
   if (!val) return '0 UZS';
@@ -216,6 +224,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   const [isYmapsReady, setIsYmapsReady] = useState(false);
   const [selectedDistrictName, setSelectedDistrictName] = useState<string | null>(null);
   const selectedDistrictNameRef = useRef<string | null>(null);
+  const onDistrictSelectRef = useRef(onDistrictSelect);
+  useEffect(() => {
+    onDistrictSelectRef.current = onDistrictSelect;
+  }, [onDistrictSelect]);
   useEffect(() => {
     selectedDistrictNameRef.current = selectedDistrictName;
   }, [selectedDistrictName]);
@@ -355,9 +367,45 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     return Math.max(...districtsData.map((d) => d.count), 1);
   }, [districtsData]);
 
+  // GeoJSON ma'lumotlarni JS bundle dan chiqarib, public/geo/ dan lazy yuklaymiz
+  const { data: realDistrictsData } = useQuery<GeoJsonFeatureCollection>({
+    queryKey: queryKeys.geo.districts,
+    queryFn: async () => {
+      const res = await fetch('/geo/qashqadaryo-real-districts.json');
+      if (!res.ok) throw new Error('Tumanlar GeoJSON yuklanmadi');
+      return res.json() as Promise<GeoJsonFeatureCollection>;
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const { data: provinceBoundaryData } = useQuery<GeoJsonProvinceBoundary>({
+    queryKey: queryKeys.geo.provinceBoundary,
+    queryFn: async () => {
+      const res = await fetch('/geo/qashqadaryo-province-boundary.json');
+      if (!res.ok) throw new Error('Viloyat chegarasi GeoJSON yuklanmadi');
+      return res.json() as Promise<GeoJsonProvinceBoundary>;
+    },
+    enabled: selectedDistrictName !== null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const { data: mahallasCoordsData } = useQuery<Record<string, [number, number]>>({
+    queryKey: queryKeys.geo.mahallasCoords,
+    queryFn: async () => {
+      const res = await fetch('/geo/qashqadaryo-mahallas-coords.json');
+      if (!res.ok) throw new Error('Mahallalar koordinatalari yuklanmadi');
+      return res.json() as Promise<Record<string, [number, number]>>;
+    },
+    enabled: selectedDistrictName !== null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
   // Tuman xodimi (DISTRICT_OFFICER) uchun faqat ruxsat etilgan tumanlar chegaralari
   const visibleDistrictFeatures = useMemo(() => {
-    const allFeatures = (realDistrictsData as unknown as GeoJsonFeatureCollection).features;
+    const allFeatures = realDistrictsData?.features || [];
     if (!allowedDistrictNames) return allFeatures;
     const normalize = (s: string) =>
       s
@@ -366,7 +414,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         .trim();
     const allowedSet = new Set(allowedDistrictNames.map(normalize));
     return allFeatures.filter((feat) => allowedSet.has(normalize(feat.properties.name || '')));
-  }, [allowedDistrictNames]);
+  }, [allowedDistrictNames, realDistrictsData]);
 
   // Xarita uchun standart chegaralar (DISTRICT_OFFICER bo'lsa biriktirilgan tumanlarga yaqinlashadi)
   const defaultMapBounds = useMemo<[[number, number], [number, number]]>(() => {
@@ -426,14 +474,19 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
   // 1. Fullscreen hodisasini kuzatish
   useEffect(() => {
+    let fsTimer: ReturnType<typeof setTimeout> | null = null;
     const handleFsChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
       if (mapInstanceRef.current) {
-        setTimeout(() => mapInstanceRef.current?.container?.fitToViewport(), 200);
+        if (fsTimer) clearTimeout(fsTimer);
+        fsTimer = setTimeout(() => mapInstanceRef.current?.container?.fitToViewport(), 200);
       }
     };
     document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      if (fsTimer) clearTimeout(fsTimer);
+    };
   }, []);
 
   const toggleFullscreen = async () => {
@@ -453,34 +506,68 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     }
   };
 
-  // 2. Yandex Maps SDK yuklash
+  // 2. Yandex Maps SDK yuklash (mavjud skript deadlock'ini oldini olish bilan)
   useEffect(() => {
+    let isMounted = true;
+    const markReady = () => {
+      if (window.ymaps) {
+        window.ymaps.ready(() => {
+          if (isMounted) setIsYmapsReady(true);
+        });
+      }
+    };
+
     if (window.ymaps) {
-      window.ymaps.ready(() => setIsYmapsReady(true));
-      return;
+      markReady();
+      return () => {
+        isMounted = false;
+      };
     }
 
     const scriptId = 'yandex-maps-script-tag';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = `https://api-maps.yandex.ru/2.1/?apikey=${YANDEX_API_KEY}&lang=uz_UZ`;
-      script.async = true;
-      script.onload = () => {
-        if (window.ymaps) {
-          window.ymaps.ready(() => setIsYmapsReady(true));
-        }
-      };
-      document.body.appendChild(script);
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+    if (script && script.dataset.failed === 'true') {
+      script.remove();
+      script = null;
     }
+
+    const handleLoad = () => {
+      markReady();
+    };
+    const handleError = () => {
+      if (script) {
+        script.dataset.failed = 'true';
+      }
+    };
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      const keyParam = YANDEX_API_KEY ? `apikey=${encodeURIComponent(YANDEX_API_KEY)}&` : '';
+      script.src = `https://api-maps.yandex.ru/2.1/?${keyParam}lang=uz_UZ`;
+      script.async = true;
+      script.addEventListener('load', handleLoad);
+      script.addEventListener('error', handleError);
+      document.body.appendChild(script);
+    } else {
+      script.addEventListener('load', handleLoad);
+      script.addEventListener('error', handleError);
+    }
+
+    return () => {
+      isMounted = false;
+      script?.removeEventListener('load', handleLoad);
+      script?.removeEventListener('error', handleError);
+    };
   }, []);
 
   // 3. Tuman tanlash va yaqinlashish (Zoom in)
   const handleSelectDistrict = useCallback(
     (districtName: string | null) => {
       setSelectedDistrictName(districtName);
-      if (onDistrictSelect) {
-        onDistrictSelect(districtName);
+      if (onDistrictSelectRef.current) {
+        onDistrictSelectRef.current(districtName);
       }
 
       const map = mapInstanceRef.current;
@@ -537,7 +624,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         }
       }
     },
-    [onDistrictSelect, defaultMapBounds, allowedDistrictNames, visibleDistrictFeatures],
+    [defaultMapBounds, allowedDistrictNames, visibleDistrictFeatures],
   );
 
   const handleZoomIn = () => {
@@ -668,9 +755,13 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       });
     }
 
+    const pendingClickTimers: Array<ReturnType<typeof setTimeout>> = [];
+
     // Ruxsat etilgan tuman chegaralari (DISTRICT_OFFICER uchun faqat biriktirilgan tumanlar)
     visibleDistrictFeatures.forEach((feat) => {
       const dName = feat.properties.name;
+      const safeDName = escapeHtml(dName);
+      const safeEntityLabel = escapeHtml(entityLabel);
       const isSelected = selectedDistrictName?.toLowerCase() === dName.toLowerCase();
 
       const stat = districtStatsMap.get(dName) ||
@@ -703,7 +794,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       const districtPolygon = new ymaps.Polygon(
         ymapsCoords,
         {
-          hintContent: `<b>${dName}</b><br/>Arizalar: ${stat.count} ta<br/>Zarar: ${formatUZS(stat.totalLoss)}`,
+          hintContent: `<b>${safeDName}</b><br/>${safeEntityLabel}: ${Number(stat.count) || 0} ta<br/>Zarar: ${escapeHtml(formatUZS(stat.totalLoss))}`,
         },
         {
           fillColor: isDark ? '#38bdf8' : '#0284c7',
@@ -758,7 +849,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
             user-select: none;
             width: 36px;
             height: 36px;
-          " title="${dName}: ${stat.count} ta ariza (Surish uchun 2 marta bosing)">
+          " title="${safeDName}: ${Number(stat.count) || 0} ta (Surish uchun 2 marta bosing)">
             <svg width="36" height="36" viewBox="0 0 36 36" style="overflow: visible; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));">
               <circle
                 cx="18"
@@ -776,7 +867,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
                 font-size="13"
                 font-weight="900"
                 font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-              >${stat.count}</text>
+              >${Number(stat.count) || 0}</text>
             </svg>
           </div>
         `);
@@ -818,6 +909,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
             clickTimer = null;
             handleSelectDistrict(dName);
           }, 250);
+          pendingClickTimers.push(clickTimer);
         });
 
         placemark.events.add('dblclick', (e) => {
@@ -853,6 +945,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         placemarksRef.current.push(placemark);
       }
     });
+
+    return () => {
+      pendingClickTimers.forEach((t) => clearTimeout(t));
+    };
   }, [
     isYmapsReady,
     districtsData,
@@ -866,7 +962,9 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     visibleDistrictFeatures,
     allowedDistrictNames,
     defaultMapBounds,
+    entityLabel,
     isDark,
+    provinceBoundaryData,
   ]);
 
   // 6. TANLANGAN TUMAN ICHIDA MAHALLALARNI KO'RSATISH
@@ -882,13 +980,14 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
     districtMahallas.forEach((mahalla) => {
       const coordKey = `${selectedDistrictName}__${mahalla.name}`;
-      const defaultCoords = (mahallasCoordsData as unknown as Record<string, [number, number]>)[
-        coordKey
-      ];
+      const defaultCoords = mahallasCoordsData?.[coordKey];
       const currentCoords = customMahallaCenters[coordKey] || defaultCoords;
       if (!currentCoords) return;
 
       const isCustom = Boolean(customMahallaCenters[coordKey]);
+      const safeMahallaName = escapeHtml(mahalla.name);
+      const safeEntityLabel = escapeHtml(entityLabel);
+      const safeCount = Number(mahalla.count) || 0;
 
       const MahallaBadgeLayout = ymaps.templateLayoutFactory.createClass(`
         <div style="
@@ -899,7 +998,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
           align-items: center;
           user-select: none;
           pointer-events: auto;
-        " title="${mahalla.name}: ${mahalla.count} ta ariza (Surish uchun 2 marta bosing)">
+        " title="${safeMahallaName}: ${safeCount} ta (Surish uchun 2 marta bosing)">
           <svg width="30" height="30" viewBox="0 0 30 30" style="overflow: visible; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));">
             <circle
               cx="15"
@@ -917,7 +1016,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
               font-size="11"
               font-weight="900"
               font-family="monospace"
-            >${mahalla.count}</text>
+            >${safeCount}</text>
           </svg>
           <div style="
             background: rgba(15, 23, 42, 0.95);
@@ -930,14 +1029,14 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
             white-space: nowrap;
             margin-top: 3px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-          ">${mahalla.name}</div>
+          ">${safeMahallaName}</div>
         </div>
       `);
 
       const placemark = new ymaps.Placemark(
         currentCoords,
         {
-          hintContent: `<b>${mahalla.name}</b><br/>${entityLabel}: ${mahalla.count} ta<br/>Zarar: ${formatUZS(mahalla.totalLoss)}`,
+          hintContent: `<b>${safeMahallaName}</b><br/>${safeEntityLabel}: ${safeCount} ta<br/>Zarar: ${escapeHtml(formatUZS(mahalla.totalLoss))}`,
         },
         {
           iconLayout: MahallaBadgeLayout,
@@ -975,6 +1074,8 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     customMahallaCenters,
     isMoveMode,
     handleUpdateMahallaCenter,
+    entityLabel,
+    mahallasCoordsData,
   ]);
 
   return (

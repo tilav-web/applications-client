@@ -207,7 +207,9 @@ export const router = createBrowserRouter([
           {
             path: 'templates',
             element: (
-              <RoleRoute disallowedRoles={['BOSS']}>
+              <RoleRoute
+                allowedRoles={['SUPER_ADMIN', 'ADMIN', 'INSPECTOR', 'STAFF', 'DISTRICT_OFFICER']}
+              >
                 <TemplatesPage />
               </RoleRoute>
             ),

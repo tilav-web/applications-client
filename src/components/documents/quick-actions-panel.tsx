@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { matchesLatinSearch } from '@/lib/transliterate';
 import { cn } from '@/lib/utils';
 import type { Application } from '@/types/models';
@@ -104,12 +105,17 @@ export function QuickActionsPanel({
 
   const handleCopy = (id: string, text: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    toast.success(`Nusxalandi: "${text.slice(0, 30)}${text.length > 30 ? '...' : ''}"`);
-    setTimeout(() => {
-      setCopiedId((prev) => (prev === id ? null : prev));
-    }, 1800);
+    void copyTextToClipboard(text).then((ok) => {
+      if (!ok) {
+        toast.error('Nusxa olib bo‘lmadi');
+        return;
+      }
+      setCopiedId(id);
+      toast.success(`Nusxalandi: "${text.slice(0, 30)}${text.length > 30 ? '...' : ''}"`);
+      setTimeout(() => {
+        setCopiedId((prev) => (prev === id ? null : prev));
+      }, 1800);
+    });
   };
 
   const handleInsertClick = (text: string) => {

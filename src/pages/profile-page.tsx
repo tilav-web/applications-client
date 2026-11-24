@@ -99,7 +99,7 @@ function PersonalInfoForm({ user, onSuccess }: ProfileEditProps) {
             Asosiy Ma&apos;lumotlarni Tahrirlash
           </CardTitle>
           <Badge className="bg-primary text-primary-foreground font-mono text-xs">
-            {user.role || 'SUPER_ADMIN'}
+            {user.role || '—'}
           </Badge>
         </div>
         <CardDescription className="text-xs">
@@ -235,8 +235,8 @@ function PasswordChangeForm({ onSuccess }: { onSuccess: (updated: AuthUser) => v
     setSuccessMsg(null);
     setErrorMsg(null);
 
-    if (newPassword.length < 4) {
-      setErrorMsg("Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak");
+    if (newPassword.length < 8) {
+      setErrorMsg("Yangi parol kamida 8 ta belgidan iborat bo'lishi kerak");
       return;
     }
 
@@ -246,8 +246,8 @@ function PasswordChangeForm({ onSuccess }: { onSuccess: (updated: AuthUser) => v
     }
 
     const payload: UpdateProfileDto = {
-      current_password: currentPassword.trim(),
-      new_password: newPassword.trim(),
+      current_password: currentPassword,
+      new_password: newPassword,
     };
 
     try {
@@ -341,7 +341,7 @@ function PasswordChangeForm({ onSuccess }: { onSuccess: (updated: AuthUser) => v
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground flex items-center justify-between">
               <span>Yangi Parol</span>
-              <span className="text-[10px] text-muted-foreground font-mono">kamida 4 belgi</span>
+              <span className="text-[10px] text-muted-foreground font-mono">kamida 8 belgi</span>
             </label>
             <div className="relative">
               <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -457,7 +457,7 @@ export function ProfilePage() {
                 {fullName}
               </h1>
               <Badge className="bg-primary text-primary-foreground text-xs font-mono">
-                {user?.role || 'SUPER_ADMIN'}
+                {user?.role || '—'}
               </Badge>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground font-mono">
