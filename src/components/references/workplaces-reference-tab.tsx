@@ -48,6 +48,7 @@ export function WorkplacesReferenceTab() {
   const [districtId, setDistrictId] = useState('');
   const [mahallaId, setMahallaId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [selectedOccupationIds, setSelectedOccupationIds] = useState<string[]>([]);
   const [address, setAddress] = useState('');
   const [inn, setInn] = useState('');
 
@@ -84,6 +85,7 @@ export function WorkplacesReferenceTab() {
     setDistrictId(districtFilter || '');
     setMahallaId('');
     setCategoryId('');
+    setSelectedOccupationIds([]);
     setAddress('');
     setInn('');
     setModalOpen(true);
@@ -95,6 +97,7 @@ export function WorkplacesReferenceTab() {
     setDistrictId(wp.district_id || '');
     setMahallaId(wp.mahalla_id || '');
     setCategoryId(wp.occupation_category_id || '');
+    setSelectedOccupationIds((wp.occupations || []).map((o) => o.id));
     setAddress(wp.address || '');
     setInn(wp.inn || '');
     setModalOpen(true);
@@ -107,6 +110,7 @@ export function WorkplacesReferenceTab() {
         district_id: districtId || null,
         mahalla_id: mahallaId || null,
         occupation_category_id: categoryId || null,
+        occupation_ids: selectedOccupationIds,
         address: address.trim() || null,
         inn: inn.trim() || null,
       };
@@ -137,6 +141,13 @@ export function WorkplacesReferenceTab() {
   const districts = districtsData?.items || [];
   const mahallas = mahallasData?.items || [];
   const categories = categoriesData || [];
+  const categoryOccupations = categories.find((c) => c.id === categoryId)?.occupations || [];
+
+  const toggleOccupationId = (occId: string) => {
+    setSelectedOccupationIds((prev) =>
+      prev.includes(occId) ? prev.filter((id) => id !== occId) : [...prev, occId],
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -210,13 +221,32 @@ export function WorkplacesReferenceTab() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {wp.occupation_category ? (
-                      <Badge variant="outline" className="text-[10px]">
-                        {wp.occupation_category.name}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {wp.occupation_category ? (
+                        <Badge variant="outline" className="text-[10px] w-fit">
+                          {wp.occupation_category.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                      {wp.occupations && wp.occupations.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {wp.occupations.slice(0, 3).map((occ) => (
+                            <span
+                              key={occ.id}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                            >
+                              {occ.name}
+                            </span>
+                          ))}
+                          {wp.occupations.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{wp.occupations.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-xs">
                     {wp.district?.name ? (
@@ -346,7 +376,10 @@ export function WorkplacesReferenceTab() {
                 <label className="text-xs font-semibold">Sohasi (Kasb toifasi)</label>
                 <select
                   value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+                  onChange={(e) => {
+                    setCategoryId(e.target.value);
+                    setSelectedOccupationIds([]);
+                  }}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
                 >
                   <option value="">-- Sohani tanlang --</option>
@@ -368,6 +401,33 @@ export function WorkplacesReferenceTab() {
                 />
               </div>
             </div>
+
+            {categoryId && categoryOccupations.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold">
+                  Tegishli kasb turlari (bir nechta tanlash mumkin)
+                </label>
+                <div className="flex flex-wrap gap-1.5 p-2 rounded-md border border-input bg-muted/20 max-h-32 overflow-y-auto">
+                  {categoryOccupations.map((occ) => {
+                    const checked = selectedOccupationIds.includes(occ.id);
+                    return (
+                      <button
+                        key={occ.id}
+                        type="button"
+                        onClick={() => toggleOccupationId(occ.id)}
+                        className={`text-[11px] px-2 py-1 rounded-md border transition-colors cursor-pointer ${
+                          checked
+                            ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                            : 'bg-background text-foreground border-border hover:bg-muted'
+                        }`}
+                      >
+                        {occ.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-semibold">Aniq manzili (ixtiyoriy)</label>

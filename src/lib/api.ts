@@ -433,6 +433,7 @@ export const workplacesApi = {
     search?: string;
     district_id?: string;
     occupation_category_id?: string;
+    occupation_id?: string;
     include_inactive?: boolean;
   }) => {
     const res = await apiClient.get<PaginatedResponse<import('@/types/models').Workplace>>(
@@ -450,6 +451,7 @@ export const workplacesApi = {
     district_id?: string | null;
     mahalla_id?: string | null;
     occupation_category_id?: string | null;
+    occupation_ids?: string[];
     address?: string | null;
     inn?: string | null;
     is_active?: boolean;
@@ -464,6 +466,7 @@ export const workplacesApi = {
       district_id?: string | null;
       mahalla_id?: string | null;
       occupation_category_id?: string | null;
+      occupation_ids?: string[];
       address?: string | null;
       inn?: string | null;
       is_active?: boolean;

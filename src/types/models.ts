@@ -211,6 +211,7 @@ export interface Workplace {
   mahalla?: Mahalla | null;
   occupation_category_id?: string | null;
   occupation_category?: OccupationCategory | null;
+  occupations?: Occupation[];
   address?: string | null;
   inn?: string | null;
   is_active?: boolean;

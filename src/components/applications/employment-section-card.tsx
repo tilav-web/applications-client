@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Building2, CheckCircle2, MapPin } from 'lucide-react';
+import { Briefcase, Building2, CheckCircle2, MapPin, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { workplacesApi } from '@/lib/api';
+import { matchesLatinSearch } from '@/lib/transliterate';
 import type { Occupation, OccupationCategory, Workplace } from '@/types/models';
 
 interface EmploymentSectionCardProps {
@@ -32,21 +34,35 @@ export function EmploymentSectionCard({
   workPosition,
   onWorkPositionChange,
 }: EmploymentSectionCardProps) {
-  const { data: workplacesRes } = useQuery({
-    queryKey: ['workplaces-select-all'],
-    queryFn: () => workplacesApi.getAll({ page: 1, limit: 200 }),
+  const [workplaceFilter, setWorkplaceFilter] = useState('');
+
+  const { data: workplacesRes, isFetching: isWorkplacesLoading } = useQuery({
+    queryKey: ['workplaces-by-occupation', occupationId],
+    queryFn: () =>
+      workplacesApi.getAll({
+        page: 1,
+        limit: 300,
+        occupation_id: occupationId || undefined,
+      }),
+    enabled: Boolean(occupationId),
   });
 
-  const allWorkplaces = workplacesRes?.items || [];
-
-  const sortedWorkplaces = [...allWorkplaces].sort((a, b) => {
-    if (occupationCategoryId) {
-      const aMatch = a.occupation_category_id === occupationCategoryId ? 0 : 1;
-      const bMatch = b.occupation_category_id === occupationCategoryId ? 0 : 1;
-      if (aMatch !== bMatch) return aMatch - bMatch;
+  const occupationWorkplaces = useMemo(() => {
+    const base = workplacesRes?.items || [];
+    if (selectedWorkplace && !base.some((w) => w.id === selectedWorkplace.id)) {
+      return [selectedWorkplace, ...base];
     }
-    return (a.name || '').localeCompare(b.name || '');
-  });
+    return base;
+  }, [workplacesRes?.items, selectedWorkplace]);
+
+  const filteredWorkplaces = useMemo(() => {
+    if (!workplaceFilter.trim()) return occupationWorkplaces;
+    return occupationWorkplaces.filter(
+      (wp) =>
+        matchesLatinSearch(wp.name, workplaceFilter) ||
+        matchesLatinSearch(wp.district?.name, workplaceFilter),
+    );
+  }, [occupationWorkplaces, workplaceFilter]);
 
   return (
     <Card className="border-border/80 bg-card/70 shadow-sm">
@@ -68,7 +84,7 @@ export function EmploymentSectionCard({
       </CardHeader>
 
       <CardContent className="pt-4 space-y-4">
-        {/* 1-qator: Kasb toifasi va Kasb turi */}
+        {/* 1-qator: Kasb toifasi -> Kasb turi */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -88,6 +104,8 @@ export function EmploymentSectionCard({
               onChange={(e) => {
                 onOccupationCategoryChange(e.target.value || null);
                 onOccupationChange(null);
+                onSelectWorkplace(null);
+                setWorkplaceFilter('');
               }}
               className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
             >
@@ -115,7 +133,11 @@ export function EmploymentSectionCard({
             <select
               value={occupationId || ''}
               disabled={!occupationCategoryId}
-              onChange={(e) => onOccupationChange(e.target.value || null)}
+              onChange={(e) => {
+                onOccupationChange(e.target.value || null);
+                onSelectWorkplace(null);
+                setWorkplaceFilter('');
+              }}
               className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
                 !occupationCategoryId
                   ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground'
@@ -136,7 +158,7 @@ export function EmploymentSectionCard({
           </div>
         </div>
 
-        {/* 2-qator: Ish joyi / Tashkilot (faqat Ma'lumotnomalardan tanlash) + Lavozimi */}
+        {/* 2-qator: Ish joyi / Tashkilot (Kasb turi tanlangandan keyin ochiladi) + Lavozimi */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -144,29 +166,58 @@ export function EmploymentSectionCard({
                 <Building2 className="h-3.5 w-3.5 text-indigo-500" />
                 Ish joyi / Tashkilot
               </label>
-              {selectedWorkplace && (
+              {selectedWorkplace ? (
                 <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-[10px]">
                   <CheckCircle2 className="h-3 w-3" />
                   Tanlandi
                 </Badge>
-              )}
+              ) : occupationId && !isWorkplacesLoading ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {occupationWorkplaces.length} ta tashkilot
+                </span>
+              ) : null}
             </div>
+
+            {occupationId && occupationWorkplaces.length > 10 && (
+              <div className="relative">
+                <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input
+                  value={workplaceFilter}
+                  onChange={(e) => setWorkplaceFilter(e.target.value)}
+                  placeholder="Tashkilot yoki tuman bo‘yicha tezkor qidiruv..."
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+            )}
 
             <select
               value={selectedWorkplace?.id || ''}
+              disabled={!occupationId || isWorkplacesLoading}
               onChange={(e) => {
                 const id = e.target.value;
                 if (!id) {
                   onSelectWorkplace(null);
                   return;
                 }
-                const found = allWorkplaces.find((w) => w.id === id) || null;
+                const found = occupationWorkplaces.find((w) => w.id === id) || null;
                 onSelectWorkplace(found);
               }}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
+                !occupationId || isWorkplacesLoading
+                  ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground'
+                  : ''
+              }`}
             >
-              <option value="">-- ISH JOYINI / TASHKILOTNI TANLANG --</option>
-              {sortedWorkplaces.map((wp) => (
+              <option value="">
+                {!occupationId
+                  ? 'AVVAL KASB TURINI TANLANG...'
+                  : isWorkplacesLoading
+                    ? 'YUKLANMOQDA...'
+                    : filteredWorkplaces.length === 0
+                      ? 'USHBU KASB TURI UCHUN TASHKILOT TOPILMADI'
+                      : '-- ISH JOYINI / TASHKILOTNI TANLANG --'}
+              </option>
+              {filteredWorkplaces.map((wp) => (
                 <option key={wp.id} value={wp.id}>
                   {wp.name}
                   {wp.district?.name ? ` (${wp.district.name})` : ''}
@@ -178,23 +229,23 @@ export function EmploymentSectionCard({
               <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 px-1">
                 <MapPin className="h-3 w-3 text-emerald-500 shrink-0" />
                 <span className="truncate">
-                  {selectedWorkplace.district?.name || 'Hudud ko‘rsatilmagan'}
+                  {selectedWorkplace.district?.name || 'Tuman belgilanmagan'}
                   {selectedWorkplace.mahalla?.name ? `, ${selectedWorkplace.mahalla.name}` : ''}
-                  {selectedWorkplace.address ? ` • ${selectedWorkplace.address}` : ''}
+                  {selectedWorkplace.address ? ` — ${selectedWorkplace.address}` : ''}
                 </span>
               </div>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-foreground block">
               Lavozimi / darajasi (ixtiyoriy)
             </label>
             <Input
-              placeholder="Masalan: Matematika o‘qituvchisi, Bosh hisobchi, 3-kurs talabasi..."
               value={workPosition}
               onChange={(e) => onWorkPositionChange(e.target.value)}
-              className="h-10 text-xs"
+              placeholder="Masalan: Matematika o‘qituvchisi, Bosh hisobchi, 3-kurs talabasi..."
+              className="h-10 text-xs font-medium"
             />
           </div>
         </div>

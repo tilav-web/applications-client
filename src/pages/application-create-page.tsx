@@ -260,6 +260,8 @@ export function ApplicationCreatePage() {
   // 1. ASOSIY ARIZA QAYD REKVIZITLARI
   // ==========================================================================
   const [applicationNumber, setApplicationNumber] = useState('');
+  const [applicationNumberTouched, setApplicationNumberTouched] = useState(false);
+  const showAppNumberWarning = applicationNumberTouched && !applicationNumber.trim();
   const [description, setDescription] = useState('');
   const [officerNotes, setOfficerNotes] = useState('');
   const [suspectTree, setSuspectTree] = useState<unknown[]>([]);
@@ -1418,7 +1420,20 @@ export function ApplicationCreatePage() {
       {/* ===================================================================== */}
       {/* YAGONA RASMIY ARIZA BAYONNOMASI (DOSSIER CONTAINER) */}
       {/* ===================================================================== */}
-      <div className="bg-card border border-border shadow-xl rounded-2xl overflow-hidden divide-y divide-border/60">
+      <div
+        className="bg-card border border-border shadow-xl rounded-2xl overflow-hidden divide-y divide-border/60"
+        onFocusCapture={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (
+            target &&
+            ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName) &&
+            target.id !== 'application-number-input' &&
+            !applicationNumber.trim()
+          ) {
+            setApplicationNumberTouched(true);
+          }
+        }}
+      >
         {/* ================================================================= */}
         {/* BOSHQARUV VA PROTOKOL REKVIZITLARI (TOP HEADER) */}
         {/* ================================================================= */}
@@ -1527,14 +1542,33 @@ export function ApplicationCreatePage() {
               </div>
 
               {/* Ariza / Murojaat Raqami (kengaytirilgan va qulay) */}
-              <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm min-w-[260px] sm:w-80">
-                <span className="text-xs font-bold text-primary font-mono">№</span>
-                <Input
-                  value={applicationNumber}
-                  onChange={(e) => setApplicationNumber(e.target.value.toUpperCase())}
-                  placeholder="ARIZA RAQAMI (IXTIYORIY)..."
-                  className="h-7 w-full border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase text-foreground placeholder:text-muted-foreground/60"
-                />
+              <div className="flex flex-col gap-1 min-w-[260px] sm:w-80">
+                <div
+                  className={`flex items-center gap-2 bg-background border rounded-lg px-3 py-1.5 shadow-sm transition-colors ${
+                    showAppNumberWarning ? 'border-red-500 ring-1 ring-red-500/30' : 'border-input'
+                  }`}
+                >
+                  <span
+                    className={`text-xs font-bold font-mono ${
+                      showAppNumberWarning ? 'text-red-500' : 'text-primary'
+                    }`}
+                  >
+                    №
+                  </span>
+                  <Input
+                    id="application-number-input"
+                    value={applicationNumber}
+                    onChange={(e) => setApplicationNumber(e.target.value.toUpperCase())}
+                    onBlur={() => setApplicationNumberTouched(true)}
+                    placeholder="ARIZA RAQAMI"
+                    className="h-7 w-full border-0 p-0 text-xs font-mono font-bold focus-visible:ring-0 bg-transparent uppercase text-foreground placeholder:text-muted-foreground/60"
+                  />
+                </div>
+                {showAppNumberWarning && (
+                  <span className="text-[11px] font-medium text-red-500 px-1">
+                    Ariza raqamini kiritish tavsiya etiladi
+                  </span>
+                )}
               </div>
             </div>
 
