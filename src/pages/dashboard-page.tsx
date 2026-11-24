@@ -165,7 +165,7 @@ export function DashboardPage() {
   const timelineData = data?.timeline || [];
   const statusData = data?.byStatus || [];
   const districtData = data?.byDistrict || [];
-  const mahallaData = data?.byMahalla || [];
+  const mahallaData = data?.byNeighborhood || [];
   const crimeData = data?.byCrime || [];
   const providerData = data?.byPaymentProvider || [];
   const recentApps = data?.recentApplications || [];
@@ -491,7 +491,9 @@ export function DashboardPage() {
               districtsData={
                 mapTab === 'applications' ? districtData : dcMapStats?.byDistrict || []
               }
-              mahallasData={mapTab === 'applications' ? mahallaData : dcMapStats?.byMahalla || []}
+              neighborhoodsData={
+                mapTab === 'applications' ? mahallaData : dcMapStats?.byNeighborhood || []
+              }
               allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
               isLoading={mapTab === 'applications' ? isLoading : isDcMapLoading}
               entityLabel={mapTab === 'applications' ? 'Arizalar' : 'Aniqlangan jinoyatlar'}

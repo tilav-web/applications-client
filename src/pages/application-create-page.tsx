@@ -43,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -62,7 +63,7 @@ import {
   districtsApi,
   documentsApi,
   filesApi,
-  mahallasApi,
+  neighborhoodsApi,
   occupationCategoriesApi,
   occupationsApi,
   paymentProvidersApi,
@@ -369,13 +370,13 @@ export function ApplicationCreatePage() {
 
   const { data: districtsData } = useQuery({
     queryKey: ['districts-autocomplete'],
-    queryFn: () => districtsApi.getAll({ limit: 100 }),
+    queryFn: () => districtsApi.getAll({ limit: 500 }),
   });
   const allDistricts = districtsData?.items || [];
 
   const { data: citizenMahallasData } = useQuery({
-    queryKey: ['citizen-mahallas', citizenDistrictId],
-    queryFn: () => mahallasApi.getAll({ district_id: citizenDistrictId!, limit: 200 }),
+    queryKey: ['citizen-neighborhoods', citizenDistrictId],
+    queryFn: () => neighborhoodsApi.getAll({ district_id: citizenDistrictId!, limit: 200 }),
     enabled: Boolean(citizenDistrictId),
   });
   const allCitizenMahallas = citizenMahallasData?.items || [];
@@ -558,7 +559,9 @@ export function ApplicationCreatePage() {
       setCitizenDistrictId(
         initialApp.citizen.district_id || initialApp.citizen.district?.id || null,
       );
-      setCitizenMahallaId(initialApp.citizen.mahalla_id || initialApp.citizen.mahalla?.id || null);
+      setCitizenMahallaId(
+        initialApp.citizen.neighborhood_id || initialApp.citizen.neighborhood?.id || null,
+      );
       setOccupationCategoryId(
         initialApp.citizen.occupation_category_id ||
           initialApp.citizen.occupation_category?.id ||
@@ -718,8 +721,9 @@ export function ApplicationCreatePage() {
                   address: cf.citizen.address || '',
                   district_id: cf.citizen.district_id || cf.citizen.district?.id || null,
                   district_name: cf.citizen.district?.name || '',
-                  mahalla_id: cf.citizen.mahalla_id || cf.citizen.mahalla?.id || null,
-                  mahalla_name: cf.citizen.mahalla?.name || '',
+                  neighborhood_id:
+                    cf.citizen.neighborhood_id || cf.citizen.neighborhood?.id || null,
+                  neighborhood_name: cf.citizen.neighborhood?.name || '',
                 }
               : undefined,
             inline_card: cf.card
@@ -824,7 +828,7 @@ export function ApplicationCreatePage() {
   const handleSelectCitizen = (c: Citizen) => {
     setSelectedCitizenId(c.id);
     setCitizenDistrictId(c.district_id || c.district?.id || null);
-    setCitizenMahallaId(c.mahalla_id || c.mahalla?.id || null);
+    setCitizenMahallaId(c.neighborhood_id || c.neighborhood?.id || null);
     setOccupationCategoryId(c.occupation_category_id || c.occupation_category?.id || null);
     setOccupationId(c.occupation_id || c.occupation?.id || null);
     setSelectedWorkplace(c.workplace || null);
@@ -918,8 +922,8 @@ export function ApplicationCreatePage() {
               address: '',
               district_id: null,
               district_name: '',
-              mahalla_id: null,
-              mahalla_name: '',
+              neighborhood_id: null,
+              neighborhood_name: '',
             }
           : undefined,
       inline_card:
@@ -985,7 +989,7 @@ export function ApplicationCreatePage() {
         gender: citizenForm.gender || undefined,
         address: citizenForm.address || undefined,
         district_id: citizenDistrictId || undefined,
-        mahalla_id: citizenMahallaId || undefined,
+        neighborhood_id: citizenMahallaId || undefined,
         occupation_category_id: occupationCategoryId || null,
         occupation_id: occupationId || null,
       };
@@ -1636,7 +1640,7 @@ export function ApplicationCreatePage() {
               </div>
             </div>
 
-            {/* 3-Qator: Tuman va Mahalla (Fuqaro yashaydigan hududi) */}
+            {/* 3-Qator: Tuman va Neighborhood (Fuqaro yashaydigan hududi) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Yashash Tumani */}
               <div className="space-y-1.5">
@@ -1652,22 +1656,17 @@ export function ApplicationCreatePage() {
                     </Badge>
                   )}
                 </div>
-                <select
-                  value={citizenDistrictId || ''}
-                  onChange={(e) => {
-                    const dId = e.target.value;
-                    setCitizenDistrictId(dId || null);
+                <DistrictSearchSelect
+                  districts={allDistricts}
+                  value={citizenDistrictId}
+                  onChange={(dId) => {
+                    setCitizenDistrictId(dId);
                     setCitizenMahallaId(null);
                   }}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">-- TUMANNI TANLANG --</option>
-                  {allDistricts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                  groupedByRegion
+                  placeholder="-- TUMANNI TANLANG --"
+                  searchPlaceholder="Tuman yoki viloyat nomini qidiring..."
+                />
               </div>
 
               {/* Yashash Mahallasi */}
@@ -1851,23 +1850,17 @@ export function ApplicationCreatePage() {
                   </Badge>
                 )}
               </div>
-              <select
-                value={selectedDistrictId || ''}
-                onChange={(e) => {
-                  const dId = e.target.value;
-                  setSelectedDistrictId(dId || null);
-                  const found = allDistricts.find((d) => d.id === dId);
+              <DistrictSearchSelect
+                districts={allDistricts}
+                value={selectedDistrictId}
+                onChange={(dId, found) => {
+                  setSelectedDistrictId(dId);
                   setDistrictForm({ name: found?.name || '' });
                 }}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">-- TUMANNI TANLANG --</option>
-                {allDistricts.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                onlyRegionCode="QASHQADARYO"
+                placeholder="-- TUMANNI TANLANG --"
+                searchPlaceholder="Qashqadaryo tumanini qidiring..."
+              />
             </div>
 
             {/* Jinoyat turi */}

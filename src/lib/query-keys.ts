@@ -3,7 +3,7 @@ export const queryKeys = {
     all: ['geo'] as const,
     districts: ['geo', 'qashqadaryo-real-districts'] as const,
     provinceBoundary: ['geo', 'qashqadaryo-province-boundary'] as const,
-    mahallasCoords: ['geo', 'qashqadaryo-mahallas-coords'] as const,
+    neighborhoodsCoords: ['geo', 'qashqadaryo-neighborhoods-coords'] as const,
   },
   applications: {
     all: ['applications'] as const,
@@ -22,9 +22,11 @@ export const queryKeys = {
       ['financial-flow-graph', params] as const,
   },
   references: {
+    regions: ['regions'] as const,
+    regionsSelect: ['regions-autocomplete'] as const,
     districts: ['districts'] as const,
     districtsSelect: ['districts-autocomplete'] as const,
-    mahallas: ['mahallas'] as const,
+    neighborhoods: ['neighborhoods'] as const,
     crimes: ['crimes'] as const,
     crimesSelect: ['crimes-autocomplete'] as const,
     crimeMethods: ['crime-methods'] as const,

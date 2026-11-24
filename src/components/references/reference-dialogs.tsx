@@ -9,8 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
-import type { Crime, District, OccupationCategory } from '@/types/models';
+import type { Crime, District, OccupationCategory, Region } from '@/types/models';
 
 import type { ReferenceFormData, ReferenceItem, ReferenceTabKey } from './reference-types';
 
@@ -22,6 +23,7 @@ interface ReferenceDialogsProps {
   targetItem: ReferenceItem | null;
   formData: ReferenceFormData;
   setFormData: (next: ReferenceFormData) => void;
+  allRegionsList: Region[];
   allDistrictsList: District[];
   allCrimesList: Crime[];
   allCategoriesList: OccupationCategory[];
@@ -40,6 +42,7 @@ export function ReferenceDialogs({
   targetItem,
   formData,
   setFormData,
+  allRegionsList,
   allDistrictsList,
   allCrimesList,
   allCategoriesList,
@@ -59,8 +62,12 @@ export function ReferenceDialogs({
               {modalType === 'create' ? 'Yangi Yozuv Qo‘shish' : 'Tahrirlash'}
             </DialogTitle>
             <DialogDescription>
-              {activeTab === 'districts' && 'Tuman yoki hududiy bo‘lim ma‘lumotlarini kiriting'}
-              {activeTab === 'mahallas' && 'Mahalla nomi va tegishli tumanni tanlang'}
+              {activeTab === 'regions' &&
+                'Viloyat nomi, kodi va geografik markaz koordinatalarini kiriting'}
+              {activeTab === 'districts' &&
+                'Tuman yoki hududiy bo‘lim, tegishli viloyat va koordinatalarini kiriting'}
+              {activeTab === 'neighborhoods' &&
+                'Mahalla nomi, tegishli tuman va geografik koordinatalarini kiriting'}
               {activeTab === 'crimes' && 'Jinoyat turini kiriting'}
               {activeTab === 'banks' && 'Tijorat banki nomi va MFO kodini kiriting'}
               {activeTab === 'providers' && 'To‘lov xizmati provayderi ma‘lumotlarini kiriting'}
@@ -130,23 +137,142 @@ export function ReferenceDialogs({
               />
             </div>
 
-            {/* Mahalla uchun tegishli Tuman tanlash */}
-            {activeTab === 'mahallas' && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Tegishli Tuman *</label>
-                <select
-                  value={formData.district_id || ''}
-                  onChange={(e) => setFormData({ ...formData, district_id: e.target.value })}
-                  className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                  required
-                >
-                  <option value="">Tumanni tanlang...</option>
-                  {allDistrictsList.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Viloyat (regions) qo'shimcha maydonlari */}
+            {activeTab === 'regions' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Tizim Kodi (Slug)</label>
+                  <Input
+                    placeholder="QASHQADARYO, TOSHKENT..."
+                    value={formData.code || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, code: e.target.value.toUpperCase() })
+                    }
+                    className="h-10 text-xs sm:text-sm font-mono uppercase"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Kenglik (Latitude)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="38.7888"
+                      value={formData.latitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Uzunlik (Longitude)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="66.0314"
+                      value={formData.longitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tuman (districts) uchun Viloyat va koordinatalar */}
+            {activeTab === 'districts' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Tegishli Viloyat</label>
+                  <select
+                    value={formData.region_id || ''}
+                    onChange={(e) => setFormData({ ...formData, region_id: e.target.value })}
+                    className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Viloyatni tanlang...</option>
+                    {allRegionsList.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Kenglik (Latitude)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="38.8445"
+                      value={formData.latitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Uzunlik (Longitude)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="65.7961"
+                      value={formData.longitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mahalla (neighborhoods) uchun tegishli Tuman va koordinatalar */}
+            {activeTab === 'neighborhoods' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Tegishli Tuman *</label>
+                  <DistrictSearchSelect
+                    districts={allDistrictsList}
+                    value={formData.district_id || null}
+                    onChange={(dId) => setFormData({ ...formData, district_id: dId || '' })}
+                    groupedByRegion
+                    placeholder="Tumanni tanlang..."
+                    searchPlaceholder="Tuman yoki viloyat nomini qidiring..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Kenglik (Latitude)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="38.8606"
+                      value={formData.latitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Uzunlik (Longitude)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="65.7947"
+                      value={formData.longitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      className="h-10 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

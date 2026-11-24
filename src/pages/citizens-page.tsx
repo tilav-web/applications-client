@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
@@ -106,7 +107,7 @@ export function CitizensPage() {
 
   const { data: districtsData } = useQuery({
     queryKey: ['districts-all-citizens'],
-    queryFn: () => districtsApi.getAll({ limit: 100 }),
+    queryFn: () => districtsApi.getAll({ limit: 500 }),
   });
   const allDistricts = districtsData?.items || [];
 
@@ -474,21 +475,23 @@ export function CitizensPage() {
           mono
         />
 
-        <FilterSelect
-          label="Yashash tumani"
-          value={districtFilter}
-          onChange={(v) => {
-            setDistrictFilter(v);
-            setPage(1);
-          }}
-        >
-          <option value="">Barcha tumanlar</option>
-          {allDistricts.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </FilterSelect>
+        <div className="space-y-1">
+          <label className="text-[11px] font-semibold text-muted-foreground block">
+            Yashash tumani
+          </label>
+          <DistrictSearchSelect
+            districts={allDistricts}
+            value={districtFilter || null}
+            onChange={(dId) => {
+              setDistrictFilter(dId || '');
+              setPage(1);
+            }}
+            groupedByRegion
+            size="sm"
+            placeholder="Barcha tumanlar"
+            searchPlaceholder="Tuman yoki viloyat qidiruv..."
+          />
+        </div>
 
         <FilterSelect
           label="Jinsi"
@@ -634,7 +637,7 @@ export function CitizensPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
                       {citizen.district?.name ? `${citizen.district.name}, ` : ''}
-                      {citizen.mahalla?.name ? `${citizen.mahalla.name}, ` : ''}
+                      {citizen.neighborhood?.name ? `${citizen.neighborhood.name}, ` : ''}
                       {citizen.address || '—'}
                     </TableCell>
                     <TableCell>

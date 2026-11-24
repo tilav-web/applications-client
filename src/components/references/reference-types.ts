@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   CreditCard,
+  Globe,
   Layers,
   MapPin,
   Radio,
@@ -23,18 +24,20 @@ import type {
   DecisionType,
   DepartmentService,
   District,
-  Mahalla,
+  Neighborhood,
   Occupation,
   OccupationCategory,
   PaymentProvider,
+  Region,
   RejectionReason,
   SuspectFieldConfig,
   TransferChannel,
 } from '@/types/models';
 
 export type ReferenceItem =
+  | Region
   | District
-  | Mahalla
+  | Neighborhood
   | Crime
   | CrimeMethod
   | Bank
@@ -63,7 +66,10 @@ export interface ReferenceFormData {
   short_name?: string | null;
   category_id?: string | null;
   gravity?: CrimeGravity | null;
+  region_id?: string | null;
   district_id?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   group_name?: string | null;
   key?: string | null;
   label?: string | null;
@@ -73,8 +79,9 @@ export interface ReferenceFormData {
 }
 
 export type ReferenceTabKey =
+  | 'regions'
   | 'districts'
-  | 'mahallas'
+  | 'neighborhoods'
   | 'crimes'
   | 'crime_methods'
   | 'occupations'
@@ -104,15 +111,21 @@ export const REFERENCE_NAV_GROUPS: Array<{
     title: 'Hududiy tuzilma',
     items: [
       {
+        key: 'regions',
+        label: 'Viloyatlar',
+        description: 'Viloyatlar va ularning geografik markaz koordinatalari',
+        icon: Globe,
+      },
+      {
         key: 'districts',
         label: 'Tumanlar',
-        description: 'Tuman va shahar bo‘limlari ro‘yxati',
+        description: 'Viloyatlarga biriktirilgan tuman va shahar bo‘limlari',
         icon: MapPin,
       },
       {
-        key: 'mahallas',
+        key: 'neighborhoods',
         label: 'Mahallalar',
-        description: 'Tumanlarga biriktirilgan mahallalar',
+        description: 'Tumanlarga biriktirilgan mahallalar va koordinatalar',
         icon: Building2,
       },
     ],

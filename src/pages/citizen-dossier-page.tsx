@@ -411,11 +411,11 @@ export function CitizenDossierPage() {
                   JSHSHIR: <strong className="text-foreground">{cit.pinfl || '—'}</strong>
                 </span>
                 {cit.birth_date && <span>T.Sana: {formatDate(cit.birth_date)}</span>}
-                {(cit.district?.name || cit.mahalla?.name || cit.address) && (
+                {(cit.district?.name || cit.neighborhood?.name || cit.address) && (
                   <span className="flex items-center gap-1 font-sans break-words">
                     <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span>
-                      {[cit.district?.name, cit.mahalla?.name, cit.address]
+                      {[cit.district?.name, cit.neighborhood?.name, cit.address]
                         .filter(Boolean)
                         .join(', ')}
                     </span>

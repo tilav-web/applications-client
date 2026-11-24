@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
 import { PaginationBar } from '@/components/ui/pagination-bar';
@@ -198,7 +199,7 @@ export function ApplicationsPage() {
   // Districts Query (Tumanlar filtri uchun)
   const { data: districtsData } = useQuery({
     queryKey: ['districts-all'],
-    queryFn: () => districtsApi.getAll({ limit: 100 }),
+    queryFn: () => districtsApi.getAll({ limit: 500 }),
   });
   const allDistricts = districtsData?.items || [];
 
@@ -719,21 +720,22 @@ export function ApplicationsPage() {
           icon={<FileText className="h-3.5 w-3.5" />}
         />
 
-        <FilterSelect
-          label="Hudud (Tuman)"
-          value={districtFilter}
-          onChange={(v) => {
-            setDistrictFilter(v);
-            setPage(1);
-          }}
-        >
-          <option value="">Barcha tumanlar</option>
-          {allDistricts.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </FilterSelect>
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-muted-foreground block">
+            Hudud (Tuman)
+          </label>
+          <DistrictSearchSelect
+            districts={allDistricts}
+            value={districtFilter}
+            onChange={(v) => {
+              setDistrictFilter(v || '');
+              setPage(1);
+            }}
+            onlyRegionCode="QASHQADARYO"
+            placeholder="Barcha tumanlar"
+            size="sm"
+          />
+        </div>
 
         <FilterSelect
           label="Jinoyat turi"

@@ -3,16 +3,23 @@ import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 
 const REFERENCE_TAB_INVALIDATION_KEYS: Record<string, readonly (readonly string[])[]> = {
+  regions: [
+    queryKeys.references.regions,
+    queryKeys.references.regionsSelect,
+    queryKeys.references.districts,
+  ],
   districts: [
     queryKeys.references.districts,
     queryKeys.references.districtsSelect,
-    ['all-districts-for-mahalla'],
+    ['all-districts-for-neighborhood'],
     ['districts-for-dc-form'],
+    queryKeys.applications.dashboardStatistics,
   ],
-  mahallas: [
-    queryKeys.references.mahallas,
-    ['citizen-mahallas'],
-    ['custom-citizen-mahallas-select'],
+  neighborhoods: [
+    queryKeys.references.neighborhoods,
+    ['citizen-neighborhoods'],
+    ['custom-citizen-neighborhoods-select'],
+    queryKeys.applications.dashboardStatistics,
   ],
   crimes: [
     queryKeys.references.crimes,

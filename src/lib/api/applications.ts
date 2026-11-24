@@ -138,16 +138,21 @@ export interface DashboardStatistics {
   byDistrict: Array<{
     id: string;
     name: string;
-    code: string | null;
+    code?: string | null;
+    region_id?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     count: number;
     percent: number;
     totalLoss: number;
   }>;
-  byMahalla?: Array<{
+  byNeighborhood?: Array<{
     id: string;
     name: string;
     district_id: string;
     district_name: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     count: number;
     totalLoss: number;
     percent: number;

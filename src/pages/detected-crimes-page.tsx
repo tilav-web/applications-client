@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
@@ -89,7 +90,7 @@ export function DetectedCrimesPage() {
 
   const { data: districtsRes } = useQuery({
     queryKey: ['districts-for-dc'],
-    queryFn: () => districtsApi.getAll({ page: 1, limit: 200 }),
+    queryFn: () => districtsApi.getAll({ page: 1, limit: 500 }),
   });
 
   const { data: sources } = useQuery({
@@ -266,21 +267,17 @@ export function DetectedCrimesPage() {
               ))}
             </select>
 
-            <select
+            <DistrictSearchSelect
+              districts={districtsRes?.items || []}
               value={districtId}
-              onChange={(e) => {
-                setDistrictId(e.target.value);
+              onChange={(v) => {
+                setDistrictId(v || '');
                 setPage(1);
               }}
-              className="h-9 rounded-md border border-input bg-background px-2.5 text-xs"
-            >
-              <option value="">Barcha tumanlar</option>
-              {(districtsRes?.items || []).map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              onlyRegionCode="QASHQADARYO"
+              placeholder="Barcha tumanlar"
+              size="sm"
+            />
 
             <select
               value={crimeStatusId}

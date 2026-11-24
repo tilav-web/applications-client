@@ -119,20 +119,36 @@ export interface PaymentProvider {
   updated_at?: string;
 }
 
-export interface District {
+export interface Region {
   id: string;
-  name: string | null;
-  code: string | null;
-  mahallas?: Mahalla[];
+  name: string;
+  code?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface Mahalla {
+export interface District {
+  id: string;
+  name: string | null;
+  code?: string | null;
+  region_id?: string | null;
+  region?: Region | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  neighborhoods?: Neighborhood[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Neighborhood {
   id: string;
   name: string | null;
   district_id: string;
   district?: District | null;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -207,8 +223,8 @@ export interface Workplace {
   name: string;
   district_id?: string | null;
   district?: District | null;
-  mahalla_id?: string | null;
-  mahalla?: Mahalla | null;
+  neighborhood_id?: string | null;
+  neighborhood?: Neighborhood | null;
   occupation_category_id?: string | null;
   occupation_category?: OccupationCategory | null;
   occupations?: Occupation[];
@@ -415,8 +431,8 @@ export interface Citizen {
   address: string | null;
   district_id?: string | null;
   district?: District | null;
-  mahalla_id?: string | null;
-  mahalla?: Mahalla | null;
+  neighborhood_id?: string | null;
+  neighborhood?: Neighborhood | null;
   occupation_category_id?: string | null;
   occupation_category?: OccupationCategory | null;
   occupation_id?: string | null;

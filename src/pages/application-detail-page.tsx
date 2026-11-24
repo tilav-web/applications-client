@@ -789,7 +789,9 @@ export function ApplicationDetailPage() {
                     <MapPin className="h-3 w-3 text-primary" />
                     <span>
                       {app.citizen.district?.name || '—'}
-                      {app.citizen.mahalla?.name ? `, ${app.citizen.mahalla.name} m.` : ''}
+                      {app.citizen.neighborhood?.name
+                        ? `, ${app.citizen.neighborhood.name} m.`
+                        : ''}
                     </span>
                   </p>
                 </div>
@@ -830,8 +832,8 @@ export function ApplicationDetailPage() {
                         </b>
                         {(app.workplace || app.citizen.workplace)?.district?.name
                           ? ` (${(app.workplace || app.citizen.workplace)?.district?.name}${
-                              (app.workplace || app.citizen.workplace)?.mahalla?.name
-                                ? `, ${(app.workplace || app.citizen.workplace)?.mahalla?.name}`
+                              (app.workplace || app.citizen.workplace)?.neighborhood?.name
+                                ? `, ${(app.workplace || app.citizen.workplace)?.neighborhood?.name}`
                                 : ''
                             })`
                           : ''}

@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
@@ -109,12 +110,16 @@ export function UsersPage() {
     assigned_district_ids: [],
   });
 
-  // Query: All Districts for District Officer assignment
+  // Query: All Districts for District Officer assignment (faqat Qashqadaryo bo'limlari)
   const { data: districtsData } = useQuery({
     queryKey: ['districts-for-users'],
-    queryFn: () => districtsApi.getAll({ limit: 100 }),
+    queryFn: () => districtsApi.getAll({ limit: 500 }),
   });
-  const allDistricts = districtsData?.items || [];
+  const rawDistricts = districtsData?.items || [];
+  const qashqadaryoDistricts = rawDistricts.filter(
+    (d) => !d.region || d.region.code === 'QASHQADARYO',
+  );
+  const allDistricts = qashqadaryoDistricts.length > 0 ? qashqadaryoDistricts : rawDistricts;
 
   // Query: Users list
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -493,21 +498,22 @@ export function UsersPage() {
           <option value="DISTRICT_OFFICER">Hududiy hodim</option>
         </FilterSelect>
 
-        <FilterSelect
-          label="Biriktirilgan tuman"
-          value={districtFilter}
-          onChange={(v) => {
-            setDistrictFilter(v);
-            setPage(1);
-          }}
-        >
-          <option value="">Barcha tumanlar</option>
-          {allDistricts.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </FilterSelect>
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-muted-foreground block">
+            Biriktirilgan tuman
+          </label>
+          <DistrictSearchSelect
+            districts={allDistricts}
+            value={districtFilter}
+            onChange={(v) => {
+              setDistrictFilter(v || '');
+              setPage(1);
+            }}
+            onlyRegionCode="QASHQADARYO"
+            placeholder="Barcha tumanlar"
+            size="sm"
+          />
+        </div>
       </TableFilterPanel>
 
       {/* 2. ALOHIDA AJRATILGAN HODIMLAR JADVALI */}

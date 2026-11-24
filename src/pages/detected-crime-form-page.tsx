@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -163,7 +164,7 @@ export function DetectedCrimeFormPage() {
 
   const { data: districtsRes } = useQuery({
     queryKey: ['districts-for-dc-form'],
-    queryFn: () => districtsApi.getAll({ page: 1, limit: 200 }),
+    queryFn: () => districtsApi.getAll({ page: 1, limit: 500 }),
   });
   const { data: crimesRes } = useQuery({
     queryKey: ['crimes-for-dc-form'],
@@ -561,18 +562,14 @@ export function DetectedCrimeFormPage() {
                   <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                   <span>Hudud (Tuman / Shahar)</span>
                 </label>
-                <select
-                  value={districtId}
-                  onChange={(e) => setDistrictId(e.target.value)}
-                  className="h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                >
-                  <option value="">-- TUMANNI TANLANG --</option>
-                  {(districtsRes?.items || []).map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                <DistrictSearchSelect
+                  districts={districtsRes?.items || []}
+                  value={districtId || null}
+                  onChange={(dId) => setDistrictId(dId || '')}
+                  onlyRegionCode="QASHQADARYO"
+                  placeholder="-- TUMANNI TANLANG --"
+                  searchPlaceholder="Qashqadaryo tumanini qidiring..."
+                />
               </div>
             </div>
           </div>

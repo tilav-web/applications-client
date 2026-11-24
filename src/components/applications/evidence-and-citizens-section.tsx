@@ -20,6 +20,7 @@ import type { RefObject } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -28,7 +29,7 @@ import {
   documentsApi,
   getFileDownloadUrl,
   getFileViewUrl,
-  mahallasApi,
+  neighborhoodsApi,
   type UploadedFile,
 } from '@/lib/api';
 import type { CustomFieldType, District } from '@/types/models';
@@ -52,8 +53,8 @@ function CustomCitizenMahallaSelect({
   onSelect: (id: string | null, name: string) => void;
 }) {
   const { data: mahallasData } = useQuery({
-    queryKey: ['custom-citizen-mahallas-select', districtId],
-    queryFn: () => mahallasApi.getAll({ district_id: districtId!, limit: 200 }),
+    queryKey: ['custom-citizen-neighborhoods-select', districtId],
+    queryFn: () => neighborhoodsApi.getAll({ district_id: districtId!, limit: 200 }),
     enabled: Boolean(districtId),
   });
 
@@ -490,7 +491,7 @@ export function EvidenceAndCitizensSection({
           <div className="space-y-4 pt-1">
             {citizenFields.map((cf) => {
               const citDistId = cf.inline_citizen?.district_id || null;
-              const citMahId = cf.inline_citizen?.mahalla_id || null;
+              const citMahId = cf.inline_citizen?.neighborhood_id || null;
 
               return (
                 <div
@@ -803,11 +804,10 @@ export function EvidenceAndCitizensSection({
                             </Badge>
                           )}
                         </div>
-                        <select
-                          value={citDistId || ''}
-                          onChange={(e) => {
-                            const dId = e.target.value;
-                            const found = allDistricts.find((d) => d.id === dId);
+                        <DistrictSearchSelect
+                          districts={allDistricts}
+                          value={citDistId}
+                          onChange={(dId, found) => {
                             onUpdateCustomFieldItem(cf.clientId, (f) => ({
                               ...f,
                               inline_citizen: {
@@ -817,22 +817,18 @@ export function EvidenceAndCitizensSection({
                                   passport: '',
                                   phone_number: '',
                                 }),
-                                district_id: dId || null,
+                                district_id: dId,
                                 district_name: found?.name || '',
-                                mahalla_id: null,
-                                mahalla_name: '',
+                                neighborhood_id: null,
+                                neighborhood_name: '',
                               },
                             }));
                           }}
-                          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <option value="">-- TUMANNI TANLANG --</option>
-                          {allDistricts.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name}
-                            </option>
-                          ))}
-                        </select>
+                          groupedByRegion
+                          size="sm"
+                          placeholder="-- TUMANNI TANLANG --"
+                          searchPlaceholder="Tuman yoki viloyat nomini qidiring..."
+                        />
                       </div>
 
                       {/* Yashash Mahallasi */}
@@ -862,8 +858,8 @@ export function EvidenceAndCitizensSection({
                                   passport: '',
                                   phone_number: '',
                                 }),
-                                mahalla_id: mId,
-                                mahalla_name: mName,
+                                neighborhood_id: mId,
+                                neighborhood_name: mName,
                               },
                             }));
                           }}

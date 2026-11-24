@@ -20,6 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
@@ -104,7 +105,7 @@ export function ReportsPage() {
   // Master references queries
   const { data: districtsData } = useQuery({
     queryKey: ['districts', 'list'],
-    queryFn: () => districtsApi.getAll({ limit: 100 }),
+    queryFn: () => districtsApi.getAll({ limit: 500 }),
     staleTime: 5 * 60 * 1000,
   });
   const districts = districtsData?.items || [];
@@ -1342,21 +1343,22 @@ export function ReportsPage() {
                 icon={<FileText className="h-3.5 w-3.5" />}
               />
 
-              <FilterSelect
-                label="Hudud (Tuman)"
-                value={districtFilter}
-                onChange={(v) => {
-                  setDistrictFilter(v);
-                  setPage(1);
-                }}
-              >
-                <option value="">Barcha tumanlar</option>
-                {districts.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </FilterSelect>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground block">
+                  Hudud (Tuman)
+                </label>
+                <DistrictSearchSelect
+                  districts={districts}
+                  value={districtFilter}
+                  onChange={(v) => {
+                    setDistrictFilter(v || '');
+                    setPage(1);
+                  }}
+                  onlyRegionCode="QASHQADARYO"
+                  placeholder="Barcha tumanlar"
+                  size="sm"
+                />
+              </div>
 
               <FilterSelect
                 label="Jinoyat turi"

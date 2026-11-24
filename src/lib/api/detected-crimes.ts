@@ -132,15 +132,20 @@ export const detectedCrimesApi = {
       byDistrict: Array<{
         id: string;
         name: string;
+        region_id?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
         count: number;
         totalLoss: number;
         percent: number;
       }>;
-      byMahalla: Array<{
+      byNeighborhood: Array<{
         id: string;
         name: string;
         district_id: string;
         district_name: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
         count: number;
         totalLoss: number;
         percent: number;

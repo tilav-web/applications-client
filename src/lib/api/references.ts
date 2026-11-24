@@ -7,11 +7,12 @@ import type {
   DecisionType,
   DepartmentService,
   District,
-  Mahalla,
+  Neighborhood,
   Occupation,
   OccupationCategory,
   PaginatedResponse,
   PaymentProvider,
+  Region,
   RejectionReason,
   SuspectFieldConfig,
   TransferChannel,
@@ -19,9 +20,40 @@ import type {
 
 import { apiClient } from '../axios';
 
+// 4.9. Regions API
+export const regionsApi = {
+  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const res = await apiClient.get<PaginatedResponse<Region>>('/regions', {
+      params,
+    });
+    return res.data;
+  },
+  getOne: async (id: string) => {
+    const res = await apiClient.get<Region>(`/regions/${id}`);
+    return res.data;
+  },
+  create: async (data: Partial<Region>) => {
+    const res = await apiClient.post<Region>('/regions', data);
+    return res.data;
+  },
+  update: async (id: string, data: Partial<Region>) => {
+    const res = await apiClient.patch<Region>(`/regions/${id}`, data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/regions/${id}`);
+    return res.data;
+  },
+};
+
 // 5. Districts API
 export const districtsApi = {
-  getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    region_id?: string;
+  }) => {
     const res = await apiClient.get<PaginatedResponse<District>>('/districts', {
       params,
     });
@@ -41,33 +73,48 @@ export const districtsApi = {
   },
 };
 
-// 5.1. Mahallas API
-export const mahallasApi = {
+// 5.1. Neighborhoods API
+export const neighborhoodsApi = {
   getAll: async (params?: {
     page?: number;
     limit?: number;
     district_id?: string;
     search?: string;
   }) => {
-    const res = await apiClient.get<PaginatedResponse<Mahalla>>('/mahallas', {
+    const res = await apiClient.get<PaginatedResponse<Neighborhood>>('/neighborhoods', {
       params,
     });
     return res.data;
   },
   getOne: async (id: string) => {
-    const res = await apiClient.get<Mahalla>(`/mahallas/${id}`);
+    const res = await apiClient.get<Neighborhood>(`/neighborhoods/${id}`);
     return res.data;
   },
-  create: async (data: { name: string; district_id: string }) => {
-    const res = await apiClient.post<Mahalla>('/mahallas', data);
+  create: async (data: {
+    name: string;
+    district_id: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) => {
+    const res = await apiClient.post<Neighborhood>('/neighborhoods', data);
     return res.data;
   },
-  update: async (id: string, data: Partial<{ name: string; district_id: string }>) => {
-    const res = await apiClient.patch<Mahalla>(`/mahallas/${id}`, data);
+  update: async (
+    id: string,
+    data: Partial<{
+      name: string;
+      district_id: string;
+      latitude?: number | null;
+      longitude?: number | null;
+    }>,
+  ) => {
+    const res = await apiClient.patch<Neighborhood>(`/neighborhoods/${id}`, data);
     return res.data;
   },
   delete: async (id: string) => {
-    const res = await apiClient.delete<{ success: boolean; message: string }>(`/mahallas/${id}`);
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/neighborhoods/${id}`,
+    );
     return res.data;
   },
 };
@@ -126,7 +173,7 @@ export const workplacesApi = {
   create: async (data: {
     name: string;
     district_id?: string | null;
-    mahalla_id?: string | null;
+    neighborhood_id?: string | null;
     occupation_category_id?: string | null;
     occupation_ids?: string[];
     address?: string | null;

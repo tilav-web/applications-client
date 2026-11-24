@@ -230,7 +230,9 @@ export function EmploymentSectionCard({
                 <MapPin className="h-3 w-3 text-emerald-500 shrink-0" />
                 <span className="truncate">
                   {selectedWorkplace.district?.name || 'Tuman belgilanmagan'}
-                  {selectedWorkplace.mahalla?.name ? `, ${selectedWorkplace.mahalla.name}` : ''}
+                  {selectedWorkplace.neighborhood?.name
+                    ? `, ${selectedWorkplace.neighborhood.name}`
+                    : ''}
                   {selectedWorkplace.address ? ` — ${selectedWorkplace.address}` : ''}
                 </span>
               </div>

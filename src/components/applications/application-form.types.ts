@@ -24,8 +24,8 @@ export interface AppCustomFieldState {
     address?: string;
     district_id?: string | null;
     district_name?: string;
-    mahalla_id?: string | null;
-    mahalla_name?: string;
+    neighborhood_id?: string | null;
+    neighborhood_name?: string;
   };
   inline_card?: {
     card_number: string;

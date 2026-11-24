@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   Expand,
@@ -14,6 +14,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/sonner';
+import { usePermissions } from '@/hooks/use-permissions';
+import { districtsApi, neighborhoodsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { useAppStore } from '@/store';
 
@@ -128,16 +131,21 @@ function toYmapsPolygonCoords(
 export interface DistrictStat {
   id: string;
   name: string;
+  region_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   count: number;
   totalLoss: number;
   percent?: number;
 }
 
-export interface MahallaStat {
+export interface NeighborhoodStat {
   id: string;
   name: string;
   district_id: string;
   district_name: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   count: number;
   totalLoss: number;
   percent?: number;
@@ -145,7 +153,7 @@ export interface MahallaStat {
 
 interface Props {
   districtsData: DistrictStat[];
-  mahallasData?: MahallaStat[];
+  neighborhoodsData?: NeighborhoodStat[];
   allowedDistrictNames?: string[];
   isLoading?: boolean;
   periodLabel?: string;
@@ -207,12 +215,14 @@ function getRiskBadgeColor(count: number, maxCount: number) {
 
 export const QashqadaryoYandexMap: React.FC<Props> = ({
   districtsData,
-  mahallasData = [],
+  neighborhoodsData = [],
   allowedDistrictNames,
   isLoading = false,
   entityLabel = 'Arizalar',
   onDistrictSelect,
 }) => {
+  const queryClient = useQueryClient();
+  const { isReadOnly } = usePermissions();
   const isDark = useAppStore((s) => s.theme === 'dark');
   const outerWrapperRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -250,19 +260,37 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   // Kordinatalarni surish rejimi faolligi (barcha nishonlarni ushlab tortish mumkin)
   const [isMoveMode, setIsMoveMode] = useState<boolean>(false);
 
-  // Bitta tumanning yangi koordinatasini saqlash
-  const handleUpdateDistrictCenter = useCallback((dName: string, newCoords: [number, number]) => {
-    setCustomCenters((prev) => {
-      const updated = { ...prev, [dName]: newCoords };
-      try {
-        localStorage.setItem('uvd_district_badge_centers', JSON.stringify(updated));
-      } catch {
-        /* ignore */
+  // Bitta tumanning yangi koordinatasini saqlash (PostgreSQL bazaga + lokal holatga)
+  const handleUpdateDistrictCenter = useCallback(
+    (dName: string, newCoords: [number, number], districtId?: string) => {
+      setCustomCenters((prev) => {
+        const updated = { ...prev, [dName]: newCoords };
+        try {
+          localStorage.setItem('uvd_district_badge_centers', JSON.stringify(updated));
+        } catch {
+          /* ignore */
+        }
+        return updated;
+      });
+      setLastMovedDistrict(dName);
+
+      if (districtId && !isReadOnly) {
+        void districtsApi
+          .update(districtId, { latitude: newCoords[0], longitude: newCoords[1] })
+          .then(() => {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.applications.dashboardStatistics,
+            });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.references.districts });
+            toast.success(`"${dName}" koordinatasi bazaga saqlandi`);
+          })
+          .catch(() => {
+            /* lokal holatda qoladi */
+          });
       }
-      return updated;
-    });
-    setLastMovedDistrict(dName);
-  }, []);
+    },
+    [isReadOnly, queryClient],
+  );
 
   // Bitta tumanning koordinatasini dastlabki holatga qaytarish
   const handleResetSingleDistrict = useCallback(
@@ -318,18 +346,36 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
   const [lastMovedMahalla, setLastMovedMahalla] = useState<string | null>(null);
 
-  const handleUpdateMahallaCenter = useCallback((coordKey: string, newCoords: [number, number]) => {
-    setCustomMahallaCenters((prev) => {
-      const updated = { ...prev, [coordKey]: newCoords };
-      try {
-        localStorage.setItem('uvd_mahalla_badge_centers', JSON.stringify(updated));
-      } catch {
-        /* ignore */
+  const handleUpdateMahallaCenter = useCallback(
+    (coordKey: string, newCoords: [number, number], neighborhoodId?: string) => {
+      setCustomMahallaCenters((prev) => {
+        const updated = { ...prev, [coordKey]: newCoords };
+        try {
+          localStorage.setItem('uvd_mahalla_badge_centers', JSON.stringify(updated));
+        } catch {
+          /* ignore */
+        }
+        return updated;
+      });
+      setLastMovedMahalla(coordKey);
+
+      if (neighborhoodId && !isReadOnly) {
+        void neighborhoodsApi
+          .update(neighborhoodId, { latitude: newCoords[0], longitude: newCoords[1] })
+          .then(() => {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.applications.dashboardStatistics,
+            });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.references.neighborhoods });
+            toast.success('Mahalla koordinatasi bazaga saqlandi');
+          })
+          .catch(() => {
+            /* lokal holatda qoladi */
+          });
       }
-      return updated;
-    });
-    setLastMovedMahalla(coordKey);
-  }, []);
+    },
+    [isReadOnly, queryClient],
+  );
 
   const handleResetSingleMahalla = useCallback(
     (coordKey: string) => {
@@ -391,10 +437,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     gcTime: Infinity,
   });
 
-  const { data: mahallasCoordsData } = useQuery<Record<string, [number, number]>>({
-    queryKey: queryKeys.geo.mahallasCoords,
+  const { data: neighborhoodsCoordsData } = useQuery<Record<string, [number, number]>>({
+    queryKey: queryKeys.geo.neighborhoodsCoords,
     queryFn: async () => {
-      const res = await fetch('/geo/qashqadaryo-mahallas-coords.json');
+      const res = await fetch('/geo/qashqadaryo-neighborhoods-coords.json');
       if (!res.ok) throw new Error('Mahallalar koordinatalari yuklanmadi');
       return res.json() as Promise<Record<string, [number, number]>>;
     },
@@ -458,9 +504,9 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   }, [districtsData]);
 
   // Tanlangan tumandagi mahallalar ro'yxati
-  const districtMahallas = useMemo(() => {
+  const districtNeighborhoods = useMemo(() => {
     if (!selectedDistrictName) return [];
-    return mahallasData
+    return neighborhoodsData
       .filter((m) => {
         if (!m.district_name) return false;
         return (
@@ -470,7 +516,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         );
       })
       .sort((a, b) => b.count - a.count);
-  }, [selectedDistrictName, mahallasData]);
+  }, [selectedDistrictName, neighborhoodsData]);
 
   // 1. Fullscreen hodisasini kuzatish
   useEffect(() => {
@@ -764,8 +810,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       const safeEntityLabel = escapeHtml(entityLabel);
       const isSelected = selectedDistrictName?.toLowerCase() === dName.toLowerCase();
 
-      const stat = districtStatsMap.get(dName) ||
+      const stat: DistrictStat = districtStatsMap.get(dName) ||
         districtStatsMap.get(dName.toLowerCase().replace(/['`‘]/g, '')) || {
+          id: '',
+          name: dName,
           count: 0,
           totalLoss: 0,
         };
@@ -832,9 +880,13 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       map.geoObjects.add(districtPolygon);
       districtPolygonsRef.current.push(districtPolygon);
 
-      // C. Tuman Ustida Arizalar Soni Nishoni (To'liq doira/aylana - Kordinatasi erkin suriladi!)
-      if (!isZoomedIn && feat.properties.center) {
-        const defaultCenter: [number, number] = feat.properties.center;
+      // C. Tuman Ustida Arizalar Soni Nishoni (Bazadagi koordinata ustuvor, aks holda GeoJSON markazi)
+      const dbCenter: [number, number] | null =
+        stat.latitude != null && stat.longitude != null
+          ? [Number(stat.latitude), Number(stat.longitude)]
+          : null;
+      const defaultCenter: [number, number] | undefined = dbCenter || feat.properties.center;
+      if (!isZoomedIn && defaultCenter) {
         const currentCenter: [number, number] = customCenters[dName] || defaultCenter;
         const isCustom = Boolean(customCenters[dName]);
 
@@ -887,10 +939,11 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         // Kordinata surib yakunlanganda saqlash
         placemark.events.add('dragend', () => {
           const newCoords = placemark.geometry.getCoordinates();
-          handleUpdateDistrictCenter(dName, [
-            Number(newCoords[0].toFixed(5)),
-            Number(newCoords[1].toFixed(5)),
-          ]);
+          handleUpdateDistrictCenter(
+            dName,
+            [Number(newCoords[0].toFixed(5)), Number(newCoords[1].toFixed(5))],
+            stat.id || undefined,
+          );
         });
 
         // 2 marta bosganda surishni ochish (yoki bir marta bosganda yaqinlashish)
@@ -978,9 +1031,13 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
 
     if (!selectedDistrictName) return;
 
-    districtMahallas.forEach((mahalla) => {
+    districtNeighborhoods.forEach((mahalla) => {
       const coordKey = `${selectedDistrictName}__${mahalla.name}`;
-      const defaultCoords = mahallasCoordsData?.[coordKey];
+      const dbCoords: [number, number] | null =
+        mahalla.latitude != null && mahalla.longitude != null
+          ? [Number(mahalla.latitude), Number(mahalla.longitude)]
+          : null;
+      const defaultCoords = dbCoords || neighborhoodsCoordsData?.[coordKey];
       const currentCoords = customMahallaCenters[coordKey] || defaultCoords;
       if (!currentCoords) return;
 
@@ -1050,10 +1107,11 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       // Kordinata surib yakunlanganda saqlash
       placemark.events.add('dragend', () => {
         const newCoords = placemark.geometry.getCoordinates();
-        handleUpdateMahallaCenter(coordKey, [
-          Number(newCoords[0].toFixed(5)),
-          Number(newCoords[1].toFixed(5)),
-        ]);
+        handleUpdateMahallaCenter(
+          coordKey,
+          [Number(newCoords[0].toFixed(5)), Number(newCoords[1].toFixed(5))],
+          mahalla.id || undefined,
+        );
       });
 
       // 2 marta bosganda surishni ochish
@@ -1070,12 +1128,12 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   }, [
     isYmapsReady,
     selectedDistrictName,
-    districtMahallas,
+    districtNeighborhoods,
     customMahallaCenters,
     isMoveMode,
     handleUpdateMahallaCenter,
     entityLabel,
-    mahallasCoordsData,
+    neighborhoodsCoordsData,
   ]);
 
   return (

@@ -255,7 +255,7 @@ export function QuickActionsPanel({
       }
 
       const dist = cit.district?.name || application.district?.name;
-      const mah = cit.mahalla?.name;
+      const mah = cit.neighborhood?.name;
       const addr = cit.address;
 
       if (dist && mah) {

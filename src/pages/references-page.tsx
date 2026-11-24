@@ -42,10 +42,11 @@ import {
   decisionTypesApi,
   departmentServicesApi,
   districtsApi,
-  mahallasApi,
+  neighborhoodsApi,
   occupationCategoriesApi,
   occupationsApi,
   paymentProvidersApi,
+  regionsApi,
   rejectionReasonsApi,
   suspectFieldConfigsApi,
   transferChannelsApi,
@@ -57,10 +58,23 @@ import type {
   Crime,
   CrimeMethod,
   District,
-  Mahalla,
+  Neighborhood,
+  Region,
   SuspectFieldConfig,
   TransferDestinationType,
 } from '@/types/models';
+
+const parseOptionalCoord = (val: unknown): number | null | undefined => {
+  if (val === undefined) return undefined;
+  if (val === null || val === '') return null;
+  const num = Number(val);
+  return Number.isFinite(num) ? num : null;
+};
+
+const formatCoordPair = (lat?: number | null, lng?: number | null): string => {
+  if (lat == null || lng == null) return '—';
+  return `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`;
+};
 
 export function ReferencesPage() {
   const queryClient = useQueryClient();
@@ -68,7 +82,11 @@ export function ReferencesPage() {
 
   const tabFromUrl = searchParams.get('tab');
   const activeTab: ReferenceTabKey =
-    tabFromUrl && VALID_TAB_KEYS.has(tabFromUrl) ? (tabFromUrl as ReferenceTabKey) : 'districts';
+    tabFromUrl && VALID_TAB_KEYS.has(tabFromUrl)
+      ? (tabFromUrl as ReferenceTabKey)
+      : tabFromUrl === 'mahallas'
+        ? 'neighborhoods'
+        : 'regions';
 
   const setActiveTab = (nextTab: ReferenceTabKey) => {
     setSearchParams({ tab: nextTab }, { replace: true });
@@ -78,11 +96,15 @@ export function ReferencesPage() {
     ALL_REFERENCE_TABS.find((t) => t.key === activeTab) || ALL_REFERENCE_TABS[0];
 
   // Search and page state for each tab
+  const [regionSearch, setRegionSearch] = useState('');
+  const [regionPage, setRegionPage] = useState(1);
+
   const [districtSearch, setDistrictSearch] = useState('');
   const [districtPage, setDistrictPage] = useState(1);
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState('');
 
-  const [mahallaSearch, setMahallaSearch] = useState('');
-  const [mahallaPage, setMahallaPage] = useState(1);
+  const [neighborhoodSearch, setNeighborhoodSearch] = useState('');
+  const [neighborhoodPage, setNeighborhoodPage] = useState(1);
 
   const [crimeSearch, setCrimeSearch] = useState('');
   const [crimePage, setCrimePage] = useState(1);
@@ -118,29 +140,68 @@ export function ReferencesPage() {
   const [targetItem, setTargetItem] = useState<ReferenceItem | null>(null);
   const [formData, setFormData] = useState<ReferenceFormData>({});
 
+  // 0. Regions Query
+  const { data: regionsData, isLoading: isRegionsLoading } = useQuery({
+    queryKey: ['regions', { page: regionPage, limit: pageSize, search: regionSearch }],
+    queryFn: () => regionsApi.getAll({ page: regionPage, limit: pageSize, search: regionSearch }),
+    enabled: activeTab === 'regions',
+  });
+
+  // Viloyatlar lug'ati (Tuman yaratish/filtrlash uchun)
+  const { data: allRegionsForDistrict } = useQuery({
+    queryKey: ['regions-autocomplete'],
+    queryFn: () => regionsApi.getAll({ limit: 100 }),
+    enabled:
+      activeTab === 'districts' ||
+      activeTab === 'regions' ||
+      modalType === 'create' ||
+      modalType === 'edit',
+  });
+  const allRegionsList = allRegionsForDistrict?.items || [];
+
   // 1. Districts Query
   const { data: districtsData, isLoading: isDistrictsLoading } = useQuery({
-    queryKey: ['districts', { page: districtPage, limit: pageSize, search: districtSearch }],
+    queryKey: [
+      'districts',
+      {
+        page: districtPage,
+        limit: pageSize,
+        search: districtSearch,
+        region_id: selectedRegionFilter || undefined,
+      },
+    ],
     queryFn: () =>
-      districtsApi.getAll({ page: districtPage, limit: pageSize, search: districtSearch }),
+      districtsApi.getAll({
+        page: districtPage,
+        limit: pageSize,
+        search: districtSearch,
+        region_id: selectedRegionFilter || undefined,
+      }),
     enabled: activeTab === 'districts',
   });
 
-  // 1.1. Mahallas Query
-  const { data: mahallasData, isLoading: isMahallasLoading } = useQuery({
-    queryKey: ['mahallas', { page: mahallaPage, limit: pageSize, search: mahallaSearch }],
+  // 1.1. Neighborhoods Query
+  const { data: neighborhoodsData, isLoading: isNeighborhoodsLoading } = useQuery({
+    queryKey: [
+      'neighborhoods',
+      { page: neighborhoodPage, limit: pageSize, search: neighborhoodSearch },
+    ],
     queryFn: () =>
-      mahallasApi.getAll({ page: mahallaPage, limit: pageSize, search: mahallaSearch }),
-    enabled: activeTab === 'mahallas',
+      neighborhoodsApi.getAll({
+        page: neighborhoodPage,
+        limit: pageSize,
+        search: neighborhoodSearch,
+      }),
+    enabled: activeTab === 'neighborhoods',
   });
 
   // Tumanlar lug'ati (Mahalla yaratish uchun)
-  const { data: allDistrictsForMahalla } = useQuery({
-    queryKey: ['all-districts-for-mahalla'],
-    queryFn: () => districtsApi.getAll({ limit: 100 }),
-    enabled: activeTab === 'mahallas' || modalType === 'create' || modalType === 'edit',
+  const { data: allDistrictsForNeighborhood } = useQuery({
+    queryKey: ['all-districts-for-neighborhood'],
+    queryFn: () => districtsApi.getAll({ limit: 500 }),
+    enabled: activeTab === 'neighborhoods' || modalType === 'create' || modalType === 'edit',
   });
-  const allDistrictsList = allDistrictsForMahalla?.items || [];
+  const allDistrictsList = allDistrictsForNeighborhood?.items || [];
 
   // 2. Crimes Query
   const { data: crimesData, isLoading: isCrimesLoading } = useQuery({
@@ -271,11 +332,26 @@ export function ReferencesPage() {
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (activeTab === 'districts') return districtsApi.create(formData);
-      if (activeTab === 'mahallas')
-        return mahallasApi.create({
+      if (activeTab === 'regions')
+        return regionsApi.create({
+          name: formData.name || '',
+          code: formData.code || null,
+          latitude: parseOptionalCoord(formData.latitude),
+          longitude: parseOptionalCoord(formData.longitude),
+        });
+      if (activeTab === 'districts')
+        return districtsApi.create({
+          name: formData.name || '',
+          region_id: formData.region_id || null,
+          latitude: parseOptionalCoord(formData.latitude),
+          longitude: parseOptionalCoord(formData.longitude),
+        });
+      if (activeTab === 'neighborhoods')
+        return neighborhoodsApi.create({
           name: formData.name || '',
           district_id: formData.district_id || '',
+          latitude: parseOptionalCoord(formData.latitude),
+          longitude: parseOptionalCoord(formData.longitude),
         });
       if (activeTab === 'crimes')
         return crimesApi.create({
@@ -418,11 +494,26 @@ export function ReferencesPage() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!targetItem) return;
-      if (activeTab === 'districts') return districtsApi.update(targetItem.id, formData);
-      if (activeTab === 'mahallas')
-        return mahallasApi.update(targetItem.id, {
+      if (activeTab === 'regions')
+        return regionsApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          code: formData.code !== undefined ? formData.code || null : undefined,
+          latitude: parseOptionalCoord(formData.latitude),
+          longitude: parseOptionalCoord(formData.longitude),
+        });
+      if (activeTab === 'districts')
+        return districtsApi.update(targetItem.id, {
+          name: formData.name || undefined,
+          region_id: formData.region_id !== undefined ? formData.region_id || null : undefined,
+          latitude: parseOptionalCoord(formData.latitude),
+          longitude: parseOptionalCoord(formData.longitude),
+        });
+      if (activeTab === 'neighborhoods')
+        return neighborhoodsApi.update(targetItem.id, {
           name: formData.name || undefined,
           district_id: formData.district_id || undefined,
+          latitude: parseOptionalCoord(formData.latitude),
+          longitude: parseOptionalCoord(formData.longitude),
         });
       if (activeTab === 'crimes')
         return crimesApi.update(targetItem.id, {
@@ -571,8 +662,9 @@ export function ReferencesPage() {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!targetItem) return;
+      if (activeTab === 'regions') return regionsApi.delete(targetItem.id);
       if (activeTab === 'districts') return districtsApi.delete(targetItem.id);
-      if (activeTab === 'mahallas') return mahallasApi.delete(targetItem.id);
+      if (activeTab === 'neighborhoods') return neighborhoodsApi.delete(targetItem.id);
       if (activeTab === 'crimes') return crimesApi.delete(targetItem.id);
       if (activeTab === 'crime_methods') return crimeMethodsApi.delete(targetItem.id);
       if (activeTab === 'banks') return banksApi.delete(targetItem.id);
@@ -602,7 +694,17 @@ export function ReferencesPage() {
   });
 
   const openCreateModal = () => {
-    setFormData({});
+    const initial: ReferenceFormData = {};
+    if (activeTab === 'districts') {
+      const defaultRegion =
+        allRegionsList.find((r) => r.code === 'QASHQADARYO') || allRegionsList[0];
+      if (selectedRegionFilter) {
+        initial.region_id = selectedRegionFilter;
+      } else if (defaultRegion) {
+        initial.region_id = defaultRegion.id;
+      }
+    }
+    setFormData(initial);
     setTargetItem(null);
     setModalType('create');
   };
@@ -746,18 +848,18 @@ export function ReferencesPage() {
               <DetectedCrimeStatusesReferenceTab />
             </TabsContent>
 
-            {/* 1. DISTRICTS TAB */}
-            <TabsContent value="districts" className="space-y-4 mt-0">
+            {/* 0. REGIONS TAB */}
+            <TabsContent value="regions" className="space-y-4 mt-0">
               <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
                 <CardContent className="p-4">
                   <div className="relative max-w-md lg:max-w-lg">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Tuman nomi yoki kodi bo'yicha qidiruv..."
-                      value={districtSearch}
+                      placeholder="Viloyat nomi yoki kodi bo'yicha qidiruv..."
+                      value={regionSearch}
                       onChange={(e) => {
-                        setDistrictSearch(e.target.value);
-                        setDistrictPage(1);
+                        setRegionSearch(e.target.value);
+                        setRegionPage(1);
                       }}
                       className="pl-9 h-9 text-xs"
                     />
@@ -769,18 +871,134 @@ export function ReferencesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Viloyat Nomi</TableHead>
+                      <TableHead>Kodi</TableHead>
+                      <TableHead>Koordinatalar (Lat, Lng)</TableHead>
+                      <TableHead className="text-right">Amallar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isRegionsLoading ? (
+                      <TableRowsSkeleton rows={4} columns={4} />
+                    ) : regionsData?.items?.length ? (
+                      regionsData.items.map((region: Region) => (
+                        <TableRow key={region.id}>
+                          <TableCell className="font-medium text-foreground">
+                            {region.name || '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-primary font-semibold">
+                            {region.code || '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {formatCoordPair(region.latitude, region.longitude)}
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditModal(region)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteModal(region)}
+                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          Hech qanday viloyat topilmadi
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+
+                {regionsData?.meta && (
+                  <PaginationBar
+                    page={regionsData.meta.page}
+                    totalPages={regionsData.meta.totalPages}
+                    total={regionsData.meta.total}
+                    limit={pageSize}
+                    hasNextPage={regionsData.meta.hasNextPage}
+                    hasPreviousPage={regionsData.meta.hasPreviousPage}
+                    onPageChange={(p) => setRegionPage(p)}
+                    onLimitChange={(newLimit) => {
+                      setPageSize(newLimit);
+                      setRegionPage(1);
+                    }}
+                    isLoading={isRegionsLoading}
+                  />
+                )}
+              </Card>
+            </TabsContent>
+
+            {/* 1. DISTRICTS TAB */}
+            <TabsContent value="districts" className="space-y-4 mt-0">
+              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
+                <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                  <div className="relative flex-1 max-w-md lg:max-w-lg">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Tuman nomi bo'yicha qidiruv..."
+                      value={districtSearch}
+                      onChange={(e) => {
+                        setDistrictSearch(e.target.value);
+                        setDistrictPage(1);
+                      }}
+                      className="pl-9 h-9 text-xs"
+                    />
+                  </div>
+                  <select
+                    value={selectedRegionFilter}
+                    onChange={(e) => {
+                      setSelectedRegionFilter(e.target.value);
+                      setDistrictPage(1);
+                    }}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium min-w-[200px]"
+                  >
+                    <option value="">Barcha viloyatlar</option>
+                    {allRegionsList.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </CardContent>
+              </Card>
+
+              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                       <TableHead>Tuman / Bo&apos;lim Nomi</TableHead>
+                      <TableHead>Viloyat</TableHead>
+                      <TableHead>Koordinatalar (Lat, Lng)</TableHead>
                       <TableHead className="text-right">Amallar</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isDistrictsLoading ? (
-                      <TableRowsSkeleton rows={6} columns={2} />
+                      <TableRowsSkeleton rows={6} columns={4} />
                     ) : districtsData?.items?.length ? (
                       districtsData.items.map((district: District) => (
                         <TableRow key={district.id}>
                           <TableCell className="font-medium text-foreground">
                             {district.name || '—'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {district.region?.name || '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {formatCoordPair(district.latitude, district.longitude)}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button
@@ -804,7 +1022,7 @@ export function ReferencesPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                           Hech qanday tuman topilmadi
                         </TableCell>
                       </TableRow>
@@ -831,18 +1049,18 @@ export function ReferencesPage() {
               </Card>
             </TabsContent>
 
-            {/* 1.1. MAHALLAS TAB */}
-            <TabsContent value="mahallas" className="space-y-4 mt-0">
+            {/* 1.1. NEIGHBORHOODS (MAHALLAS) TAB */}
+            <TabsContent value="neighborhoods" className="space-y-4 mt-0">
               <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
                 <CardContent className="p-4">
                   <div className="relative max-w-md lg:max-w-lg">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Mahalla nomi bo'yicha qidiruv..."
-                      value={mahallaSearch}
+                      value={neighborhoodSearch}
                       onChange={(e) => {
-                        setMahallaSearch(e.target.value);
-                        setMahallaPage(1);
+                        setNeighborhoodSearch(e.target.value);
+                        setNeighborhoodPage(1);
                       }}
                       className="pl-9 h-9 text-xs"
                     />
@@ -856,26 +1074,30 @@ export function ReferencesPage() {
                     <TableRow>
                       <TableHead>Mahalla Nomi</TableHead>
                       <TableHead>Tegishli Tuman</TableHead>
+                      <TableHead>Koordinatalar (Lat, Lng)</TableHead>
                       <TableHead className="text-right">Amallar</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isMahallasLoading ? (
-                      <TableRowsSkeleton rows={6} columns={3} />
-                    ) : mahallasData?.items?.length ? (
-                      mahallasData.items.map((mahalla: Mahalla) => (
-                        <TableRow key={mahalla.id}>
+                    {isNeighborhoodsLoading ? (
+                      <TableRowsSkeleton rows={6} columns={4} />
+                    ) : neighborhoodsData?.items?.length ? (
+                      neighborhoodsData.items.map((neighborhood: Neighborhood) => (
+                        <TableRow key={neighborhood.id}>
                           <TableCell className="font-medium text-foreground">
-                            {mahalla.name || '—'}
+                            {neighborhood.name || '—'}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {mahalla.district?.name || '—'}
+                            {neighborhood.district?.name || '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {formatCoordPair(neighborhood.latitude, neighborhood.longitude)}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openEditModal(mahalla)}
+                              onClick={() => openEditModal(neighborhood)}
                               className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
@@ -883,7 +1105,7 @@ export function ReferencesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openDeleteModal(mahalla)}
+                              onClick={() => openDeleteModal(neighborhood)}
                               className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -893,7 +1115,7 @@ export function ReferencesPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                           Hech qanday mahalla topilmadi
                         </TableCell>
                       </TableRow>
@@ -901,20 +1123,20 @@ export function ReferencesPage() {
                   </TableBody>
                 </Table>
 
-                {mahallasData?.meta && (
+                {neighborhoodsData?.meta && (
                   <PaginationBar
-                    page={mahallasData.meta.page}
-                    totalPages={mahallasData.meta.totalPages}
-                    total={mahallasData.meta.total}
+                    page={neighborhoodsData.meta.page}
+                    totalPages={neighborhoodsData.meta.totalPages}
+                    total={neighborhoodsData.meta.total}
                     limit={pageSize}
-                    hasNextPage={mahallasData.meta.hasNextPage}
-                    hasPreviousPage={mahallasData.meta.hasPreviousPage}
-                    onPageChange={(p) => setMahallaPage(p)}
+                    hasNextPage={neighborhoodsData.meta.hasNextPage}
+                    hasPreviousPage={neighborhoodsData.meta.hasPreviousPage}
+                    onPageChange={(p) => setNeighborhoodPage(p)}
                     onLimitChange={(newLimit) => {
                       setPageSize(newLimit);
-                      setMahallaPage(1);
+                      setNeighborhoodPage(1);
                     }}
-                    isLoading={isMahallasLoading}
+                    isLoading={isNeighborhoodsLoading}
                   />
                 )}
               </Card>
@@ -1982,6 +2204,7 @@ export function ReferencesPage() {
         targetItem={targetItem}
         formData={formData}
         setFormData={setFormData}
+        allRegionsList={allRegionsList}
         allDistrictsList={allDistrictsList}
         allCrimesList={allCrimesList}
         allCategoriesList={allCategoriesList}

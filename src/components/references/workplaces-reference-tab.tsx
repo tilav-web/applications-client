@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
@@ -26,7 +27,7 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/use-permissions';
-import { districtsApi, mahallasApi, occupationCategoriesApi, workplacesApi } from '@/lib/api';
+import { districtsApi, neighborhoodsApi, occupationCategoriesApi, workplacesApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import type { Workplace } from '@/types/models';
 
@@ -65,12 +66,12 @@ export function WorkplacesReferenceTab() {
 
   const { data: districtsData } = useQuery({
     queryKey: ['districts-all-for-workplaces'],
-    queryFn: () => districtsApi.getAll({ page: 1, limit: 200 }),
+    queryFn: () => districtsApi.getAll({ page: 1, limit: 500 }),
   });
 
   const { data: mahallasData } = useQuery({
     queryKey: ['mahallas-for-workplace', districtId],
-    queryFn: () => mahallasApi.getAll({ page: 1, limit: 300, district_id: districtId }),
+    queryFn: () => neighborhoodsApi.getAll({ page: 1, limit: 300, district_id: districtId }),
     enabled: Boolean(districtId),
   });
 
@@ -95,7 +96,7 @@ export function WorkplacesReferenceTab() {
     setEditing(wp);
     setName(wp.name || '');
     setDistrictId(wp.district_id || '');
-    setMahallaId(wp.mahalla_id || '');
+    setMahallaId(wp.neighborhood_id || '');
     setCategoryId(wp.occupation_category_id || '');
     setSelectedOccupationIds((wp.occupations || []).map((o) => o.id));
     setAddress(wp.address || '');
@@ -108,7 +109,7 @@ export function WorkplacesReferenceTab() {
       const payload = {
         name: name.trim(),
         district_id: districtId || null,
-        mahalla_id: mahallaId || null,
+        neighborhood_id: mahallaId || null,
         occupation_category_id: categoryId || null,
         occupation_ids: selectedOccupationIds,
         address: address.trim() || null,
@@ -165,21 +166,19 @@ export function WorkplacesReferenceTab() {
               className="pl-9 h-9 text-xs"
             />
           </div>
-          <select
-            value={districtFilter}
-            onChange={(e) => {
-              setDistrictFilter(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs"
-          >
-            <option value="">Barcha tumanlar</option>
-            {districts.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <div className="w-56">
+            <DistrictSearchSelect
+              districts={districts}
+              value={districtFilter}
+              onChange={(v) => {
+                setDistrictFilter(v || '');
+                setPage(1);
+              }}
+              groupedByRegion
+              placeholder="Barcha tumanlar"
+              size="sm"
+            />
+          </div>
         </div>
 
         {canWrite && (
@@ -254,7 +253,7 @@ export function WorkplacesReferenceTab() {
                         <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                         <span>
                           {wp.district.name}
-                          {wp.mahalla?.name ? `, ${wp.mahalla.name}` : ''}
+                          {wp.neighborhood?.name ? `, ${wp.neighborhood.name}` : ''}
                         </span>
                       </div>
                     ) : (
@@ -336,21 +335,17 @@ export function WorkplacesReferenceTab() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold">Joylashgan tumani</label>
-                <select
+                <DistrictSearchSelect
+                  districts={districts}
                   value={districtId}
-                  onChange={(e) => {
-                    setDistrictId(e.target.value);
+                  onChange={(v) => {
+                    setDistrictId(v || '');
                     setMahallaId('');
                   }}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
-                >
-                  <option value="">-- Tumanni tanlang --</option>
-                  {districts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                  groupedByRegion
+                  placeholder="-- Tumanni tanlang --"
+                  size="sm"
+                />
               </div>
 
               <div className="space-y-1">
