@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
 import type { TemplateCategoryConfig } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
+import { matchesLatinSearch } from '@/lib/transliterate';
 
 interface VariablePaletteDrawerProps {
   categories: TemplateCategoryConfig[];
@@ -93,20 +94,19 @@ export function VariablePaletteDrawer({
     }
   };
 
-  // Filter categories and items based on search query
+  // Filter categories and items based on search query (krill va lotin qo'llab-quvvatlanadi)
   const filteredCategories = React.useMemo(() => {
     if (!search.trim()) return categories;
-    const q = search.toLowerCase().trim();
 
     return categories
       .map((cat) => {
         const filteredItems = cat.items.filter(
           (item) =>
-            item.tag.toLowerCase().includes(q) ||
-            item.label.toLowerCase().includes(q) ||
-            item.rawKey.toLowerCase().includes(q) ||
-            (item.description && item.description.toLowerCase().includes(q)) ||
-            (item.sampleValue && item.sampleValue.toLowerCase().includes(q)),
+            matchesLatinSearch(item.tag, search) ||
+            matchesLatinSearch(item.label, search) ||
+            matchesLatinSearch(item.rawKey, search) ||
+            (item.description && matchesLatinSearch(item.description, search)) ||
+            (item.sampleValue && matchesLatinSearch(item.sampleValue, search)),
         );
         return {
           ...cat,

@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
+import { matchesLatinSearch } from '@/lib/transliterate';
 import { cn } from '@/lib/utils';
 import type { Application } from '@/types/models';
 
@@ -413,15 +414,14 @@ export function QuickActionsPanel({
     return result;
   }, [application]);
 
-  // Qidiruv bo'yicha filtrlash
+  // Qidiruv bo'yicha filtrlash (krill va lotin qo'llab-quvvatlanadi)
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
-    const query = search.toLowerCase().trim();
     return items.filter(
       (item) =>
-        item.label.toLowerCase().includes(query) ||
-        item.value.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query),
+        matchesLatinSearch(item.label, search) ||
+        matchesLatinSearch(item.value, search) ||
+        matchesLatinSearch(item.category, search),
     );
   }, [items, search]);
 

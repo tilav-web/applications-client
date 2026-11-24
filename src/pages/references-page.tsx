@@ -66,6 +66,7 @@ import {
   transferChannelsApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { matchesLatinSearch } from '@/lib/transliterate';
 import type {
   ApplicationSource,
   ApplicationStatusItem,
@@ -2091,16 +2092,10 @@ export function ReferencesPage() {
                       {isCategoriesLoading ? (
                         <TableRowsSkeleton rows={6} columns={5} />
                       ) : allCategoriesList.filter((c) =>
-                          occupationSearch
-                            ? c.name.toLowerCase().includes(occupationSearch.toLowerCase())
-                            : true,
+                          matchesLatinSearch(c.name, occupationSearch),
                         ).length ? (
                         allCategoriesList
-                          .filter((c) =>
-                            occupationSearch
-                              ? c.name.toLowerCase().includes(occupationSearch.toLowerCase())
-                              : true,
-                          )
+                          .filter((c) => matchesLatinSearch(c.name, occupationSearch))
                           .map((cat) => (
                             <TableRow key={cat.id}>
                               <TableCell className="font-semibold text-foreground">
@@ -2169,16 +2164,10 @@ export function ReferencesPage() {
                       {isOccupationsLoading ? (
                         <TableRowsSkeleton rows={6} columns={6} />
                       ) : allOccupationsList.filter((o) =>
-                          occupationSearch
-                            ? o.name.toLowerCase().includes(occupationSearch.toLowerCase())
-                            : true,
+                          matchesLatinSearch(o.name, occupationSearch),
                         ).length ? (
                         allOccupationsList
-                          .filter((o) =>
-                            occupationSearch
-                              ? o.name.toLowerCase().includes(occupationSearch.toLowerCase())
-                              : true,
-                          )
+                          .filter((o) => matchesLatinSearch(o.name, occupationSearch))
                           .map((occup) => (
                             <TableRow key={occup.id}>
                               <TableCell className="font-semibold text-foreground">
@@ -2269,17 +2258,10 @@ export function ReferencesPage() {
                   <TableBody>
                     {isSourcesLoading ? (
                       <TableRowsSkeleton rows={6} columns={4} />
-                    ) : allSourcesList.filter((s) =>
-                        sourceSearch
-                          ? s.name.toLowerCase().includes(sourceSearch.toLowerCase())
-                          : true,
-                      ).length ? (
+                    ) : allSourcesList.filter((s) => matchesLatinSearch(s.name, sourceSearch))
+                        .length ? (
                       allSourcesList
-                        .filter((s) =>
-                          sourceSearch
-                            ? s.name.toLowerCase().includes(sourceSearch.toLowerCase())
-                            : true,
-                        )
+                        .filter((s) => matchesLatinSearch(s.name, sourceSearch))
                         .map((item) => (
                           <TableRow key={item.id}>
                             <TableCell className="font-semibold text-foreground">
@@ -2361,22 +2343,16 @@ export function ReferencesPage() {
                   <TableBody>
                     {isDeptServicesLoading ? (
                       <TableRowsSkeleton rows={6} columns={4} />
-                    ) : allDeptServicesList.filter((d) =>
-                        deptServiceSearch
-                          ? d.name.toLowerCase().includes(deptServiceSearch.toLowerCase()) ||
-                            (d.short_name &&
-                              d.short_name.toLowerCase().includes(deptServiceSearch.toLowerCase()))
-                          : true,
+                    ) : allDeptServicesList.filter(
+                        (d) =>
+                          matchesLatinSearch(d.name, deptServiceSearch) ||
+                          (d.short_name && matchesLatinSearch(d.short_name, deptServiceSearch)),
                       ).length ? (
                       allDeptServicesList
-                        .filter((d) =>
-                          deptServiceSearch
-                            ? d.name.toLowerCase().includes(deptServiceSearch.toLowerCase()) ||
-                              (d.short_name &&
-                                d.short_name
-                                  .toLowerCase()
-                                  .includes(deptServiceSearch.toLowerCase()))
-                            : true,
+                        .filter(
+                          (d) =>
+                            matchesLatinSearch(d.name, deptServiceSearch) ||
+                            (d.short_name && matchesLatinSearch(d.short_name, deptServiceSearch)),
                         )
                         .map((item) => (
                           <TableRow key={item.id}>
@@ -2461,16 +2437,10 @@ export function ReferencesPage() {
                     {isDecisionTypesLoading ? (
                       <TableRowsSkeleton rows={6} columns={3} />
                     ) : allDecisionTypesList.filter((d) =>
-                        decisionSearch
-                          ? d.name.toLowerCase().includes(decisionSearch.toLowerCase())
-                          : true,
+                        matchesLatinSearch(d.name, decisionSearch),
                       ).length ? (
                       allDecisionTypesList
-                        .filter((d) =>
-                          decisionSearch
-                            ? d.name.toLowerCase().includes(decisionSearch.toLowerCase())
-                            : true,
-                        )
+                        .filter((d) => matchesLatinSearch(d.name, decisionSearch))
                         .map((item) => (
                           <TableRow key={item.id}>
                             <TableCell className="font-semibold text-foreground">
@@ -2549,16 +2519,10 @@ export function ReferencesPage() {
                     {isRejectionReasonsLoading ? (
                       <TableRowsSkeleton rows={6} columns={3} />
                     ) : allRejectionReasonsList.filter((r) =>
-                        rejectionSearch
-                          ? r.name.toLowerCase().includes(rejectionSearch.toLowerCase())
-                          : true,
+                        matchesLatinSearch(r.name, rejectionSearch),
                       ).length ? (
                       allRejectionReasonsList
-                        .filter((r) =>
-                          rejectionSearch
-                            ? r.name.toLowerCase().includes(rejectionSearch.toLowerCase())
-                            : true,
-                        )
+                        .filter((r) => matchesLatinSearch(r.name, rejectionSearch))
                         .map((item) => (
                           <TableRow key={item.id}>
                             <TableCell className="font-semibold text-foreground">
