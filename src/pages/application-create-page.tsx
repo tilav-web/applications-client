@@ -8,6 +8,7 @@ import {
   Layers,
   Loader2,
   MapPin,
+  Plus,
   Radio,
   RotateCcw,
   Save,
@@ -47,8 +48,10 @@ import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { QuickLocationDialog } from '@/components/ui/quick-location-dialog';
 import { toast } from '@/components/ui/sonner';
 import { useDebounce } from '@/hooks/use-debounce';
+import { usePermissions } from '@/hooks/use-permissions';
 import {
   applicationsApi,
   applicationSourcesApi,
@@ -105,6 +108,14 @@ export function ApplicationCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { canWrite } = usePermissions();
+
+  const [quickLocationState, setQuickLocationState] = useState<{
+    open: boolean;
+    initialRegionId?: string | null;
+    initialDistrictId?: string | null;
+    initialDistrictQuery?: string;
+  }>({ open: false });
 
   const [canLeave, setCanLeave] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -1664,6 +1675,15 @@ export function ApplicationCreatePage() {
                     setCitizenMahallaId(null);
                   }}
                   groupedByRegion
+                  onQuickAdd={
+                    canWrite
+                      ? (q) =>
+                          setQuickLocationState({
+                            open: true,
+                            initialDistrictQuery: q,
+                          })
+                      : undefined
+                  }
                   placeholder="-- TUMANNI TANLANG --"
                   searchPlaceholder="Tuman yoki viloyat nomini qidiring..."
                 />
@@ -1671,17 +1691,36 @@ export function ApplicationCreatePage() {
 
               {/* Yashash Mahallasi */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-primary" />
                     Yashash Mahallasi
                   </label>
-                  {citizenMahallaId && (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Tanlandi
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {citizenMahallaId && (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Tanlandi
+                      </Badge>
+                    )}
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentDist = allDistricts.find((d) => d.id === citizenDistrictId);
+                          setQuickLocationState({
+                            open: true,
+                            initialRegionId: currentDist?.region_id || null,
+                            initialDistrictId: citizenDistrictId || null,
+                          });
+                        }}
+                        className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Qo‘shish
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <select
                   value={citizenMahallaId || ''}
@@ -2525,6 +2564,23 @@ export function ApplicationCreatePage() {
           onSaved={() => refetchDocuments()}
         />
       )}
+
+      {/* TEZKOR HUDUD (VILOYAT / TUMAN / MAHALLA) QO'SHISH MODALI */}
+      <QuickLocationDialog
+        open={quickLocationState.open}
+        onOpenChange={(open) => setQuickLocationState((prev) => ({ ...prev, open }))}
+        initialRegionId={quickLocationState.initialRegionId}
+        initialDistrictId={quickLocationState.initialDistrictId}
+        initialDistrictQuery={quickLocationState.initialDistrictQuery}
+        onCreated={({ district, neighborhood }) => {
+          setCitizenDistrictId(district.id);
+          if (neighborhood) {
+            setCitizenMahallaId(neighborhood.id);
+          } else if (citizenDistrictId !== district.id) {
+            setCitizenMahallaId(null);
+          }
+        }}
+      />
     </div>
   );
 }

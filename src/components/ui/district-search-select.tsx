@@ -1,4 +1,4 @@
-import { Check, ChevronDown, MapPin, Search, X } from 'lucide-react';
+import { Check, ChevronDown, MapPin, Plus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { matchesLatinSearch } from '@/lib/transliterate';
@@ -14,6 +14,8 @@ interface DistrictSearchSelectProps {
   onlyRegionCode?: string;
   /** True bo'lsa tumanlar viloyatlar bo'yicha guruhlab ko'rsatiladi (Yashash tumani uchun) */
   groupedByRegion?: boolean;
+  /** Qidirilgan tuman topilmasa yoki yangi viloyat/tuman/mahalla qo'shish uchun callback (BOSS dan boshqa hodimlar) */
+  onQuickAdd?: (searchQuery: string) => void;
   disabled?: boolean;
   allowClear?: boolean;
   size?: 'sm' | 'md';
@@ -30,6 +32,7 @@ export function DistrictSearchSelect({
   searchPlaceholder = 'Tuman yoki viloyat nomini qidiring...',
   onlyRegionCode,
   groupedByRegion = false,
+  onQuickAdd,
   disabled = false,
   allowClear = true,
   size = 'md',
@@ -238,8 +241,25 @@ export function DistrictSearchSelect({
           {/* GURUHLANGAN YOKI ODDIY RO'YXAT */}
           <div className="max-h-64 overflow-y-auto p-1">
             {filteredDistricts.length === 0 ? (
-              <div className="py-6 px-3 text-center text-xs text-muted-foreground">
-                «{search}» bo‘yicha tuman topilmadi
+              <div className="py-5 px-3 text-center space-y-2.5">
+                <p className="text-xs text-muted-foreground">«{search}» bo‘yicha tuman topilmadi</p>
+                {onQuickAdd && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = search.trim();
+                      setIsOpen(false);
+                      setSearch('');
+                      onQuickAdd(q);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {search.trim()
+                      ? `«${search.trim()}» — yangi hudud qo‘shish`
+                      : 'Yangi viloyat / tuman / mahalla qo‘shish'}
+                  </button>
+                )}
               </div>
             ) : (
               groupedList.map((group) => (
@@ -277,6 +297,24 @@ export function DistrictSearchSelect({
               ))
             )}
           </div>
+
+          {onQuickAdd && filteredDistricts.length > 0 && (
+            <div className="border-t border-border/70 bg-muted/20 p-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const q = search.trim();
+                  setIsOpen(false);
+                  setSearch('');
+                  onQuickAdd(q);
+                }}
+                className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Yangi viloyat / tuman / mahalla qo‘shish
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

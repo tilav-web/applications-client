@@ -16,7 +16,7 @@ import {
   UploadCloud,
   UserPlus,
 } from 'lucide-react';
-import type { RefObject } from 'react';
+import { type RefObject, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,9 @@ import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { QuickLocationDialog } from '@/components/ui/quick-location-dialog';
 import { toast } from '@/components/ui/sonner';
+import { usePermissions } from '@/hooks/use-permissions';
 import {
   documentsApi,
   getFileDownloadUrl,
@@ -141,6 +143,14 @@ export function EvidenceAndCitizensSection({
   onRemoveCustomFieldItem,
   onUpdateCustomFieldItem,
 }: EvidenceAndCitizensSectionProps) {
+  const { canWrite } = usePermissions();
+  const [quickLocTarget, setQuickLocTarget] = useState<{
+    open: boolean;
+    clientId: string;
+    initialRegionId?: string | null;
+    initialDistrictId?: string | null;
+    initialDistrictQuery?: string;
+  }>({ open: false, clientId: '' });
   const citizenFields = customFields.filter((cf) => cf.type === 'CITIZEN');
 
   return (
@@ -825,6 +835,16 @@ export function EvidenceAndCitizensSection({
                             }));
                           }}
                           groupedByRegion
+                          onQuickAdd={
+                            canWrite
+                              ? (q) =>
+                                  setQuickLocTarget({
+                                    open: true,
+                                    clientId: cf.clientId,
+                                    initialDistrictQuery: q,
+                                  })
+                              : undefined
+                          }
                           size="sm"
                           placeholder="-- TUMANNI TANLANG --"
                           searchPlaceholder="Tuman yoki viloyat nomini qidiring..."
@@ -833,17 +853,37 @@ export function EvidenceAndCitizensSection({
 
                       {/* Yashash Mahallasi */}
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                             <Building2 className="h-3 w-3 text-primary" />
                             Yashash Mahallasi
                           </label>
-                          {citMahId && (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
-                              <CheckCircle2 className="h-2.5 w-2.5" />
-                              Tanlandi
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {citMahId && (
+                              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0 px-1.5">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                Tanlandi
+                              </Badge>
+                            )}
+                            {canWrite && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentDist = allDistricts.find((d) => d.id === citDistId);
+                                  setQuickLocTarget({
+                                    open: true,
+                                    clientId: cf.clientId,
+                                    initialRegionId: currentDist?.region_id || null,
+                                    initialDistrictId: citDistId || null,
+                                  });
+                                }}
+                                className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                                Qo‘shish
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <CustomCitizenMahallaSelect
                           districtId={citDistId}
@@ -912,6 +952,32 @@ export function EvidenceAndCitizensSection({
           <span>Fuqaro qo‘shish</span>
         </Button>
       </div>
+
+      <QuickLocationDialog
+        open={quickLocTarget.open}
+        onOpenChange={(open) => setQuickLocTarget((prev) => ({ ...prev, open }))}
+        initialRegionId={quickLocTarget.initialRegionId}
+        initialDistrictId={quickLocTarget.initialDistrictId}
+        initialDistrictQuery={quickLocTarget.initialDistrictQuery}
+        onCreated={({ district, neighborhood }) => {
+          if (!quickLocTarget.clientId) return;
+          onUpdateCustomFieldItem(quickLocTarget.clientId, (f) => ({
+            ...f,
+            inline_citizen: {
+              ...(f.inline_citizen || {
+                first_name: '',
+                last_name: '',
+                passport: '',
+                phone_number: '',
+              }),
+              district_id: district.id,
+              district_name: district.name || '',
+              neighborhood_id: neighborhood ? neighborhood.id : null,
+              neighborhood_name: neighborhood?.name || '',
+            },
+          }));
+        }}
+      />
     </div>
   );
 }
