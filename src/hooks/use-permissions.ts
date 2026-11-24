@@ -1,9 +1,11 @@
 import { useAuthStore } from '@/store';
 
 export function usePermissions() {
-  const role = useAuthStore((state) => state.user?.role);
+  const user = useAuthStore((state) => state.user);
+  const role = user?.role;
   const isBoss = role === 'BOSS';
   const isSuperAdmin = role === 'SUPER_ADMIN';
+  const isRootSuperAdmin = role === 'SUPER_ADMIN' && Boolean(user?.is_root);
   const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const isReadOnly = isBoss;
 
@@ -11,6 +13,7 @@ export function usePermissions() {
     role,
     isBoss,
     isSuperAdmin,
+    isRootSuperAdmin,
     isAdmin,
     isReadOnly,
     canWrite: !isReadOnly,

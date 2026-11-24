@@ -107,20 +107,21 @@ export const navigationConfig: NavItem[] = [
     path: '/references',
     icon: BookOpen,
     category: 'operations',
-    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'INSPECTOR'],
+    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'INSPECTOR', 'STAFF'],
     description: 'Tumanlar, jinoyat turlari, banklar va to‘lov tizimlari',
   },
 
   // 3. Tizim & Boshqaruv
   {
     id: 'users',
-    title: 'Foydalanuvchilar',
+    title: 'Hodimlar',
     path: '/users',
     icon: Activity,
     category: 'management',
-    badge: 'Admin',
-    allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
-    description: 'Tizim foydalanuvchilari va rollar taqsimoti',
+    badge: 'Root',
+    allowedRoles: ['SUPER_ADMIN'],
+    requiresRoot: true,
+    description: 'Tizim hodimlari va rollar taqsimoti',
   },
   {
     id: 'audit',

@@ -108,6 +108,11 @@ export function AppHeader() {
                   <Badge className="text-[9px] px-1 py-0 bg-primary/20 text-primary border-0 font-mono">
                     {user?.role || 'SUPER_ADMIN'}
                   </Badge>
+                  {user?.is_root && (
+                    <Badge className="text-[9px] px-1 py-0 bg-amber-500/20 text-amber-600 dark:text-amber-400 border-0 font-mono">
+                      ROOT
+                    </Badge>
+                  )}
                   <span className="text-[10px] text-muted-foreground truncate max-w-[80px] hidden sm:inline">
                     {user?.profile?.phone_number || `@${user?.username}`}
                   </span>

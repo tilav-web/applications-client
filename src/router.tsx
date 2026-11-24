@@ -199,7 +199,7 @@ export const router = createBrowserRouter([
           {
             path: 'references',
             element: (
-              <RoleRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'INSPECTOR']}>
+              <RoleRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'INSPECTOR', 'STAFF']}>
                 <ReferencesPage />
               </RoleRoute>
             ),
@@ -224,7 +224,7 @@ export const router = createBrowserRouter([
           {
             path: 'users',
             element: (
-              <RoleRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+              <RoleRoute allowedRoles={['SUPER_ADMIN']} requiresRoot>
                 <UsersPage />
               </RoleRoute>
             ),

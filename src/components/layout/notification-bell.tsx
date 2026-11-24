@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCheck, Send, Settings } from 'lucide-react';
+import { Bell, CheckCheck, FileSpreadsheet, Loader2, Send, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,7 +9,9 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { type NotificationItem, notificationsApi } from '@/lib/api';
+import { toast } from '@/components/ui/sonner';
+import { type NotificationItem, notificationsApi, reportsApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 
 function formatRelativeTime(iso: string): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -24,10 +26,18 @@ function formatRelativeTime(iso: string): string {
   });
 }
 
+function extractDigestDate(item: NotificationItem): string {
+  const metaDate =
+    item.metadata && typeof item.metadata.date === 'string' ? item.metadata.date : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(metaDate)) return metaDate;
+  return item.created_at.slice(0, 10);
+}
+
 export function NotificationBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const { data } = useQuery({
     queryKey: ['my-notifications'],
@@ -60,6 +70,40 @@ export function NotificationBell() {
     setOpen(false);
     if (item.link_url) {
       navigate(item.link_url);
+    }
+  };
+
+  const handleDownloadDigestExcel = async (
+    e: React.MouseEvent<HTMLButtonElement>,
+    item: NotificationItem,
+  ) => {
+    e.stopPropagation();
+    const digestDate = extractDigestDate(item);
+    try {
+      setDownloadingId(item.id);
+      if (!item.is_read) {
+        markReadMut.mutate(item.id);
+      }
+      const blob = await reportsApi.exportOperationalMatrixExcel({ date: digestDate });
+      const url = window.URL.createObjectURL(
+        new Blob([blob], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Viloyat_Tezkor_Svodkasi_${digestDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success(`Svodka Excel (${digestDate}) yuklab olindi`);
+    } catch (err) {
+      toast.error('Excel svodkani yuklab olishda xatolik', {
+        description: getErrorMessage(err),
+      });
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -120,17 +164,26 @@ export function NotificationBell() {
                   : item.priority === 'WARNING'
                     ? 'bg-amber-500'
                     : 'bg-blue-500';
+              const isDailyDigest = item.type === 'DAILY_DIGEST';
+              const isDownloading = downloadingId === item.id;
               return (
-                <button
+                <div
                   key={item.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleItemClick(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleItemClick(item);
+                    }
+                  }}
                   className={`w-full text-left px-3.5 py-2.5 transition-colors hover:bg-muted/60 cursor-pointer flex items-start gap-2.5 ${
                     !item.is_read ? 'bg-primary/[0.04]' : ''
                   }`}
                 >
                   <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${dotClass}`} />
-                  <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={`text-xs truncate ${
@@ -150,14 +203,31 @@ export function NotificationBell() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground whitespace-pre-line line-clamp-2">
+                    <p className="text-[11px] text-muted-foreground whitespace-pre-line line-clamp-3">
                       {item.message}
                     </p>
-                    <span className="text-[10px] text-muted-foreground/70 block">
-                      {formatRelativeTime(item.created_at)}
-                    </span>
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <span className="text-[10px] text-muted-foreground/70">
+                        {formatRelativeTime(item.created_at)}
+                      </span>
+                      {isDailyDigest && (
+                        <button
+                          type="button"
+                          disabled={isDownloading}
+                          onClick={(e) => void handleDownloadDigestExcel(e, item)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {isDownloading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <FileSpreadsheet className="h-3 w-3" />
+                          )}
+                          <span>Excel (.xlsx) yuklash</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </button>
+                </div>
               );
             })
           )}

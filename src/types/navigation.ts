@@ -8,5 +8,6 @@ export interface NavItem {
   category: 'main' | 'operations' | 'management' | 'system';
   badge?: string;
   allowedRoles: string[]; // ['*'] for all, or specific roles like ['SUPER_ADMIN', 'ADMIN']
+  requiresRoot?: boolean;
   description?: string;
 }

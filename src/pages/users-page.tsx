@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   AtSign,
+  Crown,
   Edit2,
   Loader2,
   Lock,
@@ -149,7 +150,7 @@ export function UsersPage() {
     mutationFn: (data: typeof formData) => usersApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Foydalanuvchi muvaffaqiyatli yaratildi');
+      toast.success('Hodim muvaffaqiyatli yaratildi');
       setIsCreateOpen(false);
       resetForm();
     },
@@ -166,7 +167,7 @@ export function UsersPage() {
       usersApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Foydalanuvchi ma’lumotlari yangilandi');
+      toast.success('Hodim ma’lumotlari yangilandi');
       setEditingUser(null);
       resetForm();
     },
@@ -182,7 +183,7 @@ export function UsersPage() {
     mutationFn: (id: string) => usersApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Foydalanuvchi tizimdan o‘chirildi');
+      toast.success('Hodim tizimdan o‘chirildi');
       selection.clearSelection();
       setDeleteTargetId(null);
     },
@@ -246,13 +247,22 @@ export function UsersPage() {
   const getRoleBadge = (
     role: string,
     assignedDistricts?: { id: string; name: string | null }[],
+    isRoot?: boolean,
   ) => {
     switch (role) {
       case 'SUPER_ADMIN':
         return (
-          <Badge className="bg-rose-500/10 text-rose-600 border border-rose-200 dark:border-rose-900/50 text-[10px] font-mono">
-            SUPER ADMIN
-          </Badge>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge className="bg-rose-500/10 text-rose-600 border border-rose-200 dark:border-rose-900/50 text-[10px] font-mono">
+              SUPER ADMIN
+            </Badge>
+            {isRoot && (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300/60 dark:border-amber-800 text-[10px] font-mono gap-1">
+                <Crown className="h-2.5 w-2.5" />
+                ROOT
+              </Badge>
+            )}
+          </div>
         );
       case 'BOSS':
         return (
@@ -263,14 +273,14 @@ export function UsersPage() {
       case 'STAFF':
         return (
           <Badge className="bg-blue-500/10 text-blue-600 border border-blue-200 dark:border-blue-900/50 text-[10px] font-mono">
-            MARKAZIY XODIM
+            NAVBATCHI HODIM
           </Badge>
         );
       case 'DISTRICT_OFFICER':
         return (
           <div className="space-y-1">
             <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-200 dark:border-emerald-900/50 text-[10px] font-mono">
-              HUDUDIY XODIM
+              HUDUDIY HODIM
             </Badge>
             {assignedDistricts && assignedDistricts.length > 0 ? (
               <div className="flex flex-wrap gap-1 max-w-[200px]">
@@ -338,12 +348,11 @@ export function UsersPage() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1">
             <Activity className="h-3.5 w-3.5" />
-            <span>Foydalanuvchilar & Boshqaruv</span>
+            <span>Hodimlar & Boshqaruv</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Foydalanuvchilar</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Hodimlar</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Arizalar bazasi tizimiga kirish huquqiga ega bo‘lgan barcha foydalanuvchilar va ularning
-            rollari
+            Arizalar bazasi tizimiga kirish huquqiga ega bo‘lgan barcha hodimlar va ularning rollari
           </p>
         </div>
 
@@ -355,13 +364,13 @@ export function UsersPage() {
           className="gap-2 shadow-sm font-semibold shrink-0"
         >
           <Plus className="h-4 w-4" />
-          <span>Foydalanuvchi qo‘shish</span>
+          <span>Hodim qo‘shish</span>
         </Button>
       </div>
 
       {/* 1. ALOHIDA YUQORI FILTR VA AMALLAR PANELI */}
       <TableFilterPanel
-        title="Foydalanuvchilarni aniq filtrlash"
+        title="Hodimlarni aniq filtrlash"
         activeFiltersCount={activeFiltersCount}
         onClearAll={handleClearFilters}
         onRefresh={() => refetch()}
@@ -391,7 +400,10 @@ export function UsersPage() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  disabled={currentUser?.id === selection.singleSelected.id}
+                  disabled={
+                    currentUser?.id === selection.singleSelected.id ||
+                    Boolean(selection.singleSelected.is_root)
+                  }
                   onClick={() => setDeleteTargetId(selection.singleSelected!.id)}
                   className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
                 >
@@ -402,12 +414,24 @@ export function UsersPage() {
             ) : (
               <DropdownMenuItem
                 onClick={async () => {
-                  const deletable = selection.selectedIds.filter((id) => id !== currentUser?.id);
-                  if (deletable.length === 0) return;
-                  await Promise.all(deletable.map((id) => usersApi.delete(id)));
-                  await queryClient.invalidateQueries({ queryKey: ['users'] });
-                  toast.success(`${deletable.length} ta foydalanuvchi o‘chirildi`);
-                  selection.clearSelection();
+                  const protectedIds = new Set(
+                    (data?.items || []).filter((u) => u.is_root).map((u) => u.id),
+                  );
+                  const deletable = selection.selectedIds.filter(
+                    (id) => id !== currentUser?.id && !protectedIds.has(id),
+                  );
+                  if (deletable.length === 0) {
+                    toast.error('Asosiy (Root) Super Admin yoki o‘z hisobingizni o‘chira olmaysiz');
+                    return;
+                  }
+                  try {
+                    await Promise.all(deletable.map((id) => usersApi.delete(id)));
+                    await queryClient.invalidateQueries({ queryKey: ['users'] });
+                    toast.success(`${deletable.length} ta hodim o‘chirildi`);
+                    selection.clearSelection();
+                  } catch (err) {
+                    toast.error('Xatolik yuz berdi', { description: getErrorMessage(err) });
+                  }
                 }}
                 className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive font-semibold"
               >
@@ -419,7 +443,7 @@ export function UsersPage() {
         }
       >
         <FilterInput
-          label="Xodim F.I.SH"
+          label="Hodim F.I.SH"
           value={fullNameFilter}
           onChange={(v) => {
             setFullNameFilter(v);
@@ -463,10 +487,9 @@ export function UsersPage() {
         >
           <option value="">Barcha rollar</option>
           <option value="SUPER_ADMIN">Super Admin</option>
-          <option value="ADMIN">Admin</option>
-          <option value="INSPECTOR">Inspektor</option>
-          <option value="STAFF">Xodim</option>
-          <option value="DISTRICT_OFFICER">Tuman mas’uli</option>
+          <option value="BOSS">Rahbar</option>
+          <option value="STAFF">Navbatchi hodim</option>
+          <option value="DISTRICT_OFFICER">Hududiy hodim</option>
         </FilterSelect>
 
         <FilterSelect
@@ -486,7 +509,7 @@ export function UsersPage() {
         </FilterSelect>
       </TableFilterPanel>
 
-      {/* 2. ALOHIDA AJRATILGAN FOYDALANUVCHILAR JADVALI */}
+      {/* 2. ALOHIDA AJRATILGAN HODIMLAR JADVALI */}
       <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
@@ -497,7 +520,7 @@ export function UsersPage() {
                     checked={selection.allSelected}
                     indeterminate={selection.someSelected}
                     onChange={selection.toggleAll}
-                    ariaLabel="Barcha xodimlarni tanlash"
+                    ariaLabel="Barcha hodimlarni tanlash"
                   />
                 </div>
               </TableHead>
@@ -514,7 +537,7 @@ export function UsersPage() {
                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                   <div className="inline-flex items-center gap-2 text-xs">
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    <span>Foydalanuvchilar ro‘yxati yuklanmoqda...</span>
+                    <span>Hodimlar ro‘yxati yuklanmoqda...</span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -590,7 +613,9 @@ export function UsersPage() {
                       </div>
                     </TableCell>
 
-                    <TableCell>{getRoleBadge(user.role, user.assigned_districts)}</TableCell>
+                    <TableCell>
+                      {getRoleBadge(user.role, user.assigned_districts, user.is_root)}
+                    </TableCell>
 
                     <TableCell>
                       {user.phone_number ? (
@@ -615,10 +640,10 @@ export function UsersPage() {
                   <div className="space-y-1">
                     <UserCheck className="h-6 w-6 mx-auto text-muted-foreground/60 mb-2" />
                     <p className="text-xs font-semibold text-foreground">
-                      Hech qanday foydalanuvchi topilmadi
+                      Hech qanday hodim topilmadi
                     </p>
                     <p className="text-[11px] text-muted-foreground">
-                      Qidiruv so‘rovingizni o‘zgartirib ko‘ring yoki yangi foydalanuvchi qo‘shing
+                      Qidiruv so‘rovingizni o‘zgartirib ko‘ring yoki yangi hodim qo‘shing
                     </p>
                   </div>
                 </TableCell>
@@ -660,14 +685,12 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg font-bold">
               <ShieldCheck className="h-5 w-5 text-primary" />
-              <span>
-                {editingUser ? 'Foydalanuvchini tahrirlash' : 'Yangi foydalanuvchi qo‘shish'}
-              </span>
+              <span>{editingUser ? 'Hodimni tahrirlash' : 'Yangi hodim qo‘shish'}</span>
             </DialogTitle>
             <DialogDescription>
               {editingUser
-                ? 'Foydalanuvchi ma’lumotlarini yangilash uchun maydonlarni to‘ldiring'
-                : 'Tizimga kirish huquqiga ega yangi xodim akkauntini yarating'}
+                ? 'Hodim ma’lumotlarini yangilash uchun maydonlarni to‘ldiring'
+                : 'Tizimga kirish huquqiga ega yangi hodim akkauntini yarating'}
             </DialogDescription>
           </DialogHeader>
 
@@ -744,20 +767,26 @@ export function UsersPage() {
                   <label className="text-xs font-semibold text-foreground">Tizimdagi Roli *</label>
                   <select
                     value={formData.role}
+                    disabled={Boolean(editingUser?.is_root)}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs sm:text-sm font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="SUPER_ADMIN">
-                      Super Admin (To‘liq boshqaruv, o‘chirish huquqi)
+                      Super Admin (To‘liq boshqaruv, hodimlarni boshqarish faqat Root ga tegishli)
                     </option>
                     <option value="BOSS">Rahbar (Faqat statistika va hisobotlar, Read-Only)</option>
                     <option value="STAFF">
-                      Markaziy Xodim / Katta tergovchi (Barcha arizalar)
+                      Navbatchi hodim (Barcha arizalar va ma’lumotnomalar boshqaruvi)
                     </option>
                     <option value="DISTRICT_OFFICER">
-                      Hududiy Xodim (Faqat biriktirilgan tumanlar)
+                      Hududiy hodim (Faqat biriktirilgan tumanlar)
                     </option>
                   </select>
+                  {editingUser?.is_root && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                      Asosiy (Root) Super Admin roli o‘zgartirilmaydi
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -882,11 +911,10 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2 text-lg font-bold">
               <Trash2 className="h-5 w-5" />
-              <span>Foydalanuvchini o‘chirish</span>
+              <span>Hodimni o‘chirish</span>
             </DialogTitle>
             <DialogDescription>
-              Ushbu foydalanuvchini tizimdan o‘chirishni tasdiqlaysizmi? Bu amalni ortga qaytarib
-              bo‘lmaydi.
+              Ushbu hodimni tizimdan o‘chirishni tasdiqlaysizmi? Bu amalni ortga qaytarib bo‘lmaydi.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

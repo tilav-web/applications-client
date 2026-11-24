@@ -26,17 +26,31 @@ export function ProtectedRoute() {
 interface RoleRouteProps {
   allowedRoles?: string[];
   disallowedRoles?: string[];
+  requiresRoot?: boolean;
   children: ReactNode;
 }
 
-export function RoleRoute({ allowedRoles, disallowedRoles, children }: RoleRouteProps) {
-  const role = useAuthStore((state) => state.user?.role);
+export function RoleRoute({
+  allowedRoles,
+  disallowedRoles,
+  requiresRoot,
+  children,
+}: RoleRouteProps) {
+  const user = useAuthStore((state) => state.user);
+  const role = user?.role;
 
   if (role) {
     if (disallowedRoles && disallowedRoles.includes(role)) {
       return <Navigate to="/" replace />;
     }
     if (allowedRoles && !allowedRoles.includes('*') && !allowedRoles.includes(role)) {
+      return <Navigate to="/" replace />;
+    }
+    if (
+      requiresRoot &&
+      typeof user?.is_root === 'boolean' &&
+      !(role === 'SUPER_ADMIN' && user.is_root)
+    ) {
       return <Navigate to="/" replace />;
     }
   }

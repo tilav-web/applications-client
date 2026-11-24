@@ -996,6 +996,7 @@ export interface UserItem {
   id: string;
   username: string;
   role: string;
+  is_root?: boolean;
   first_name: string | null;
   last_name: string | null;
   phone_number: string | null;

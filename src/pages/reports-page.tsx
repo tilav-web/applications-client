@@ -14,7 +14,8 @@ import {
   Table as TableIcon,
   User,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,11 +31,32 @@ import { getErrorMessage } from '@/lib/error';
 type ReportTab = 'matrix' | 'services' | 'registry';
 
 export function ReportsPage() {
+  const [searchParams] = useSearchParams();
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  const initialTabParam = searchParams.get('tab');
+  const initialDateParam = searchParams.get('date');
+
   // States
-  const [activeTab, setActiveTab] = useState<ReportTab>('matrix');
-  const [date, setDate] = useState<string>(todayStr);
+  const [activeTab, setActiveTab] = useState<ReportTab>(
+    initialTabParam === 'services' || initialTabParam === 'registry' || initialTabParam === 'matrix'
+      ? initialTabParam
+      : 'matrix',
+  );
+  const [date, setDate] = useState<string>(
+    initialDateParam && /^\d{4}-\d{2}-\d{2}$/.test(initialDateParam) ? initialDateParam : todayStr,
+  );
+
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    const d = searchParams.get('date');
+    if (t === 'matrix' || t === 'services' || t === 'registry') {
+      setActiveTab(t);
+    }
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      setDate(d);
+    }
+  }, [searchParams]);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 

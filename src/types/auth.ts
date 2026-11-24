@@ -23,6 +23,7 @@ export interface AuthUser {
   id: string;
   username: string;
   role: UserRole;
+  is_root?: boolean;
   profile: UserProfile | null;
   assigned_districts?: { id: string; name: string | null }[];
   created_at?: string;

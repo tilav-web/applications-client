@@ -18,8 +18,11 @@ export function AppSidebar() {
 
   // Filter navigation items dynamically based on the authenticated user's role
   const userRole = user?.role || 'SUPER_ADMIN';
+  const isRootSuperAdmin = userRole === 'SUPER_ADMIN' && Boolean(user?.is_root);
   const allowedItems = navigationConfig.filter(
-    (item) => item.allowedRoles.includes('*') || item.allowedRoles.includes(userRole),
+    (item) =>
+      (item.allowedRoles.includes('*') || item.allowedRoles.includes(userRole)) &&
+      (!item.requiresRoot || isRootSuperAdmin),
   );
 
   const mainItems = allowedItems.filter((i) => i.category === 'main');
@@ -118,7 +121,7 @@ export function AppSidebar() {
       {/* 3. BOTTOM FOOTER WITH LOGOUT BUTTON (Fixed, completely outside scroll!) */}
       <div className="p-3 border-t border-border/60 bg-card/90 shrink-0 space-y-2">
         <div className="flex items-center justify-between px-1 text-xs">
-          <span className="text-muted-foreground text-[11px]">Foydalanuvchi:</span>
+          <span className="text-muted-foreground text-[11px]">Hodim:</span>
           <span className="font-mono font-bold text-primary text-[11px]">@{user?.username}</span>
         </div>
 

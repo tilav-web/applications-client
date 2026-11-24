@@ -66,7 +66,7 @@ const ENTITY_OPTIONS = [
   { value: 'citizen', label: 'Fuqarolar' },
   { value: 'card', label: 'Kartalar' },
   { value: 'transfer', label: 'O‘tkazmalar' },
-  { value: 'user', label: 'Foydalanuvchilar' },
+  { value: 'user', label: 'Hodimlar' },
   { value: 'document', label: 'Hujjatlar' },
   { value: 'file', label: 'Fayllar' },
   { value: 'intelligence', label: 'Dosye / Razvedka' },
