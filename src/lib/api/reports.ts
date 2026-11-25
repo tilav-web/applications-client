@@ -110,6 +110,7 @@ export interface RegistryReportItem {
   providers: string;
   phone_number: string;
   birth_date: string;
+  awareness_status: string;
 }
 
 export interface RegistryReportResponse {

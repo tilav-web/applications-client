@@ -3,6 +3,7 @@ import { CheckCircle2, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { AwarenessStatusesReferenceTab } from '@/components/references/awareness-statuses-reference-tab';
 import { DetectedCrimeStatusesReferenceTab } from '@/components/references/detected-crime-statuses-reference-tab';
 import { DetectionSourcesReferenceTab } from '@/components/references/detection-sources-reference-tab';
 import { invalidateReferenceTabCaches } from '@/components/references/reference-cache.util';
@@ -821,7 +822,8 @@ export function ReferencesPage() {
 
               {activeTab !== 'workplaces' &&
                 activeTab !== 'detection_sources' &&
-                activeTab !== 'detected_crime_statuses' && (
+                activeTab !== 'detected_crime_statuses' &&
+                activeTab !== 'awareness_statuses' && (
                   <Button
                     size="sm"
                     onClick={openCreateModal}
@@ -846,6 +848,11 @@ export function ReferencesPage() {
             {/* DETECTED CRIME STATUSES TAB */}
             <TabsContent value="detected_crime_statuses" className="space-y-4 mt-0">
               <DetectedCrimeStatusesReferenceTab />
+            </TabsContent>
+
+            {/* AWARENESS STATUSES TAB */}
+            <TabsContent value="awareness_statuses" className="space-y-4 mt-0">
+              <AwarenessStatusesReferenceTab />
             </TabsContent>
 
             {/* 0. REGIONS TAB */}

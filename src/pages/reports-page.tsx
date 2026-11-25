@@ -1446,8 +1446,11 @@ export function ReportsPage() {
                       <th className="w-36 whitespace-nowrap border-r border-emerald-300 bg-emerald-100 px-3 py-3 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
                         Аризачининг телефон рақами
                       </th>
-                      <th className="w-28 whitespace-nowrap bg-emerald-100 px-3 py-3 text-center text-emerald-950 dark:bg-emerald-950 dark:text-emerald-200">
+                      <th className="w-28 whitespace-nowrap border-r border-emerald-300 bg-emerald-100 px-3 py-3 text-center text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
                         Туғилган куни
+                      </th>
+                      <th className="w-52 whitespace-nowrap bg-indigo-100 px-3 py-3 text-indigo-950 dark:bg-indigo-950 dark:text-indigo-200">
+                        Тарғибот ҳолати
                       </th>
                     </tr>
                   </thead>
@@ -1455,7 +1458,7 @@ export function ReportsPage() {
                   <tbody className="divide-y divide-slate-200 bg-white font-medium text-slate-700 dark:divide-slate-800 dark:bg-slate-900 dark:text-slate-300">
                     {registryQuery.data?.items?.length === 0 ? (
                       <tr>
-                        <td colSpan={17} className="py-12 text-center text-slate-400">
+                        <td colSpan={18} className="py-12 text-center text-slate-400">
                           Hech qanday ariza yoki material topilmadi
                         </td>
                       </tr>
@@ -1534,8 +1537,11 @@ export function ReportsPage() {
                             <td className="border-r border-slate-200 px-3 py-2.5 font-mono text-xs text-slate-800 dark:border-slate-800 dark:text-slate-200">
                               {item.phone_number || '—'}
                             </td>
-                            <td className="px-3 py-2.5 text-center text-xs text-slate-600 dark:text-slate-400">
+                            <td className="border-r border-slate-200 px-3 py-2.5 text-center text-xs text-slate-600 dark:text-slate-400">
                               {item.birth_date || '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs text-indigo-900 dark:text-indigo-200">
+                              {item.awareness_status || '—'}
                             </td>
                           </tr>
                         );

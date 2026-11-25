@@ -8,6 +8,7 @@ import {
   Layers,
   Loader2,
   MapPin,
+  Megaphone,
   Plus,
   Radio,
   RotateCcw,
@@ -22,6 +23,13 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { AppealClassificationCard } from '@/components/applications/appeal-classification-card';
+import {
+  type ApplicationCreateDraft,
+  clearApplicationDraft,
+  loadApplicationDraft,
+  saveApplicationDraft,
+} from '@/components/applications/application-draft.storage';
 import type {
   AppCustomFieldState,
   FinancialTransferEntry,
@@ -56,6 +64,7 @@ import {
   applicationsApi,
   applicationSourcesApi,
   applicationStatusesApi,
+  awarenessStatusesApi,
   banksApi,
   cardsApi,
   citizensApi,
@@ -76,7 +85,17 @@ import {
 import { formatLocalDateISO, toLocalDateInputValue } from '@/lib/date';
 import { getErrorMessage } from '@/lib/error';
 import { formatTitleCase, formatUzbekName } from '@/lib/formatters';
-import type { ApplicationStatus, Citizen, CrimeMethod, CustomFieldType } from '@/types/models';
+import { useAuthStore } from '@/store';
+import type {
+  AppealType,
+  ApplicantType,
+  ApplicationRepeatType,
+  ApplicationStatus,
+  Citizen,
+  CrimeMethod,
+  CustomFieldType,
+  SubmissionForm,
+} from '@/types/models';
 
 export type {
   AppCustomFieldState,
@@ -109,6 +128,27 @@ export function ApplicationCreatePage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+  const currentUserId = useAuthStore((s) => s.user?.id || null);
+
+  // URL ?parentId=... orqali ochilgan bo'lsa eski qoralama ustiga yozmasin
+  const initialSearchParams = new URLSearchParams(location.search);
+  const initialParentParam = !id ? initialSearchParams.get('parentId') : null;
+  const initialRepeatParam = !id
+    ? (initialSearchParams.get('repeatType') as ApplicationRepeatType | null)
+    : null;
+  const validInitialRepeat: ApplicationRepeatType =
+    initialRepeatParam === 'REPEAT' ||
+    initialRepeatParam === 'DUPLICATE' ||
+    initialRepeatParam === 'SUPPLEMENTAL'
+      ? initialRepeatParam
+      : 'PRIMARY';
+
+  // Faqat yangi ariza yaratishda (!id va parentId siz) localStorage dan qoralamani tiklash
+  const [restoredDraft] = useState<ApplicationCreateDraft | null>(() =>
+    !id && !initialParentParam ? loadApplicationDraft(currentUserId) : null,
+  );
+  const [wasDraftRestored, setWasDraftRestored] = useState<boolean>(() => Boolean(restoredDraft));
+  const draftClearedRef = useRef(false);
 
   const [quickLocationState, setQuickLocationState] = useState<{
     open: boolean;
@@ -124,81 +164,144 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // 1. ASOSIY ARIZA QAYD REKVIZITLARI
   // ==========================================================================
-  const [applicationNumber, setApplicationNumber] = useState('');
+  const [applicationNumber, setApplicationNumber] = useState(
+    () => restoredDraft?.applicationNumber || '',
+  );
   const [applicationNumberTouched, setApplicationNumberTouched] = useState(false);
   const showAppNumberWarning = applicationNumberTouched && !applicationNumber.trim();
-  const [description, setDescription] = useState('');
-  const [officerNotes, setOfficerNotes] = useState('');
-  const [suspectTree, setSuspectTree] = useState<unknown[]>([]);
-  const [status, setStatus] = useState<ApplicationStatus>('YANGI');
-  const [statusId, setStatusId] = useState<string | null>(null);
-  const [sourceId, setSourceId] = useState<string | null>(null);
-  const [date, setDate] = useState(() => formatLocalDateISO());
+  const [description, setDescription] = useState(() => restoredDraft?.description || '');
+  const [officerNotes, setOfficerNotes] = useState(() => restoredDraft?.officerNotes || '');
+  const [suspectTree, setSuspectTree] = useState<unknown[]>(() =>
+    Array.isArray(restoredDraft?.suspectTree) ? restoredDraft.suspectTree : [],
+  );
+  const [status, setStatus] = useState<ApplicationStatus>(() => restoredDraft?.status || 'YANGI');
+  const [statusId, setStatusId] = useState<string | null>(() => restoredDraft?.statusId ?? null);
+  const [sourceId, setSourceId] = useState<string | null>(() => restoredDraft?.sourceId ?? null);
+  const [awarenessStatusId, setAwarenessStatusId] = useState<string | null>(
+    () => restoredDraft?.awarenessStatusId ?? null,
+  );
+  const [awarenessNote, setAwarenessNote] = useState(() => restoredDraft?.awarenessNote || '');
+  const [awarenessInformedExpanded, setAwarenessInformedExpanded] = useState(false);
+  const [date, setDate] = useState(() => restoredDraft?.date || formatLocalDateISO());
+
+  // 1.1. Murojaat tasnifi va takroriy/dublikat zanjiri (O'RQ-445)
+  const [appealType, setAppealType] = useState<AppealType>(
+    () => restoredDraft?.appealType || 'APPEAL',
+  );
+  const [submissionForm, setSubmissionForm] = useState<SubmissionForm>(
+    () => restoredDraft?.submissionForm || 'WRITTEN',
+  );
+  const [applicantType, setApplicantType] = useState<ApplicantType>(
+    () => restoredDraft?.applicantType || 'INDIVIDUAL',
+  );
+  const [repeatType, setRepeatType] = useState<ApplicationRepeatType>(() =>
+    initialParentParam ? validInitialRepeat : restoredDraft?.repeatType || validInitialRepeat,
+  );
+  const [parentApplicationId, setParentApplicationId] = useState<string | null>(
+    () => initialParentParam || restoredDraft?.parentApplicationId || null,
+  );
+  const [repeatReason, setRepeatReason] = useState(() => restoredDraft?.repeatReason || '');
+  const [isReviewTerminated, setIsReviewTerminated] = useState(() =>
+    Boolean(restoredDraft?.isReviewTerminated),
+  );
+  const [terminationNote, setTerminationNote] = useState(
+    () => restoredDraft?.terminationNote || '',
+  );
+  const copiedParentRef = useRef<string | null>(null);
 
   // ==========================================================================
   // 2. ARIZACHI FUQARO ANKETASI
   // ==========================================================================
-  const [selectedCitizenId, setSelectedCitizenId] = useState<string | null>(null);
-  const [citizenForm, setCitizenForm] = useState({
-    first_name: '',
-    last_name: '',
-    middle_name: '',
-    passport: '',
-    phone_number: '',
-    pinfl: '',
-    address: '',
-    birth_date: '',
-    gender: '' as 'male' | 'female' | '',
-  });
+  const [selectedCitizenId, setSelectedCitizenId] = useState<string | null>(
+    () => restoredDraft?.selectedCitizenId ?? null,
+  );
+  const [citizenForm, setCitizenForm] = useState(
+    () =>
+      restoredDraft?.citizenForm || {
+        first_name: '',
+        last_name: '',
+        middle_name: '',
+        passport: '',
+        phone_number: '',
+        pinfl: '',
+        address: '',
+        birth_date: '',
+        gender: '' as 'male' | 'female' | '',
+      },
+  );
   const [showCitizenPopover, setShowCitizenPopover] = useState(false);
   const citizenPopoverRef = useRef<HTMLDivElement>(null);
 
   // Fuqaroning kasbi va ish joyi
-  const [occupationCategoryId, setOccupationCategoryId] = useState<string | null>(null);
-  const [occupationId, setOccupationId] = useState<string | null>(null);
+  const [occupationCategoryId, setOccupationCategoryId] = useState<string | null>(
+    () => restoredDraft?.occupationCategoryId ?? null,
+  );
+  const [occupationId, setOccupationId] = useState<string | null>(
+    () => restoredDraft?.occupationId ?? null,
+  );
   const [selectedWorkplace, setSelectedWorkplace] = useState<
     import('@/types/models').Workplace | null
-  >(null);
-  const [workPosition, setWorkPosition] = useState<string>('');
+  >(() => restoredDraft?.selectedWorkplace ?? null);
+  const [workPosition, setWorkPosition] = useState<string>(() => restoredDraft?.workPosition || '');
 
   // Fuqaroning yashash tumani va mahallasi
-  const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(null);
-  const [citizenMahallaId, setCitizenMahallaId] = useState<string | null>(null);
+  const [citizenDistrictId, setCitizenDistrictId] = useState<string | null>(
+    () => restoredDraft?.citizenDistrictId ?? null,
+  );
+  const [citizenMahallaId, setCitizenMahallaId] = useState<string | null>(
+    () => restoredDraft?.citizenMahallaId ?? null,
+  );
   const [showUnlinkCitizenConfirm, setShowUnlinkCitizenConfirm] = useState(false);
 
   // ==========================================================================
   // 3. HODISA HUDUDI VA JINOYAT MODDASI
   // ==========================================================================
-  const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null);
-  const [districtForm, setDistrictForm] = useState({
-    name: '',
-  });
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(
+    () => restoredDraft?.selectedDistrictId ?? null,
+  );
+  const [districtForm, setDistrictForm] = useState(
+    () => restoredDraft?.districtForm || { name: '' },
+  );
 
-  const [selectedCrimeId, setSelectedCrimeId] = useState<string | null>(null);
-  const [selectedCrimeMethodId, setSelectedCrimeMethodId] = useState<string | null>(null);
+  const [selectedCrimeId, setSelectedCrimeId] = useState<string | null>(
+    () => restoredDraft?.selectedCrimeId ?? null,
+  );
+  const [selectedCrimeMethodId, setSelectedCrimeMethodId] = useState<string | null>(
+    () => restoredDraft?.selectedCrimeMethodId ?? null,
+  );
   const [crimeForm, setCrimeForm] = useState<{
     article: string;
-  }>({
-    article: '',
-  });
+  }>(() => restoredDraft?.crimeForm || { article: '' });
 
   // Sohaviy xizmat, SLA va yakuniy qaror
-  const [departmentServiceId, setDepartmentServiceId] = useState<string | null>(null);
-  const [decisionTypeId, setDecisionTypeId] = useState<string | null>(null);
-  const [rejectionReasonId, setRejectionReasonId] = useState<string | null>(null);
-  const [slaDays, setSlaDays] = useState<string>('');
-  const [decisionNumber, setDecisionNumber] = useState<string>('');
-  const [decisionDate, setDecisionDate] = useState<string>('');
-  const [decisionNote, setDecisionNote] = useState<string>('');
+  const [departmentServiceId, setDepartmentServiceId] = useState<string | null>(
+    () => restoredDraft?.departmentServiceId ?? null,
+  );
+  const [decisionTypeId, setDecisionTypeId] = useState<string | null>(
+    () => restoredDraft?.decisionTypeId ?? null,
+  );
+  const [rejectionReasonId, setRejectionReasonId] = useState<string | null>(
+    () => restoredDraft?.rejectionReasonId ?? null,
+  );
+  const [slaDays, setSlaDays] = useState<string>(() => restoredDraft?.slaDays || '');
+  const [decisionNumber, setDecisionNumber] = useState<string>(
+    () => restoredDraft?.decisionNumber || '',
+  );
+  const [decisionDate, setDecisionDate] = useState<string>(() => restoredDraft?.decisionDate || '');
+  const [decisionNote, setDecisionNote] = useState<string>(() => restoredDraft?.decisionNote || '');
 
   // ==========================================================================
   // 4. MOLIYAVIY ZARAR VA TRANZAKSIYA SHAKLLARI
   // ==========================================================================
-  const [hasFinancialLoss, setHasFinancialLoss] = useState(false);
+  const [hasFinancialLoss, setHasFinancialLoss] = useState(() =>
+    Boolean(restoredDraft?.hasFinancialLoss),
+  );
 
-  const [financialTransfers, setFinancialTransfers] = useState<FinancialTransferEntry[]>([
-    createDefaultTransferEntry(),
-  ]);
+  const [financialTransfers, setFinancialTransfers] = useState<FinancialTransferEntry[]>(() =>
+    Array.isArray(restoredDraft?.financialTransfers) && restoredDraft.financialTransfers.length > 0
+      ? restoredDraft.financialTransfers
+      : [createDefaultTransferEntry()],
+  );
 
   const [activeTransferPopover, setActiveTransferPopover] = useState<{
     index: number;
@@ -236,7 +339,9 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // 5. YAGONA ISBOTLAR VA DALILLAR (MinIO)
   // ==========================================================================
-  const [evidenceFiles, setEvidenceFiles] = useState<UploadedFile[]>([]);
+  const [evidenceFiles, setEvidenceFiles] = useState<UploadedFile[]>(() =>
+    Array.isArray(restoredDraft?.evidenceFiles) ? restoredDraft.evidenceFiles : [],
+  );
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const [isDraggingEvidence, setIsDraggingEvidence] = useState(false);
   const evidenceInputRef = useRef<HTMLInputElement>(null);
@@ -244,7 +349,9 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // 6. QO'SHIMCHA SUBYEKTLAR (APPLICATION CUSTOM FIELDS)
   // ==========================================================================
-  const [customFields, setCustomFields] = useState<AppCustomFieldState[]>([]);
+  const [customFields, setCustomFields] = useState<AppCustomFieldState[]>(() =>
+    Array.isArray(restoredDraft?.customFields) ? restoredDraft.customFields : [],
+  );
 
   // ==========================================================================
   // WORD HUJJATLARI (.DOCX / ONLYOFFICE)
@@ -425,7 +532,9 @@ export function ApplicationCreatePage() {
   });
   const allCrimeMethods = crimeMethodsData || [];
 
-  const [methodFieldValues, setMethodFieldValues] = useState<Record<string, string>>({});
+  const [methodFieldValues, setMethodFieldValues] = useState<Record<string, string>>(
+    () => restoredDraft?.methodFieldValues || {},
+  );
 
   const selectedCrimeMethod = useMemo(
     () => allCrimeMethods.find((m) => m.id === selectedCrimeMethodId) || null,
@@ -498,6 +607,30 @@ export function ApplicationCreatePage() {
   });
   const allApplicationSources = sourcesData || [];
 
+  // Targ'ibot holatlari (Fuqaro targ'ibot qilinganmi?)
+  const { data: awarenessStatusesData } = useQuery({
+    queryKey: ['awareness-statuses-active'],
+    queryFn: () => awarenessStatusesApi.getAll(),
+  });
+  const allAwarenessStatuses = useMemo(() => awarenessStatusesData || [], [awarenessStatusesData]);
+  const notInformedStatus = useMemo(
+    () => allAwarenessStatuses.find((s) => !s.is_informed) || null,
+    [allAwarenessStatuses],
+  );
+  const informedAwarenessStatuses = useMemo(
+    () => allAwarenessStatuses.filter((s) => s.is_informed),
+    [allAwarenessStatuses],
+  );
+  const selectedAwarenessStatus = useMemo(
+    () => allAwarenessStatuses.find((s) => s.id === awarenessStatusId) || null,
+    [allAwarenessStatuses, awarenessStatusId],
+  );
+  const isInformedModeActive =
+    Boolean(selectedAwarenessStatus?.is_informed) || awarenessInformedExpanded;
+  const isNotInformedSelected =
+    Boolean(awarenessStatusId) &&
+    Boolean(selectedAwarenessStatus && !selectedAwarenessStatus.is_informed);
+
   // Kasb toifalari
   const { data: occupationCategoriesData } = useQuery({
     queryKey: ['occupation-categories-select'],
@@ -537,6 +670,52 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   // POPULATE INITIAL DATA
   // ==========================================================================
+  // URL ?parentId=... orqali ochilganda avvalgi arizaning asosiy ma'lumotlarini 1 marta nusxalash
+  useEffect(() => {
+    if (id || !initialParentParam || copiedParentRef.current === initialParentParam) return;
+    copiedParentRef.current = initialParentParam;
+    void applicationsApi
+      .getOne(initialParentParam)
+      .then((parentApp) => {
+        if (parentApp.citizen) {
+          setSelectedCitizenId(parentApp.citizen.id);
+          setCitizenDistrictId(
+            parentApp.citizen.district_id || parentApp.citizen.district?.id || null,
+          );
+          setCitizenMahallaId(
+            parentApp.citizen.neighborhood_id || parentApp.citizen.neighborhood?.id || null,
+          );
+          setCitizenForm({
+            first_name: parentApp.citizen.first_name || '',
+            last_name: parentApp.citizen.last_name || '',
+            middle_name: parentApp.citizen.middle_name || '',
+            passport: parentApp.citizen.passport || '',
+            phone_number: parentApp.citizen.phone_number || '',
+            pinfl: parentApp.citizen.pinfl || '',
+            address: parentApp.citizen.address || '',
+            birth_date: parentApp.citizen.birth_date
+              ? String(parentApp.citizen.birth_date).substring(0, 10)
+              : '',
+            gender: (parentApp.citizen.gender as 'male' | 'female') || '',
+          });
+        }
+        if (parentApp.district) {
+          setSelectedDistrictId(parentApp.district.id);
+          setDistrictForm({ name: parentApp.district.name || '' });
+        }
+        if (parentApp.crime) {
+          setSelectedCrimeId(parentApp.crime.id);
+          setCrimeForm({ article: parentApp.crime.article || parentApp.crime.title || '' });
+        }
+        if (parentApp.crime_method_id || parentApp.crime_method?.id) {
+          setSelectedCrimeMethodId(parentApp.crime_method_id || parentApp.crime_method?.id || null);
+        }
+      })
+      .catch(() => {
+        // foydalanuvchi qo'lda kiritishi mumkin
+      });
+  }, [id, initialParentParam]);
+
   useEffect(() => {
     if (!initialApp) return;
     // Bir marta yuklangandan keyin fon refetch'lari tahrirlanayotgan formani qayta yozmasin
@@ -552,6 +731,9 @@ export function ApplicationCreatePage() {
     setStatus(initialApp.status || initialApp.application_status?.code || 'YANGI');
     setStatusId(initialApp.status_id || initialApp.application_status?.id || null);
     setSourceId(initialApp.source_id || initialApp.source?.id || null);
+    setAwarenessStatusId(initialApp.awareness_status_id || initialApp.awareness_status?.id || null);
+    setAwarenessNote(initialApp.awareness_note || '');
+    setAwarenessInformedExpanded(Boolean(initialApp.awareness_status?.is_informed));
     setDepartmentServiceId(
       initialApp.department_service_id || initialApp.department_service?.id || null,
     );
@@ -561,6 +743,14 @@ export function ApplicationCreatePage() {
     setDecisionNumber(initialApp.decision_number || '');
     setDecisionDate(toLocalDateInputValue(initialApp.decision_date));
     setDecisionNote(initialApp.decision_note || '');
+    setAppealType(initialApp.appeal_type || 'APPEAL');
+    setSubmissionForm(initialApp.submission_form || 'WRITTEN');
+    setApplicantType(initialApp.applicant_type || 'INDIVIDUAL');
+    setRepeatType(initialApp.repeat_type || 'PRIMARY');
+    setParentApplicationId(initialApp.parent_application_id || null);
+    setRepeatReason(initialApp.repeat_reason || '');
+    setIsReviewTerminated(Boolean(initialApp.is_review_terminated));
+    setTerminationNote(initialApp.termination_note || '');
     if (initialApp.date) {
       setDate(toLocalDateInputValue(initialApp.date));
     }
@@ -790,20 +980,130 @@ export function ApplicationCreatePage() {
     selectedCrimeMethodId ||
     hasFinancialLoss ||
     evidenceFiles.length > 0 ||
-    customFields.length > 0,
+    customFields.length > 0 ||
+    repeatType !== 'PRIMARY' ||
+    Boolean(parentApplicationId) ||
+    repeatReason.trim() ||
+    Boolean(awarenessStatusId) ||
+    awarenessNote.trim(),
   );
 
-  // Tab yopilishidan himoya
+  // Yangi ariza yaratishda (!id) kiritilgan ma'lumotlarni avtomatik localStorage ga saqlash
+  // Reload yoki boshqa sahifaga o'tib qaytganda saqlanib qoladi; faqat Saqlash yoki Bekor qilishda o'chadi
+  useEffect(() => {
+    if (id || draftClearedRef.current) return;
+    if (!hasUnsavedData) {
+      clearApplicationDraft(currentUserId);
+      return;
+    }
+    const draftPayload: ApplicationCreateDraft = {
+      v: 1,
+      savedAt: new Date().toISOString(),
+      applicationNumber,
+      description,
+      officerNotes,
+      suspectTree,
+      status,
+      statusId,
+      sourceId,
+      awarenessStatusId,
+      awarenessNote,
+      date,
+      appealType,
+      submissionForm,
+      applicantType,
+      repeatType,
+      parentApplicationId,
+      repeatReason,
+      isReviewTerminated,
+      terminationNote,
+      selectedCitizenId,
+      citizenForm,
+      occupationCategoryId,
+      occupationId,
+      selectedWorkplace,
+      workPosition,
+      citizenDistrictId,
+      citizenMahallaId,
+      selectedDistrictId,
+      districtForm,
+      selectedCrimeId,
+      selectedCrimeMethodId,
+      crimeForm,
+      methodFieldValues,
+      departmentServiceId,
+      decisionTypeId,
+      rejectionReasonId,
+      slaDays,
+      decisionNumber,
+      decisionDate,
+      decisionNote,
+      hasFinancialLoss,
+      financialTransfers,
+      evidenceFiles,
+      customFields,
+    };
+    saveApplicationDraft(currentUserId, draftPayload);
+  }, [
+    id,
+    currentUserId,
+    hasUnsavedData,
+    applicationNumber,
+    description,
+    officerNotes,
+    suspectTree,
+    status,
+    statusId,
+    sourceId,
+    awarenessStatusId,
+    awarenessNote,
+    date,
+    appealType,
+    submissionForm,
+    applicantType,
+    repeatType,
+    parentApplicationId,
+    repeatReason,
+    isReviewTerminated,
+    terminationNote,
+    selectedCitizenId,
+    citizenForm,
+    occupationCategoryId,
+    occupationId,
+    selectedWorkplace,
+    workPosition,
+    citizenDistrictId,
+    citizenMahallaId,
+    selectedDistrictId,
+    districtForm,
+    selectedCrimeId,
+    selectedCrimeMethodId,
+    crimeForm,
+    methodFieldValues,
+    departmentServiceId,
+    decisionTypeId,
+    rejectionReasonId,
+    slaDays,
+    decisionNumber,
+    decisionDate,
+    decisionNote,
+    hasFinancialLoss,
+    financialTransfers,
+    evidenceFiles,
+    customFields,
+  ]);
+
+  // Tab yopilishidan himoya (faqat tahrirlash rejimida; yangi arizada localStorage ga avtomatik saqlanadi)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!canLeave && (Boolean(id) || hasUnsavedData)) {
+      if (!canLeave && Boolean(id)) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [canLeave, id, hasUnsavedData]);
+  }, [canLeave, id]);
 
   // Popover tashqarisiga bosilganda yopish
   useEffect(() => {
@@ -973,6 +1273,8 @@ export function ApplicationCreatePage() {
         status_id: statusId || undefined,
         date: date ? new Date(date).toISOString() : undefined,
         source_id: sourceId || null,
+        awareness_status_id: awarenessStatusId || null,
+        awareness_note: awarenessNote.trim() || null,
         department_service_id: departmentServiceId || null,
         decision_type_id: decisionTypeId || null,
         rejection_reason_id: rejectionReasonId || null,
@@ -980,6 +1282,15 @@ export function ApplicationCreatePage() {
         decision_number: decisionNumber.trim() || null,
         decision_date: decisionDate || null,
         decision_note: decisionNote.trim() || null,
+        appeal_type: appealType,
+        submission_form: submissionForm,
+        applicant_type: applicantType,
+        repeat_type: repeatType,
+        parent_application_id: repeatType === 'PRIMARY' ? null : parentApplicationId || null,
+        repeat_reason: repeatType === 'PRIMARY' ? null : repeatReason.trim() || null,
+        is_review_terminated: repeatType === 'REPEAT' ? isReviewTerminated : false,
+        termination_note:
+          repeatType === 'REPEAT' && isReviewTerminated ? terminationNote.trim() || null : null,
       };
 
       // 1. Fuqaro
@@ -1222,6 +1533,10 @@ export function ApplicationCreatePage() {
     },
     onSuccess: async () => {
       setCanLeave(true);
+      if (!id) {
+        draftClearedRef.current = true;
+        clearApplicationDraft(currentUserId);
+      }
       const invalidations: Array<Promise<unknown>> = [
         queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
@@ -1401,6 +1716,104 @@ export function ApplicationCreatePage() {
               )}
             </select>
           </div>
+        </div>
+
+        {/* QORALAMA TIKLANDI BANNERI (LOCALSTORAGE) */}
+        {!id && wasDraftRestored && (
+          <div className="mx-5 sm:mx-6 mt-4 rounded-xl border border-sky-500/35 bg-sky-500/10 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-sky-800 dark:text-sky-300">
+              <BookmarkCheck className="h-4 w-4 shrink-0" />
+              <span>
+                <strong>Avvalgi to‘ldirilgan ma’lumotlar tiklandi.</strong> Sahifani yangilasangiz
+                yoki boshqa bo‘limga o‘tib qaytsangiz ham saqlanib turadi; faqat{' '}
+                <strong>Saqlash</strong> yoki <strong>Bekor qilish</strong> bosilganda tozalanadi.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWasDraftRestored(false)}
+              className="text-sky-700 dark:text-sky-300 hover:underline font-semibold text-[11px] cursor-pointer"
+            >
+              Yopish
+            </button>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* 0.5-QISM: MUROJAAT TASNIFI VA TAKRORIY / DUBLIKAT ZANJIRI (O'RQ-445) */}
+        {/* ================================================================= */}
+        <div className="px-5 sm:px-6 pt-5 bg-card">
+          <AppealClassificationCard
+            currentApplicationId={id}
+            selectedCitizenId={selectedCitizenId}
+            appealType={appealType}
+            onAppealTypeChange={setAppealType}
+            submissionForm={submissionForm}
+            onSubmissionFormChange={setSubmissionForm}
+            applicantType={applicantType}
+            onApplicantTypeChange={setApplicantType}
+            repeatType={repeatType}
+            onRepeatTypeChange={setRepeatType}
+            parentApplicationId={parentApplicationId}
+            onParentApplicationChange={(appId) => setParentApplicationId(appId)}
+            repeatReason={repeatReason}
+            onRepeatReasonChange={setRepeatReason}
+            isReviewTerminated={isReviewTerminated}
+            onIsReviewTerminatedChange={setIsReviewTerminated}
+            terminationNote={terminationNote}
+            onTerminationNoteChange={setTerminationNote}
+            onCopyFromParent={async (parentId) => {
+              try {
+                const parentApp = await applicationsApi.getOne(parentId);
+                if (parentApp.citizen) {
+                  setSelectedCitizenId(parentApp.citizen.id);
+                  setCitizenDistrictId(
+                    parentApp.citizen.district_id || parentApp.citizen.district?.id || null,
+                  );
+                  setCitizenMahallaId(
+                    parentApp.citizen.neighborhood_id || parentApp.citizen.neighborhood?.id || null,
+                  );
+                  setCitizenForm({
+                    first_name: parentApp.citizen.first_name || '',
+                    last_name: parentApp.citizen.last_name || '',
+                    middle_name: parentApp.citizen.middle_name || '',
+                    passport: parentApp.citizen.passport || '',
+                    phone_number: parentApp.citizen.phone_number || '',
+                    pinfl: parentApp.citizen.pinfl || '',
+                    address: parentApp.citizen.address || '',
+                    birth_date: parentApp.citizen.birth_date
+                      ? String(parentApp.citizen.birth_date).substring(0, 10)
+                      : '',
+                    gender: (parentApp.citizen.gender as 'male' | 'female') || '',
+                  });
+                }
+                if (parentApp.district) {
+                  setSelectedDistrictId(parentApp.district.id);
+                  setDistrictForm({ name: parentApp.district.name || '' });
+                }
+                if (parentApp.crime) {
+                  setSelectedCrimeId(parentApp.crime.id);
+                  setCrimeForm({ article: parentApp.crime.article || parentApp.crime.title || '' });
+                }
+                if (parentApp.crime_method_id || parentApp.crime_method?.id) {
+                  setSelectedCrimeMethodId(
+                    parentApp.crime_method_id || parentApp.crime_method?.id || null,
+                  );
+                }
+                toast.success(
+                  `Avvalgi ariza (${parentApp.application_number || 'Raqamsiz'}) ma’lumotlari nusxalandi`,
+                  {
+                    description:
+                      'Fuqaro, tuman va jinoyat turi to‘ldirildi; karta/o‘tkazmalar bo‘sh qoldi.',
+                  },
+                );
+              } catch (err) {
+                toast.error('Avvalgi ariza ma’lumotlarini yuklashda xatolik', {
+                  description: getErrorMessage(err),
+                });
+              }
+            }}
+          />
         </div>
 
         {/* ================================================================= */}
@@ -2079,6 +2492,112 @@ export function ApplicationCreatePage() {
               </div>
             )}
 
+            {/* Fuqaro kiberxavfsizlik bo'yicha targ'ibot qilinganmi? */}
+            <div className="md:col-span-2 rounded-xl border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  Fuqaro kiberxavfsizlik bo‘yicha targ‘ibot qilinganmi?
+                </label>
+                <div className="flex items-center gap-2">
+                  {selectedAwarenessStatus && (
+                    <Badge
+                      className={
+                        selectedAwarenessStatus.is_informed
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1'
+                      }
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      {selectedAwarenessStatus.is_informed ? 'Targ‘ibot qilingan' : 'Qilinmagan'}
+                    </Badge>
+                  )}
+                  {(awarenessStatusId || isInformedModeActive) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAwarenessStatusId(null);
+                        setAwarenessNote('');
+                        setAwarenessInformedExpanded(false);
+                      }}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                      Tozalash
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAwarenessInformedExpanded(false);
+                    setAwarenessStatusId(notInformedStatus?.id || null);
+                  }}
+                  className={`h-10 rounded-lg border px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    isNotInformedSelected
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                      : 'bg-background hover:bg-muted text-foreground border-input'
+                  }`}
+                >
+                  <span>Yo‘q — targ‘ibot qilinmagan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAwarenessInformedExpanded(true);
+                    if (isNotInformedSelected) {
+                      setAwarenessStatusId(null);
+                    }
+                  }}
+                  className={`h-10 rounded-lg border px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    isInformedModeActive
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : 'bg-background hover:bg-muted text-foreground border-input'
+                  }`}
+                >
+                  <span>Ha — targ‘ibot qilingan</span>
+                </button>
+              </div>
+
+              {isInformedModeActive && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                  <div className="md:col-span-2 space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground">
+                      Kim targ‘ibot qilgan va fuqaro qanday jabrlangan? *
+                    </label>
+                    <select
+                      value={selectedAwarenessStatus?.is_informed ? awarenessStatusId || '' : ''}
+                      onChange={(e) => setAwarenessStatusId(e.target.value || null)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-medium shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                    >
+                      <option value="">-- TARG‘IBOT TURINI TANLANG --</option>
+                      {informedAwarenessStatuses.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          {st.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground">
+                      Qo‘shimcha izoh (ixtiyoriy)
+                    </label>
+                    <Input
+                      value={awarenessNote}
+                      onChange={(e) => setAwarenessNote(e.target.value)}
+                      placeholder="Masalan: Telegramdagi APK..."
+                      className="h-10 text-xs bg-background"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Sohaviy Xizmat & Qabul qilingan Qaror Turi */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 pt-1">
               {/* Sohaviy Xizmat */}
@@ -2344,6 +2863,8 @@ export function ApplicationCreatePage() {
                 size="default"
                 onClick={() => {
                   if (!id && !hasUnsavedData) {
+                    draftClearedRef.current = true;
+                    clearApplicationDraft(currentUserId);
                     setCanLeave(true);
                     navigate('/applications');
                     return;
@@ -2428,6 +2949,9 @@ export function ApplicationCreatePage() {
                   toast.info('Tahrirlash bekor qilindi (ariza o‘chirilmay saqlanib qoldi)');
                   navigate(`/applications/${id}`);
                 } else {
+                  draftClearedRef.current = true;
+                  clearApplicationDraft(currentUserId);
+                  toast.info('Ariza qoralamasi tozalandi');
                   navigate('/applications');
                 }
               }}

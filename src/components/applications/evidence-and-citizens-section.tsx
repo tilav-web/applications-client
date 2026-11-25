@@ -25,7 +25,6 @@ import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { QuickLocationDialog } from '@/components/ui/quick-location-dialog';
-import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
   documentsApi,
@@ -312,176 +311,164 @@ export function EvidenceAndCitizensSection({
         )}
       </div>
 
-      {/* B. RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) */}
-      <div className="pt-4 border-t border-border/40 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 font-serif font-black text-xs">
-              W
+      {/* B. RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) — faqat saqlangan arizani tahrirlashda */}
+      {Boolean(applicationId) && (
+        <div className="pt-4 border-t border-border/40 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 font-serif font-black text-xs">
+                W
+              </div>
+              <div>
+                <span className="text-xs font-bold text-foreground">
+                  Rasmiy Word Hujjatlari ({appDocuments.length} ta hujjat)
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Tergov hujjati yoki blank. Kompyuterdan Word yuklash yoki yangi Word yaratib
+                  tizimda ONLYOFFICE orqali tahrirlash
+                </p>
+              </div>
             </div>
-            <div>
-              <span className="text-xs font-bold text-foreground">
-                Rasmiy Word Hujjatlari ({appDocuments.length} ta hujjat)
-              </span>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <input
+                ref={wordFileInputRef}
+                type="file"
+                accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    onOpenWordUploadDialog(file);
+                    e.target.value = '';
+                  }
+                }}
+              />
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onOpenTemplateModal('tushuntirish-telegram')}
+                className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+                title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Shablondan yaratish</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => wordFileInputRef.current?.click()}
+                disabled={isUploadingWord}
+                className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
+                title="Kompyuterdan mavjud Word (.docx / .doc) faylini yuklash"
+              >
+                {isUploadingWord ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
+                )}
+                <span>Kompyuterdan yuklash</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onOpenTemplateModal('blank')}
+                className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
+                title="Yangi bo‘sh Word blank yaratish va ONLYOFFICE da tahrirlash"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Yangi Word</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* YUKLANGAN WORD HUJJATLARI GRIDI */}
+          {appDocuments.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+              {appDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="p-3 rounded-xl border border-border/80 bg-card hover:border-blue-400 transition shadow-2xs flex items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#185abd] text-white font-serif font-black text-xs shadow-2xs">
+                      W
+                    </div>
+                    <div className="min-w-0">
+                      <p
+                        className="text-xs font-semibold text-foreground truncate"
+                        title={doc.title || doc.file_name}
+                      >
+                        {doc.title || doc.file_name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-mono">
+                        {(doc.size / 1024).toFixed(1)} KB &bull; v{doc.version || 1}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => onEditDocument(doc.id)}
+                      className="h-7 px-2 text-[11px] font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer"
+                      title="ONLYOFFICE muharririda ochish va tahrirlash"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      <span>Tahrirlash</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        window.open(
+                          documentsApi.getFileUrl(doc.id),
+                          '_blank',
+                          'noopener,noreferrer',
+                        );
+                      }}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Yuklab olish"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        onRequestDeleteDocument({ id: doc.id, title: doc.title || doc.file_name })
+                      }
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
+                      title="O‘chirish"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-dashed border-border/80 bg-muted/10 text-center space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                Hozircha biriktirilgan Word hujjati yo‘q
+              </p>
               <p className="text-[11px] text-muted-foreground">
-                Tergov hujjati yoki blank. Kompyuterdan Word yuklash yoki yangi Word yaratib tizimda
-                ONLYOFFICE orqali tahrirlash
+                Yuqoridagi tugmalar orqali kompyuterdan Word faylni yuklashingiz yoki yangi bo‘sh
+                Word yaratib OnlyOffice&apos;da to‘ldirishingiz mumkin.
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <input
-              ref={wordFileInputRef}
-              type="file"
-              accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  onOpenWordUploadDialog(file);
-                  e.target.value = '';
-                }
-              }}
-            />
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                if (!applicationId) {
-                  toast.info('Rasmiy Word hujjat yaratish uchun avval arizani saqlang');
-                  return;
-                }
-                onOpenTemplateModal('tushuntirish-telegram');
-              }}
-              className="h-8 text-xs gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
-              title="Rasmiy tergov shablonlari (Tushuntirish xati, Bayonnoma, Sanksiya) asosida avtomatik to‘ldirib yaratish"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Shablondan yaratish</span>
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!applicationId) {
-                  toast.info('Word faylini biriktirish uchun avval arizani saqlang');
-                  return;
-                }
-                wordFileInputRef.current?.click();
-              }}
-              disabled={isUploadingWord}
-              className="h-8 text-xs gap-1.5 border-border font-medium cursor-pointer"
-              title="Kompyuterdan mavjud Word (.docx / .doc) faylini yuklash"
-            >
-              {isUploadingWord ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <UploadCloud className="h-3.5 w-3.5 text-blue-600" />
-              )}
-              <span>Kompyuterdan yuklash</span>
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                if (!applicationId) {
-                  toast.info('Yangi Word hujjat ochish uchun avval arizani saqlang');
-                  return;
-                }
-                onOpenTemplateModal('blank');
-              }}
-              className="h-8 text-xs gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-2xs"
-              title="Yangi bo‘sh Word blank yaratish va ONLYOFFICE da tahrirlash"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Yangi Word</span>
-            </Button>
-          </div>
+          )}
         </div>
-
-        {/* YUKLANGAN WORD HUJJATLARI GRIDI */}
-        {appDocuments.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
-            {appDocuments.map((doc) => (
-              <div
-                key={doc.id}
-                className="p-3 rounded-xl border border-border/80 bg-card hover:border-blue-400 transition shadow-2xs flex items-center justify-between gap-3 group"
-              >
-                <div className="flex items-center gap-2.5 overflow-hidden">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#185abd] text-white font-serif font-black text-xs shadow-2xs">
-                    W
-                  </div>
-                  <div className="min-w-0">
-                    <p
-                      className="text-xs font-semibold text-foreground truncate"
-                      title={doc.title || doc.file_name}
-                    >
-                      {doc.title || doc.file_name}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground font-mono">
-                      {(doc.size / 1024).toFixed(1)} KB &bull; v{doc.version || 1}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => onEditDocument(doc.id)}
-                    className="h-7 px-2 text-[11px] font-semibold bg-[#185abd] hover:bg-[#12448f] text-white gap-1 cursor-pointer"
-                    title="ONLYOFFICE muharririda ochish va tahrirlash"
-                  >
-                    <Edit2 className="h-3 w-3" />
-                    <span>Tahrirlash</span>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      window.open(documentsApi.getFileUrl(doc.id), '_blank', 'noopener,noreferrer');
-                    }}
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-                    title="Yuklab olish"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      onRequestDeleteDocument({ id: doc.id, title: doc.title || doc.file_name })
-                    }
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
-                    title="O‘chirish"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-4 rounded-xl border border-dashed border-border/80 bg-muted/10 text-center space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">
-              Hozircha biriktirilgan Word hujjati yo‘q
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              Yuqoridagi tugmalar orqali kompyuterdan Word faylni yuklashingiz yoki yangi bo‘sh Word
-              yaratib OnlyOffice&apos;da to‘ldirishingiz mumkin.
-            </p>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* C. QO'SHIMCHA FUQAROLAR */}
       <div className="pt-4 border-t border-border/40 space-y-4">

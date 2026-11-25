@@ -13,6 +13,7 @@ import {
   LayoutList,
   Loader2,
   MapPin,
+  Megaphone,
   Radar,
   RefreshCw,
   Scale,
@@ -353,6 +354,31 @@ export function DashboardPage() {
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground">O‘tgan davrga nisbatan</p>
+                  {data?.byRepeatType &&
+                    (data.byRepeatType.repeat > 0 ||
+                      data.byRepeatType.duplicate > 0 ||
+                      data.byRepeatType.supplemental > 0) && (
+                      <div className="flex flex-wrap items-center gap-1 pt-1">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                          Birlamchi: {data.byRepeatType.primary}
+                        </span>
+                        {data.byRepeatType.repeat > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+                            Takroriy: {data.byRepeatType.repeat}
+                          </span>
+                        )}
+                        {data.byRepeatType.duplicate > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 font-semibold">
+                            Dublikat: {data.byRepeatType.duplicate}
+                          </span>
+                        )}
+                        {data.byRepeatType.supplemental > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold">
+                            Qo‘shimcha: {data.byRepeatType.supplemental}
+                          </span>
+                        )}
+                      </div>
+                    )}
                 </div>
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
                   <FileText className="h-6 w-6" />
@@ -1045,6 +1071,87 @@ export function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* ===================================================================== */}
+          {/* 3.5. KIBERXAVFSIZLIK TARG'IBOTI STATISTIKASI                          */}
+          {/* ===================================================================== */}
+          {data?.byAwarenessStatus && (
+            <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm">
+              <CardHeader className="p-5 pb-3 border-b border-border/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <Megaphone className="h-4 w-4 text-indigo-500" />
+                      <span>Kiberxavfsizlik Targ‘iboti Statistikasi</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Murojaat qilgan fuqarolarning kiberxavfsizlik bo‘yicha targ‘ibot qilinganlik
+                      holati va jabrlanish sabablari kesimi
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-mono text-[11px]">
+                      Targ‘ibot qilingan: {data.byAwarenessStatus.informedCount} ta (
+                      {data.byAwarenessStatus.informedPercent}%)
+                    </Badge>
+                    <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-[11px]">
+                      Qilinmagan: {data.byAwarenessStatus.notInformedCount} ta
+                    </Badge>
+                    {data.byAwarenessStatus.unspecifiedCount > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-[11px] text-muted-foreground"
+                      >
+                        Ko‘rsatilmagan: {data.byAwarenessStatus.unspecifiedCount} ta
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5">
+                {data.byAwarenessStatus.items.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Ushbu davrda targ‘ibot holati ko‘rsatilgan arizalar mavjud emas
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {data.byAwarenessStatus.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-xl border border-border/60 bg-background/50 p-3 space-y-1.5"
+                      >
+                        <div className="flex items-start justify-between gap-2 text-xs">
+                          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-foreground">{item.name}</span>
+                            {item.source_channel && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                                {item.source_channel}
+                              </Badge>
+                            )}
+                          </div>
+                          <span
+                            className={`font-mono font-bold whitespace-nowrap ${
+                              item.is_informed ? 'text-emerald-500' : 'text-amber-500'
+                            }`}
+                          >
+                            {item.count} ta ({item.percent}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted/50 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              item.is_informed ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${Math.min(item.percent || 4, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* ===================================================================== */}
           {/* 4. RECENT LIVE APPLICATIONS TABLE */}

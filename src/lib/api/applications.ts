@@ -1,8 +1,12 @@
 import type {
+  AppealType,
   Application,
+  ApplicationChainResponse,
   ApplicationRelationsData,
+  ApplicationRepeatType,
   Card,
   Citizen,
+  CitizenPreviousApplication,
   PaginatedResponse,
   Transfer,
 } from '@/types/models';
@@ -32,6 +36,10 @@ export const applicationsApi = {
     max_amount?: number;
     relations_filter?: string;
     sla_filter?: string;
+    repeat_type?: string;
+    appeal_type?: string;
+    submission_form?: string;
+    awareness_status_id?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });
     return res.data;
@@ -62,6 +70,17 @@ export const applicationsApi = {
   },
   getRelations: async (id: string) => {
     const res = await apiClient.get<ApplicationRelationsData>(`/applications/${id}/relations`);
+    return res.data;
+  },
+  getChain: async (id: string) => {
+    const res = await apiClient.get<ApplicationChainResponse>(`/applications/${id}/chain`);
+    return res.data;
+  },
+  getByCitizen: async (citizenId: string, excludeId?: string) => {
+    const res = await apiClient.get<CitizenPreviousApplication[]>(
+      `/applications/by-citizen/${citizenId}`,
+      { params: excludeId ? { exclude_id: excludeId } : undefined },
+    );
     return res.data;
   },
   create: async (data: Record<string, unknown>) => {
@@ -118,6 +137,37 @@ export interface DashboardStatistics {
       totalPercentChange: number;
       lossPercentChange: number;
     };
+  };
+  byRepeatType?: {
+    primary: number;
+    repeat: number;
+    duplicate: number;
+    supplemental: number;
+  };
+  byAppealType?: {
+    appeal: number;
+    complaint: number;
+    proposal: number;
+  };
+  bySubmissionForm?: {
+    written: number;
+    oral: number;
+    electronic: number;
+  };
+  byAwarenessStatus?: {
+    informedCount: number;
+    notInformedCount: number;
+    unspecifiedCount: number;
+    informedPercent: number;
+    items: Array<{
+      id: string;
+      name: string;
+      code: string | null;
+      is_informed: boolean;
+      source_channel: string | null;
+      count: number;
+      percent: number;
+    }>;
   };
   timeline: Array<{
     date: string;
@@ -182,6 +232,9 @@ export interface DashboardStatistics {
     citizen_name: string | null;
     district_name: string | null;
     crime_article: string | null;
+    appeal_type?: AppealType;
+    repeat_type?: ApplicationRepeatType;
+    repeat_sequence?: number;
     amount: number | null;
   }>;
   scopedDistrictNames?: string[] | null;

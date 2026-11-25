@@ -13,6 +13,7 @@ import {
   Link2,
   Loader2,
   MapPin,
+  Megaphone,
   Paperclip,
   Phone,
   Plus,
@@ -29,6 +30,7 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { ApplicationChainCard } from '@/components/applications/application-chain-card';
 import { SlaProgressCard, StatusTimelineCard } from '@/components/applications/sla-components';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
@@ -589,10 +591,49 @@ export function ApplicationDetailPage() {
                 <span className="italic text-foreground">{app.officer_notes}</span>
               </>
             )}
+            {app.awareness_status && (
+              <>
+                {' '}
+                &bull; Targ‘ibot:{' '}
+                <span className="font-semibold text-foreground">
+                  {app.awareness_status.name}
+                  {app.awareness_note ? ` (${app.awareness_note})` : ''}
+                </span>
+              </>
+            )}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {app.repeat_type === 'REPEAT' && (
+            <Badge
+              variant="outline"
+              className="border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold text-xs py-1 px-2.5"
+            >
+              Takroriy #{app.repeat_sequence || 2}
+            </Badge>
+          )}
+          {app.repeat_type === 'DUPLICATE' && (
+            <Badge
+              variant="outline"
+              className="border-purple-500/40 bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-xs py-1 px-2.5"
+            >
+              Dublikat
+            </Badge>
+          )}
+          {app.repeat_type === 'SUPPLEMENTAL' && (
+            <Badge
+              variant="outline"
+              className="border-blue-500/40 bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-xs py-1 px-2.5"
+            >
+              Qo‘shimcha
+            </Badge>
+          )}
+          {app.appeal_type && app.appeal_type !== 'APPEAL' && (
+            <Badge variant="secondary" className="text-xs py-1 px-2.5">
+              {app.appeal_type === 'COMPLAINT' ? 'Shikoyat' : 'Taklif'}
+            </Badge>
+          )}
           {getStatusBadge(app.status, app.application_status)}
           {app.crime && (
             <Badge
@@ -602,6 +643,21 @@ export function ApplicationDetailPage() {
               {app.crime.article || app.crime.title}
             </Badge>
           )}
+          {app.awareness_status && (
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-xs py-1 px-2.5 gap-1 font-medium',
+                app.awareness_status.is_informed
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+              )}
+              title={app.awareness_note || app.awareness_status.name}
+            >
+              <Megaphone className="h-3 w-3 shrink-0" />
+              <span className="max-w-[240px] truncate">{app.awareness_status.name}</span>
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -609,6 +665,11 @@ export function ApplicationDetailPage() {
       {/* 2.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA) */}
       {/* ===================================================================== */}
       <SlaProgressCard app={app} canEdit={canWrite} />
+
+      {/* ===================================================================== */}
+      {/* 2.6. MUROJAAT ZANJIRI (BIRLAMCHI -> TAKRORIY / DUBLIKAT / QO'SHIMCHA) */}
+      {/* ===================================================================== */}
+      <ApplicationChainCard applicationId={app.id} />
 
       {/* ===================================================================== */}
       {/* 3. 4 TA KPI KO'RSATKICHLAR BLOKI */}

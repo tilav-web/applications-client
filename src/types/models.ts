@@ -381,6 +381,18 @@ export interface ApplicationSource {
   updated_at?: string;
 }
 
+export interface AwarenessStatus {
+  id: string;
+  name: string;
+  code?: string | null;
+  is_informed: boolean;
+  source_channel?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface DepartmentService {
   id: string;
   name: string;
@@ -647,6 +659,25 @@ export interface Application {
   decision_date?: string | null;
   decision_note?: string | null;
   closed_at?: string | null;
+  appeal_type?: AppealType;
+  submission_form?: SubmissionForm;
+  applicant_type?: ApplicantType;
+  repeat_type?: ApplicationRepeatType;
+  parent_application_id?: string | null;
+  parent_application?: Pick<
+    Application,
+    'id' | 'application_number' | 'date' | 'repeat_type' | 'repeat_sequence'
+  > | null;
+  root_application_id?: string | null;
+  root_application?: Pick<
+    Application,
+    'id' | 'application_number' | 'date' | 'repeat_type' | 'repeat_sequence'
+  > | null;
+  repeat_sequence?: number;
+  repeat_reason?: string | null;
+  is_review_terminated?: boolean;
+  termination_note?: string | null;
+  chain_count?: number;
   status_history?: ApplicationStatusHistoryItem[];
   citizen_id?: string | null;
   citizen?: Citizen | null;
@@ -662,6 +693,9 @@ export interface Application {
   transfer?: Transfer | null;
   source_id?: string | null;
   source?: ApplicationSource | null;
+  awareness_status_id?: string | null;
+  awareness_status?: AwarenessStatus | null;
+  awareness_note?: string | null;
   department_service_id?: string | null;
   department_service?: DepartmentService | null;
   rejection_reason_id?: string | null;
@@ -698,6 +732,63 @@ export interface Application {
     suspects?: number;
     has_fraud_card_link: boolean;
   };
+}
+
+export type AppealType = 'APPEAL' | 'COMPLAINT' | 'PROPOSAL';
+export type SubmissionForm = 'WRITTEN' | 'ORAL' | 'ELECTRONIC';
+export type ApplicantType =
+  'INDIVIDUAL' | 'COLLECTIVE' | 'LEGAL_ENTITY' | 'ANONYMOUS' | 'CONFESSION';
+export type ApplicationRepeatType = 'PRIMARY' | 'REPEAT' | 'DUPLICATE' | 'SUPPLEMENTAL';
+
+export interface ApplicationChainItem {
+  id: string;
+  application_number: string | null;
+  date: string | null;
+  appeal_type: AppealType;
+  submission_form: SubmissionForm;
+  applicant_type: ApplicantType;
+  repeat_type: ApplicationRepeatType;
+  repeat_sequence: number;
+  repeat_reason: string | null;
+  is_review_terminated: boolean;
+  termination_note: string | null;
+  parent_application_id: string | null;
+  status: string | null;
+  status_name: string;
+  status_color: string;
+  district_name: string | null;
+  source_name: string | null;
+  decision_type_name: string | null;
+  decision_date: string | null;
+  citizen_name: string | null;
+  transfer_amount: number;
+  transfer_currency: string;
+}
+
+export interface ApplicationChainResponse {
+  root_application_id: string;
+  current_application_id: string;
+  total: number;
+  items: ApplicationChainItem[];
+}
+
+export interface CitizenPreviousApplication {
+  id: string;
+  application_number: string | null;
+  date: string | null;
+  appeal_type: AppealType;
+  repeat_type: ApplicationRepeatType;
+  repeat_sequence: number;
+  root_application_id: string | null;
+  status_name: string;
+  status_color: string;
+  district_id: string | null;
+  district_name: string | null;
+  crime_id: string | null;
+  crime_name: string | null;
+  crime_method_id: string | null;
+  source_name: string | null;
+  description: string | null;
 }
 
 export interface ApplicationRelationsSummary {

@@ -8,6 +8,7 @@ import {
   Globe,
   Layers,
   MapPin,
+  Megaphone,
   Radio,
   Scale,
   Shield,
@@ -17,6 +18,7 @@ import {
 import type {
   ApplicationSource,
   ApplicationStatusItem,
+  AwarenessStatus,
   Bank,
   Crime,
   CrimeGravity,
@@ -48,6 +50,7 @@ export type ReferenceItem =
   | OccupationCategory
   | Occupation
   | ApplicationSource
+  | AwarenessStatus
   | DepartmentService
   | RejectionReason
   | DecisionType;
@@ -89,6 +92,7 @@ export type ReferenceTabKey =
   | 'detection_sources'
   | 'detected_crime_statuses'
   | 'sources'
+  | 'awareness_statuses'
   | 'department_services'
   | 'decision_types'
   | 'rejection_reasons'
@@ -167,6 +171,12 @@ export const REFERENCE_NAV_GROUPS: Array<{
         label: 'Murojaat Manbalari',
         description: '102, 112, ishonch telefoni va boshqa kanallar',
         icon: Radio,
+      },
+      {
+        key: 'awareness_statuses',
+        label: 'Targ‘ibot Holatlari',
+        description: 'Fuqaro kiberxavfsizlik bo‘yicha targ‘ibot qilinganligi holatlari',
+        icon: Megaphone,
       },
       {
         key: 'department_services',

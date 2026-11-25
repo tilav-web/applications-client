@@ -48,6 +48,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import {
   applicationsApi,
   applicationStatusesApi,
+  awarenessStatusesApi,
   crimesApi,
   districtsApi,
   documentsApi,
@@ -79,6 +80,9 @@ export function ApplicationsPage() {
   const debouncedDesc = useDebounce(descFilter, 300);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [relationsFilter, setRelationsFilter] = useState<string>('');
+  const [repeatTypeFilter, setRepeatTypeFilter] = useState<string>('');
+  const [appealTypeFilter, setAppealTypeFilter] = useState<string>('');
+  const [awarenessStatusFilter, setAwarenessStatusFilter] = useState<string>('');
   const [dateFromFilter, setDateFromFilter] = useState<string>('');
   const [dateToFilter, setDateToFilter] = useState<string>('');
   const [minAmountFilter, setMinAmountFilter] = useState<string>('');
@@ -132,6 +136,9 @@ export function ApplicationsPage() {
         description: debouncedDesc.trim() || undefined,
         status_id: statusFilter || undefined,
         relations_filter: relationsFilter || undefined,
+        repeat_type: repeatTypeFilter || undefined,
+        appeal_type: appealTypeFilter || undefined,
+        awareness_status_id: awarenessStatusFilter || undefined,
         date_from: dateFromFilter || undefined,
         date_to: dateToFilter || undefined,
         min_amount: parseAmountParam(debouncedMinAmount),
@@ -210,6 +217,13 @@ export function ApplicationsPage() {
   });
   const allCrimes = crimesData?.items || [];
 
+  // Awareness Statuses Query (Targ'ibot holati filtri uchun)
+  const { data: awarenessStatusesData } = useQuery({
+    queryKey: ['awareness-statuses-active'],
+    queryFn: () => awarenessStatusesApi.getAll(),
+  });
+  const allAwarenessStatuses = awarenessStatusesData || [];
+
   // Faol filtrlar soni va mavjudligi
   const activeFiltersCount = [
     Boolean(districtFilter),
@@ -221,6 +235,9 @@ export function ApplicationsPage() {
     Boolean(descFilter.trim()),
     Boolean(statusFilter),
     Boolean(relationsFilter),
+    Boolean(repeatTypeFilter),
+    Boolean(appealTypeFilter),
+    Boolean(awarenessStatusFilter),
     Boolean(dateFromFilter),
     Boolean(dateToFilter),
     Boolean(minAmountFilter.trim()),
@@ -237,6 +254,9 @@ export function ApplicationsPage() {
     setDescFilter('');
     setStatusFilter('');
     setRelationsFilter('');
+    setRepeatTypeFilter('');
+    setAppealTypeFilter('');
+    setAwarenessStatusFilter('');
     setDateFromFilter('');
     setDateToFilter('');
     setMinAmountFilter('');
@@ -265,6 +285,9 @@ export function ApplicationsPage() {
         max_amount: debouncedMaxAmount,
         relations_filter: relationsFilter,
         sla_filter: slaFilter,
+        repeat_type: repeatTypeFilter,
+        appeal_type: appealTypeFilter,
+        awareness_status_id: awarenessStatusFilter,
       },
     ],
     queryFn: () =>
@@ -285,6 +308,9 @@ export function ApplicationsPage() {
         max_amount: parseAmountParam(debouncedMaxAmount),
         relations_filter: relationsFilter || undefined,
         sla_filter: slaFilter || undefined,
+        repeat_type: repeatTypeFilter || undefined,
+        appeal_type: appealTypeFilter || undefined,
+        awareness_status_id: awarenessStatusFilter || undefined,
       }),
     placeholderData: (prev) => prev,
     staleTime: 0,
@@ -314,6 +340,10 @@ export function ApplicationsPage() {
             min_amount: debouncedMinAmount,
             max_amount: debouncedMaxAmount,
             relations_filter: relationsFilter,
+            sla_filter: slaFilter,
+            repeat_type: repeatTypeFilter,
+            appeal_type: appealTypeFilter,
+            awareness_status_id: awarenessStatusFilter,
           },
         ],
         queryFn: () =>
@@ -333,6 +363,10 @@ export function ApplicationsPage() {
             min_amount: parseAmountParam(debouncedMinAmount),
             max_amount: parseAmountParam(debouncedMaxAmount),
             relations_filter: relationsFilter || undefined,
+            sla_filter: slaFilter || undefined,
+            repeat_type: repeatTypeFilter || undefined,
+            appeal_type: appealTypeFilter || undefined,
+            awareness_status_id: awarenessStatusFilter || undefined,
           }),
       });
     }
@@ -353,6 +387,10 @@ export function ApplicationsPage() {
     debouncedMinAmount,
     debouncedMaxAmount,
     relationsFilter,
+    slaFilter,
+    repeatTypeFilter,
+    appealTypeFilter,
+    awarenessStatusFilter,
     queryClient,
   ]);
 
@@ -791,6 +829,51 @@ export function ApplicationsPage() {
           <option value="fraud_card">Firibgar kartasi takrorlangan</option>
         </FilterSelect>
 
+        <FilterSelect
+          label="Takroriylik"
+          value={repeatTypeFilter}
+          onChange={(v) => {
+            setRepeatTypeFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barchasi</option>
+          <option value="PRIMARY">Birlamchi</option>
+          <option value="REPEAT">Takroriy</option>
+          <option value="DUPLICATE">Dublikat</option>
+          <option value="SUPPLEMENTAL">Qo‘shimcha</option>
+        </FilterSelect>
+
+        <FilterSelect
+          label="Murojaat turi"
+          value={appealTypeFilter}
+          onChange={(v) => {
+            setAppealTypeFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barchasi</option>
+          <option value="APPEAL">Ariza</option>
+          <option value="COMPLAINT">Shikoyat</option>
+          <option value="PROPOSAL">Taklif</option>
+        </FilterSelect>
+
+        <FilterSelect
+          label="Targ‘ibot holati"
+          value={awarenessStatusFilter}
+          onChange={(v) => {
+            setAwarenessStatusFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barchasi</option>
+          {allAwarenessStatuses.map((st) => (
+            <option key={st.id} value={st.id}>
+              {st.name}
+            </option>
+          ))}
+        </FilterSelect>
+
         <FilterInput
           label="Sanadan"
           type="date"
@@ -966,18 +1049,47 @@ export function ApplicationsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-primary">
-                          {app.application_number || '—'}
-                        </span>
-                        {app.documents && app.documents.length > 0 && (
-                          <span
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#185abd]/10 text-[#185abd] dark:text-blue-400 text-[10px] font-bold"
-                            title={`${app.documents.length} ta Word hujjati biriktirilgan`}
-                          >
-                            W·{app.documents.length}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-primary">
+                            {app.application_number || '—'}
                           </span>
-                        )}
+                          {app.documents && app.documents.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#185abd]/10 text-[#185abd] dark:text-blue-400 text-[10px] font-bold"
+                              title={`${app.documents.length} ta Word hujjati biriktirilgan`}
+                            >
+                              W·{app.documents.length}
+                            </span>
+                          )}
+                        </div>
+                        {(app.repeat_type && app.repeat_type !== 'PRIMARY') ||
+                        (app.chain_count && app.chain_count > 1) ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {app.repeat_type === 'REPEAT' && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                Takroriy #{app.repeat_sequence || 2}
+                              </span>
+                            )}
+                            {app.repeat_type === 'DUPLICATE' && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                                Dublikat
+                              </span>
+                            )}
+                            {app.repeat_type === 'SUPPLEMENTAL' && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                                Qo‘shimcha
+                              </span>
+                            )}
+                            {(!app.repeat_type || app.repeat_type === 'PRIMARY') &&
+                              app.chain_count &&
+                              app.chain_count > 1 && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                  Zanjir: {app.chain_count} ta
+                                </span>
+                              )}
+                          </div>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">

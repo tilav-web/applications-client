@@ -536,3 +536,36 @@ export const decisionTypesApi = {
     return res.data;
   },
 };
+
+// 16. Awareness Statuses API (Targ'ibot holatlari)
+export const awarenessStatusesApi = {
+  getAll: async (includeInactive = false) => {
+    const res = await apiClient.get<import('@/types/models').AwarenessStatus[]>(
+      '/awareness-statuses',
+      {
+        params: includeInactive ? { include_inactive: 'true' } : undefined,
+      },
+    );
+    return res.data;
+  },
+  create: async (data: Partial<import('@/types/models').AwarenessStatus>) => {
+    const res = await apiClient.post<import('@/types/models').AwarenessStatus>(
+      '/awareness-statuses',
+      data,
+    );
+    return res.data;
+  },
+  update: async (id: string, data: Partial<import('@/types/models').AwarenessStatus>) => {
+    const res = await apiClient.patch<import('@/types/models').AwarenessStatus>(
+      `/awareness-statuses/${id}`,
+      data,
+    );
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/awareness-statuses/${id}`,
+    );
+    return res.data;
+  },
+};
