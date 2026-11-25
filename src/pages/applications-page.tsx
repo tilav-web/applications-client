@@ -54,6 +54,7 @@ import {
   crimesApi,
   districtsApi,
   documentsApi,
+  externalSystemsApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
@@ -85,6 +86,10 @@ export function ApplicationsPage() {
   const [repeatTypeFilter, setRepeatTypeFilter] = useState<string>('');
   const [appealTypeFilter, setAppealTypeFilter] = useState<string>('');
   const [awarenessStatusFilter, setAwarenessStatusFilter] = useState<string>('');
+  const [externalSystemFilter, setExternalSystemFilter] = useState<string>('');
+  const [externalSystemStatusFilter, setExternalSystemStatusFilter] = useState<
+    'not_entered' | 'entered'
+  >('not_entered');
   const [dateFromFilter, setDateFromFilter] = useState<string>('');
   const [dateToFilter, setDateToFilter] = useState<string>('');
   const [minAmountFilter, setMinAmountFilter] = useState<string>('');
@@ -270,6 +275,8 @@ export function ApplicationsPage() {
         repeat_type: repeatTypeFilter || undefined,
         appeal_type: appealTypeFilter || undefined,
         awareness_status_id: awarenessStatusFilter || undefined,
+        external_system_id: externalSystemFilter || undefined,
+        external_system_status: externalSystemFilter ? externalSystemStatusFilter : undefined,
         date_from: dateFromFilter || undefined,
         date_to: dateToFilter || undefined,
         min_amount: parseAmountParam(debouncedMinAmount),
@@ -355,6 +362,13 @@ export function ApplicationsPage() {
   });
   const allAwarenessStatuses = awarenessStatusesData || [];
 
+  // External Systems Query (Tashqi tizimlar filtri uchun: CardBlock, E-Elektron, ...)
+  const { data: externalSystemsData } = useQuery({
+    queryKey: ['external-systems-active'],
+    queryFn: () => externalSystemsApi.getAll(),
+  });
+  const allExternalSystems = externalSystemsData || [];
+
   // Faol filtrlar soni va mavjudligi
   const activeFiltersCount = [
     Boolean(districtFilter),
@@ -369,6 +383,7 @@ export function ApplicationsPage() {
     Boolean(repeatTypeFilter),
     Boolean(appealTypeFilter),
     Boolean(awarenessStatusFilter),
+    Boolean(externalSystemFilter),
     Boolean(dateFromFilter),
     Boolean(dateToFilter),
     Boolean(minAmountFilter.trim()),
@@ -388,6 +403,8 @@ export function ApplicationsPage() {
     setRepeatTypeFilter('');
     setAppealTypeFilter('');
     setAwarenessStatusFilter('');
+    setExternalSystemFilter('');
+    setExternalSystemStatusFilter('not_entered');
     setDateFromFilter('');
     setDateToFilter('');
     setMinAmountFilter('');
@@ -419,6 +436,8 @@ export function ApplicationsPage() {
         repeat_type: repeatTypeFilter,
         appeal_type: appealTypeFilter,
         awareness_status_id: awarenessStatusFilter,
+        external_system_id: externalSystemFilter,
+        external_system_status: externalSystemFilter ? externalSystemStatusFilter : '',
       },
     ],
     queryFn: () =>
@@ -442,6 +461,8 @@ export function ApplicationsPage() {
         repeat_type: repeatTypeFilter || undefined,
         appeal_type: appealTypeFilter || undefined,
         awareness_status_id: awarenessStatusFilter || undefined,
+        external_system_id: externalSystemFilter || undefined,
+        external_system_status: externalSystemFilter ? externalSystemStatusFilter : undefined,
       }),
     placeholderData: (prev) => prev,
     staleTime: 0,
@@ -475,6 +496,8 @@ export function ApplicationsPage() {
             repeat_type: repeatTypeFilter,
             appeal_type: appealTypeFilter,
             awareness_status_id: awarenessStatusFilter,
+            external_system_id: externalSystemFilter,
+            external_system_status: externalSystemFilter ? externalSystemStatusFilter : '',
           },
         ],
         queryFn: () =>
@@ -498,6 +521,8 @@ export function ApplicationsPage() {
             repeat_type: repeatTypeFilter || undefined,
             appeal_type: appealTypeFilter || undefined,
             awareness_status_id: awarenessStatusFilter || undefined,
+            external_system_id: externalSystemFilter || undefined,
+            external_system_status: externalSystemFilter ? externalSystemStatusFilter : undefined,
           }),
       });
     }
@@ -522,6 +547,8 @@ export function ApplicationsPage() {
     repeatTypeFilter,
     appealTypeFilter,
     awarenessStatusFilter,
+    externalSystemFilter,
+    externalSystemStatusFilter,
     queryClient,
   ]);
 
@@ -1044,6 +1071,36 @@ export function ApplicationsPage() {
           ))}
         </FilterSelect>
 
+        <FilterSelect
+          label="Tashqi tizim"
+          value={externalSystemFilter}
+          onChange={(v) => {
+            setExternalSystemFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barcha tizimlar</option>
+          {allExternalSystems.map((sys) => (
+            <option key={sys.id} value={sys.id}>
+              {sys.name}
+            </option>
+          ))}
+        </FilterSelect>
+
+        {externalSystemFilter && (
+          <FilterSelect
+            label="Tizimga kiritilganligi"
+            value={externalSystemStatusFilter}
+            onChange={(v) => {
+              setExternalSystemStatusFilter(v === 'entered' ? 'entered' : 'not_entered');
+              setPage(1);
+            }}
+          >
+            <option value="not_entered">Kiritilmagan</option>
+            <option value="entered">Kiritilgan</option>
+          </FilterSelect>
+        )}
+
         <FilterInput
           label="Sanadan"
           type="date"
@@ -1292,6 +1349,28 @@ export function ApplicationsPage() {
                       <div className="flex flex-col items-start gap-1">
                         {getStatusBadge(app.status, app.application_status)}
                         <SlaBadge app={app} />
+                        {app.external_systems && app.external_systems.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5 max-w-[190px]">
+                            {app.external_systems.map((es) => {
+                              const sysName = es.external_system?.name;
+                              if (!sysName) return null;
+                              const dotColor = es.external_system?.color || '#2563EB';
+                              return (
+                                <span
+                                  key={es.id || es.external_system_id}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted/70 text-foreground border border-border/70"
+                                  title={`${sysName} tizimiga kiritilgan`}
+                                >
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: dotColor }}
+                                  />
+                                  {sysName}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

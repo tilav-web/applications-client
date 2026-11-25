@@ -20,6 +20,7 @@ import {
   Plus,
   Printer,
   RefreshCw,
+  Server,
   ShieldAlert,
   Sparkles,
   Trash2,
@@ -49,6 +50,7 @@ import {
   applicationsApi,
   applicationStatusesApi,
   documentsApi,
+  externalSystemsApi,
   getFileDownloadUrl,
   getFileViewUrl,
   type UploadedFile,
@@ -176,6 +178,43 @@ export function ApplicationDetailPage() {
     queryKey: ['application-documents', id],
     queryFn: () => (id ? documentsApi.getByApplication(id) : []),
     enabled: !!id,
+  });
+
+  // 4.5. Tashqi tizimlar (CardBlock, E-Elektron, ...) ro'yxati va tezkor belgilash
+  const { data: activeExternalSystems = [] } = useQuery({
+    queryKey: ['external-systems-active'],
+    queryFn: () => externalSystemsApi.getAll(),
+  });
+
+  const toggleExternalSystemMutation = useMutation({
+    mutationFn: ({
+      externalSystemId,
+      entered,
+    }: {
+      externalSystemId: string;
+      systemName: string;
+      entered: boolean;
+    }) =>
+      applicationsApi.toggleExternalSystem(id as string, {
+        external_system_id: externalSystemId,
+        entered,
+      }),
+    onSuccess: async (_data, vars) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['application-detail', id], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
+      ]);
+      toast.success(
+        vars.entered
+          ? `«${vars.systemName}» tizimiga kiritildi deb belgilandi`
+          : `«${vars.systemName}» tizimi kiritilmagan holatga qaytarildi`,
+      );
+    },
+    onError: (err) => {
+      toast.error('Tashqi tizim holatini yangilab bo‘lmadi', {
+        description: getErrorMessage(err),
+      });
+    },
   });
 
   const [wordDialogState, setWordDialogState] = useState<{
@@ -680,6 +719,133 @@ export function ApplicationDetailPage() {
       {/* 2.6. MUROJAAT ZANJIRI (BIRLAMCHI -> TAKRORIY / DUBLIKAT / QO'SHIMCHA) */}
       {/* ===================================================================== */}
       <ApplicationChainCard applicationId={app.id} />
+
+      {/* ===================================================================== */}
+      {/* 2.7. TASHQI TIZIMLARGA KIRITILGANLIK NAZORATI */}
+      {/* ===================================================================== */}
+      {activeExternalSystems.length > 0 && (
+        <Card className="py-0 gap-0 border-indigo-500/25 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                  <Server className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-foreground block">
+                    Tashqi tizimlarga kiritilganlik holati
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {canWrite
+                      ? 'Tizimga kiritganingizdan so‘ng shu yerdan 1 bosishda «Ha / Yo‘q» deb belgilashingiz mumkin'
+                      : 'Ariza qaysi tashqi tizimlarga kiritilgani'}
+                  </span>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className="text-xs font-mono border-indigo-500/35 text-indigo-700 dark:text-indigo-300"
+              >
+                {
+                  activeExternalSystems.filter((sys) =>
+                    app.external_systems?.some((es) => es.external_system_id === sys.id),
+                  ).length
+                }{' '}
+                / {activeExternalSystems.length} kiritilgan
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {activeExternalSystems.map((sys) => {
+                const isEntered = Boolean(
+                  app.external_systems?.some((es) => es.external_system_id === sys.id),
+                );
+                return (
+                  <div
+                    key={sys.id}
+                    className={cn(
+                      'rounded-lg border px-3 py-2 flex items-center justify-between gap-2 transition-colors',
+                      isEntered
+                        ? 'bg-emerald-500/10 border-emerald-500/35'
+                        : 'bg-muted/25 border-border/70',
+                    )}
+                    title={sys.description || sys.name}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: sys.color || '#2563EB' }}
+                      />
+                      <span className="text-xs font-semibold text-foreground truncate">
+                        {sys.name}
+                      </span>
+                    </div>
+
+                    {canWrite ? (
+                      <div className="flex items-center rounded-md border border-input bg-muted/40 p-0.5 shrink-0">
+                        <button
+                          type="button"
+                          disabled={toggleExternalSystemMutation.isPending}
+                          onClick={() => {
+                            if (!isEntered) {
+                              toggleExternalSystemMutation.mutate({
+                                externalSystemId: sys.id,
+                                systemName: sys.name,
+                                entered: true,
+                              });
+                            }
+                          }}
+                          className={cn(
+                            'px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer',
+                            isEntered
+                              ? 'bg-emerald-600 text-white shadow-2xs'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          Ha
+                        </button>
+                        <button
+                          type="button"
+                          disabled={toggleExternalSystemMutation.isPending}
+                          onClick={() => {
+                            if (isEntered) {
+                              toggleExternalSystemMutation.mutate({
+                                externalSystemId: sys.id,
+                                systemName: sys.name,
+                                entered: false,
+                              });
+                            }
+                          }}
+                          className={cn(
+                            'px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer',
+                            !isEntered
+                              ? 'bg-background text-foreground shadow-2xs border border-border/60'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          Yo‘q
+                        </button>
+                      </div>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[10px] shrink-0',
+                          isEntered
+                            ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {isEntered ? 'Ha' : 'Yo‘q'}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ===================================================================== */}
       {/* 3. 4 TA KPI KO'RSATKICHLAR BLOKI */}

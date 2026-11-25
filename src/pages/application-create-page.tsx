@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Save,
   Scale,
+  Server,
   Shield,
   Sparkles,
   Trash2,
@@ -76,6 +77,7 @@ import {
   departmentServicesApi,
   districtsApi,
   documentsApi,
+  externalSystemsApi,
   filesApi,
   neighborhoodsApi,
   occupationCategoriesApi,
@@ -197,6 +199,9 @@ export function ApplicationCreatePage() {
   );
   const [awarenessNote, setAwarenessNote] = useState(() => restoredDraft?.awarenessNote || '');
   const [awarenessInformedExpanded, setAwarenessInformedExpanded] = useState(false);
+  const [externalSystemIds, setExternalSystemIds] = useState<string[]>(() =>
+    Array.isArray(restoredDraft?.externalSystemIds) ? restoredDraft.externalSystemIds : [],
+  );
   const [date, setDate] = useState(() => restoredDraft?.date || formatLocalDateISO());
 
   // 1.1. Murojaat tasnifi va takroriy/dublikat zanjiri (O'RQ-445)
@@ -673,6 +678,22 @@ export function ApplicationCreatePage() {
     Boolean(awarenessStatusId) &&
     Boolean(selectedAwarenessStatus && !selectedAwarenessStatus.is_informed);
 
+  // Tashqi tizimlar (CardBlock, E-Elektron, E-Material, CyberControl...)
+  const { data: externalSystemsData } = useQuery({
+    queryKey: ['external-systems-active'],
+    queryFn: () => externalSystemsApi.getAll(),
+  });
+  const allExternalSystems = useMemo(() => externalSystemsData || [], [externalSystemsData]);
+
+  const toggleExternalSystemSelection = (systemId: string, entered: boolean) => {
+    setExternalSystemIds((prev) => {
+      if (entered) {
+        return prev.includes(systemId) ? prev : [...prev, systemId];
+      }
+      return prev.filter((item) => item !== systemId);
+    });
+  };
+
   // Kasb toifalari
   const { data: occupationCategoriesData } = useQuery({
     queryKey: ['occupation-categories-select'],
@@ -793,6 +814,11 @@ export function ApplicationCreatePage() {
     setRepeatReason(initialApp.repeat_reason || '');
     setIsReviewTerminated(Boolean(initialApp.is_review_terminated));
     setTerminationNote(initialApp.termination_note || '');
+    setExternalSystemIds(
+      Array.isArray(initialApp.external_systems)
+        ? initialApp.external_systems.map((es) => es.external_system_id)
+        : [],
+    );
     if (initialApp.date) {
       setDate(toLocalDateInputValue(initialApp.date));
     }
@@ -1048,7 +1074,8 @@ export function ApplicationCreatePage() {
     Boolean(parentApplicationId) ||
     repeatReason.trim() ||
     Boolean(awarenessStatusId) ||
-    awarenessNote.trim(),
+    awarenessNote.trim() ||
+    externalSystemIds.length > 0,
   );
 
   // Yangi ariza yaratishda (!id) kiritilgan ma'lumotlarni avtomatik localStorage ga saqlash
@@ -1071,6 +1098,7 @@ export function ApplicationCreatePage() {
       sourceId,
       awarenessStatusId,
       awarenessNote,
+      externalSystemIds,
       date,
       appealType,
       submissionForm,
@@ -1122,6 +1150,7 @@ export function ApplicationCreatePage() {
     sourceId,
     awarenessStatusId,
     awarenessNote,
+    externalSystemIds,
     date,
     appealType,
     submissionForm,
@@ -1342,6 +1371,7 @@ export function ApplicationCreatePage() {
         source_id: sourceId || null,
         awareness_status_id: awarenessStatusId || null,
         awareness_note: awarenessNote.trim() || null,
+        external_system_ids: externalSystemIds,
         department_service_id: departmentServiceId || null,
         decision_type_id: decisionTypeId || null,
         rejection_reason_id: rejectionReasonId || null,
@@ -2709,6 +2739,89 @@ export function ApplicationCreatePage() {
                 </div>
               )}
             </div>
+
+            {/* Tashqi tizimlarga kiritilganligi (CardBlock, E-Elektron, E-Material, ...) */}
+            {allExternalSystems.length > 0 && (
+              <div className="md:col-span-2 rounded-xl border border-indigo-500/25 bg-indigo-500/[0.04] p-3.5 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                      <Server className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-foreground block">
+                        Tashqi tizimlarga kiritilganligi
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Ushbu ariza qaysi boshqa tizimlarga kiritilgan bo‘lsa «Ha» deb belgilang
+                      </span>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] font-mono border-indigo-500/35 text-indigo-700 dark:text-indigo-300"
+                  >
+                    {
+                      externalSystemIds.filter((sysId) =>
+                        allExternalSystems.some((s) => s.id === sysId),
+                      ).length
+                    }{' '}
+                    / {allExternalSystems.length} kiritilgan
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {allExternalSystems.map((sys) => {
+                    const isChecked = externalSystemIds.includes(sys.id);
+                    return (
+                      <div
+                        key={sys.id}
+                        className={`rounded-lg border p-2.5 transition-all flex items-center justify-between gap-2 ${
+                          isChecked
+                            ? 'bg-emerald-500/10 border-emerald-500/40 shadow-2xs'
+                            : 'bg-background/80 border-border hover:border-border/80'
+                        }`}
+                        title={sys.description || sys.name}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: sys.color || '#2563EB' }}
+                          />
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {sys.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center rounded-md border border-input bg-muted/40 p-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleExternalSystemSelection(sys.id, true)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                              isChecked
+                                ? 'bg-emerald-600 text-white shadow-2xs'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Ha
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleExternalSystemSelection(sys.id, false)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                              !isChecked
+                                ? 'bg-background text-foreground shadow-2xs border border-border/60'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Yo‘q
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Sohaviy Xizmat & Qabul qilingan Qaror Turi */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 pt-1">

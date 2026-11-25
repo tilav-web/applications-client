@@ -569,3 +569,36 @@ export const awarenessStatusesApi = {
     return res.data;
   },
 };
+
+// 17. External Systems API (Tashqi tizimlar: CardBlock, E-Elektron, E-Material, CyberControl...)
+export const externalSystemsApi = {
+  getAll: async (includeInactive = false) => {
+    const res = await apiClient.get<import('@/types/models').ExternalSystem[]>(
+      '/external-systems',
+      {
+        params: includeInactive ? { include_inactive: 'true' } : undefined,
+      },
+    );
+    return res.data;
+  },
+  create: async (data: Partial<import('@/types/models').ExternalSystem>) => {
+    const res = await apiClient.post<import('@/types/models').ExternalSystem>(
+      '/external-systems',
+      data,
+    );
+    return res.data;
+  },
+  update: async (id: string, data: Partial<import('@/types/models').ExternalSystem>) => {
+    const res = await apiClient.patch<import('@/types/models').ExternalSystem>(
+      `/external-systems/${id}`,
+      data,
+    );
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(
+      `/external-systems/${id}`,
+    );
+    return res.data;
+  },
+};

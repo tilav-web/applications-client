@@ -11,6 +11,7 @@ import {
   Megaphone,
   Radio,
   Scale,
+  Server,
   Shield,
   ShieldAlert,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ import type {
   DecisionType,
   DepartmentService,
   District,
+  ExternalSystem,
   Neighborhood,
   Occupation,
   OccupationCategory,
@@ -51,6 +53,7 @@ export type ReferenceItem =
   | Occupation
   | ApplicationSource
   | AwarenessStatus
+  | ExternalSystem
   | DepartmentService
   | RejectionReason
   | DecisionType;
@@ -93,6 +96,7 @@ export type ReferenceTabKey =
   | 'detected_crime_statuses'
   | 'sources'
   | 'awareness_statuses'
+  | 'external_systems'
   | 'department_services'
   | 'decision_types'
   | 'rejection_reasons'
@@ -177,6 +181,12 @@ export const REFERENCE_NAV_GROUPS: Array<{
         label: 'Targ‘ibot Holatlari',
         description: 'Fuqaro kiberxavfsizlik bo‘yicha targ‘ibot qilinganligi holatlari',
         icon: Megaphone,
+      },
+      {
+        key: 'external_systems',
+        label: 'Tashqi Tizimlar',
+        description: 'CardBlock, E-Elektron, E-Material va boshqa tizimlar reestri',
+        icon: Server,
       },
       {
         key: 'department_services',

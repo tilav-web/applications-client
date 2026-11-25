@@ -26,6 +26,7 @@ export interface ApplicationCreateDraft {
   sourceId: string | null;
   awarenessStatusId?: string | null;
   awarenessNote?: string;
+  externalSystemIds?: string[];
   date: string;
   appealType: AppealType;
   submissionForm: SubmissionForm;

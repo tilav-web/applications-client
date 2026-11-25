@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AwarenessStatusesReferenceTab } from '@/components/references/awareness-statuses-reference-tab';
 import { DetectedCrimeStatusesReferenceTab } from '@/components/references/detected-crime-statuses-reference-tab';
 import { DetectionSourcesReferenceTab } from '@/components/references/detection-sources-reference-tab';
+import { ExternalSystemsReferenceTab } from '@/components/references/external-systems-reference-tab';
 import { invalidateReferenceTabCaches } from '@/components/references/reference-cache.util';
 import { ReferenceDialogs } from '@/components/references/reference-dialogs';
 import { ReferenceFinanceTabs } from '@/components/references/reference-finance-tabs';
@@ -823,7 +824,8 @@ export function ReferencesPage() {
               {activeTab !== 'workplaces' &&
                 activeTab !== 'detection_sources' &&
                 activeTab !== 'detected_crime_statuses' &&
-                activeTab !== 'awareness_statuses' && (
+                activeTab !== 'awareness_statuses' &&
+                activeTab !== 'external_systems' && (
                   <Button
                     size="sm"
                     onClick={openCreateModal}
@@ -853,6 +855,11 @@ export function ReferencesPage() {
             {/* AWARENESS STATUSES TAB */}
             <TabsContent value="awareness_statuses" className="space-y-4 mt-0">
               <AwarenessStatusesReferenceTab />
+            </TabsContent>
+
+            {/* EXTERNAL SYSTEMS TAB */}
+            <TabsContent value="external_systems" className="space-y-4 mt-0">
+              <ExternalSystemsReferenceTab />
             </TabsContent>
 
             {/* 0. REGIONS TAB */}

@@ -40,6 +40,9 @@ export const applicationsApi = {
     appeal_type?: string;
     submission_form?: string;
     awareness_status_id?: string;
+    external_system_id?: string;
+    external_system_status?: 'not_entered' | 'entered';
+    missing_external_system_id?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });
     return res.data;
@@ -89,6 +92,13 @@ export const applicationsApi = {
   },
   update: async (id: string, data: Record<string, unknown>) => {
     const res = await apiClient.patch<Application>(`/applications/${id}`, data);
+    return res.data;
+  },
+  toggleExternalSystem: async (
+    id: string,
+    payload: { external_system_id: string; entered: boolean },
+  ) => {
+    const res = await apiClient.patch<Application>(`/applications/${id}/external-systems`, payload);
     return res.data;
   },
   delete: async (id: string) => {

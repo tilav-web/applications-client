@@ -393,6 +393,31 @@ export interface AwarenessStatus {
   updated_at?: string;
 }
 
+export interface ExternalSystem {
+  id: string;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  color?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ApplicationExternalSystem {
+  id: string;
+  application_id: string;
+  external_system_id: string;
+  external_system?: ExternalSystem | null;
+  external_number?: string | null;
+  entered_at?: string | null;
+  entered_by_id?: string | null;
+  note?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface DepartmentService {
   id: string;
   name: string;
@@ -739,6 +764,7 @@ export interface Application {
   suspect_tree?: SuspectTreeNode[] | null;
   custom_fields?: ApplicationCustomField[];
   damages?: ApplicationDamage[];
+  external_systems?: ApplicationExternalSystem[];
   documents?: {
     id: string;
     title: string;
