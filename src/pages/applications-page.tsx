@@ -12,11 +12,13 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Upload,
   User,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { ApplicationsExcelImportDialog } from '@/components/applications/applications-excel-import-dialog';
 import { SlaBadge } from '@/components/applications/sla-components';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -121,6 +123,7 @@ export function ApplicationsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
 
   const handleExportExcel = async () => {
     try {
@@ -525,15 +528,26 @@ export function ApplicationsPage() {
           </p>
         </div>
 
-        {/* ARIZA YARATISH TUGMASI */}
+        {/* ARIZA YARATISH VA EXCEL IMPORT TUGMALARI */}
         {canWrite && (
-          <Button
-            onClick={() => navigate('/applications/create')}
-            className="gap-2 shadow-md shadow-primary/25 self-start sm:self-auto cursor-pointer font-medium min-w-[145px]"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Ariza Yaratish</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsExcelImportOpen(true)}
+              className="gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer font-medium"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Excel Import</span>
+            </Button>
+            <Button
+              onClick={() => navigate('/applications/create')}
+              className="gap-2 shadow-md shadow-primary/25 cursor-pointer font-medium min-w-[145px]"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Ariza Yaratish</span>
+            </Button>
+          </div>
         )}
       </div>
 
@@ -1243,6 +1257,9 @@ export function ApplicationsPage() {
           }}
         />
       )}
+
+      {/* EXCEL ORQALI OMMAVIY ARIZA IMPORT MODALI */}
+      <ApplicationsExcelImportDialog open={isExcelImportOpen} onOpenChange={setIsExcelImportOpen} />
     </div>
   );
 }

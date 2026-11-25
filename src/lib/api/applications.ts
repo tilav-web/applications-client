@@ -116,7 +116,117 @@ export const applicationsApi = {
     );
     return res.data as Blob;
   },
+  downloadImportTemplate: async () => {
+    const res = await apiClient.get('/applications/import/template', {
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
+  previewExcelImport: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<ApplicationImportPreviewResponse>(
+      '/applications/import/preview',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return res.data;
+  },
+  commitExcelImport: async (file: File, options?: { skipErrors?: boolean }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('skip_errors', String(options?.skipErrors !== false));
+    const res = await apiClient.post<ApplicationImportCommitResponse>(
+      '/applications/import/commit',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return res.data;
+  },
+  downloadImportErrorReport: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post('/applications/import/error-report', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
 };
+
+export interface ApplicationImportCellError {
+  sheet: 'APPLICATIONS' | 'EXTRA_TRANSFERS' | 'SUSPECT_CLUES';
+  rowNumber: number;
+  columnKey: string;
+  message: string;
+}
+
+export interface ApplicationImportPreviewRow {
+  rowNumber: number;
+  linkCode: string | null;
+  applicationNumber: string | null;
+  date: string | null;
+  districtName: string | null;
+  citizenFullName: string | null;
+  citizenIdentifier: string | null;
+  crimeLabel: string | null;
+  totalAmount: number;
+  currency: string;
+  transfersCount: number;
+  suspectCluesCount: number;
+  status: 'READY' | 'DUPLICATE' | 'ERROR';
+  duplicateReason?: string | null;
+  matchedExistingCitizen?: boolean;
+  matchedExistingCards?: string[];
+  errors: string[];
+  cellErrors: ApplicationImportCellError[];
+  warnings: string[];
+}
+
+export interface ApplicationImportOrphanError {
+  sheet: 'EXTRA_TRANSFERS' | 'SUSPECT_CLUES';
+  rowNumber: number;
+  appRef: string | null;
+  message: string;
+  columnKey: string;
+}
+
+export interface ApplicationImportPreviewResponse {
+  templateValid: boolean;
+  totalRows: number;
+  readyCount: number;
+  duplicateCount: number;
+  errorCount: number;
+  orphanErrorsCount: number;
+  ignoredExtraColumns: string[];
+  rows: ApplicationImportPreviewRow[];
+  orphanErrors: ApplicationImportOrphanError[];
+}
+
+export interface ApplicationImportCommitResponse {
+  totalRows: number;
+  createdCount: number;
+  skippedDuplicateCount: number;
+  failedCount: number;
+  createdApplications: Array<{
+    id: string;
+    rowNumber: number;
+    application_number: string | null;
+    citizen_name: string | null;
+  }>;
+  skippedDuplicates: Array<{
+    rowNumber: number;
+    application_number: string | null;
+    reason: string;
+  }>;
+  failedRows: Array<{
+    rowNumber: number;
+    application_number: string | null;
+    errors: string[];
+  }>;
+  errorReportBase64: string | null;
+  errorReportFileName: string | null;
+}
 
 export interface DashboardStatistics {
   period: string;
