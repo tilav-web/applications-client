@@ -3,12 +3,15 @@ import {
   Banknote,
   Building2,
   Calendar,
+  ChevronDown,
   FileText,
   Landmark,
   Plus,
   ShoppingBag,
   Trash2,
+  X,
 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +37,11 @@ const QUICK_PLATFORMS = [
   'OLX',
 ];
 
+interface OrgSuggestionItem {
+  name: string;
+  category: 'Platforma' | 'Bank' | 'Provayder';
+}
+
 interface NonCardDamagesSectionProps {
   hasNonCardDamage: boolean;
   setHasNonCardDamage: (val: boolean) => void;
@@ -55,6 +63,19 @@ export function NonCardDamagesSection({
   onAddDamageEntry,
   onRemoveDamageEntry,
 }: NonCardDamagesSectionProps) {
+  const [openOrgDropdownIdx, setOpenOrgDropdownIdx] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpenOrgDropdownIdx(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const totalNonCardUzs = nonCardDamages.reduce((sum, item) => {
     const clean = Number(String(item.amount || '').replace(/\s/g, ''));
     if (!Number.isFinite(clean) || clean <= 0) return sum;
@@ -62,16 +83,28 @@ export function NonCardDamagesSection({
     return sum;
   }, 0);
 
-  const orgSuggestions = Array.from(
-    new Set([
-      ...QUICK_PLATFORMS,
-      ...allBanks.map((b) => b.name).filter((n): n is string => Boolean(n)),
-      ...allProviders.map((p) => p.name).filter((n): n is string => Boolean(n)),
-    ]),
-  );
+  const orgSuggestions = useMemo<OrgSuggestionItem[]>(() => {
+    const seen = new Set<string>();
+    const list: OrgSuggestionItem[] = [];
+    const pushItem = (name: string | undefined | null, category: OrgSuggestionItem['category']) => {
+      const trimmed = (name || '').trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push({ name: trimmed, category });
+    };
+    QUICK_PLATFORMS.forEach((p) => pushItem(p, 'Platforma'));
+    allBanks.forEach((b) => pushItem(b.name, 'Bank'));
+    allProviders.forEach((p) => pushItem(p.name, 'Provayder'));
+    return list;
+  }, [allBanks, allProviders]);
 
   return (
-    <div className="p-5 sm:p-6 space-y-5 bg-amber-50/70 dark:bg-amber-950/15 transition-colors">
+    <div
+      ref={containerRef}
+      className="p-5 sm:p-6 space-y-5 bg-amber-50/70 dark:bg-amber-950/15 transition-colors"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/70 dark:border-amber-800/40 pb-3">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
@@ -135,14 +168,13 @@ export function NonCardDamagesSection({
         </div>
       ) : (
         <div className="space-y-4">
-          <datalist id="non-card-damage-orgs">
-            {orgSuggestions.map((org) => (
-              <option key={org} value={org} />
-            ))}
-          </datalist>
-
           {nonCardDamages.map((entry, idx) => {
             const numericAmount = Number(String(entry.amount || '').replace(/\s/g, ''));
+            const orgQuery = entry.organizationName.trim().toLowerCase();
+            const filteredOrgs = orgQuery
+              ? orgSuggestions.filter((item) => item.name.toLowerCase().includes(orgQuery))
+              : orgSuggestions;
+            const isOrgDropdownOpen = openOrgDropdownIdx === idx;
             return (
               <div
                 key={entry.clientId}
@@ -209,26 +241,103 @@ export function NonCardDamagesSection({
                   </div>
 
                   {/* 2. Tashkilot / Platforma */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative">
                     <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                       <Building2 className="h-3.5 w-3.5 text-amber-600" />
                       Bank / Platforma / Tashkilot
                     </label>
-                    <Input
-                      list="non-card-damage-orgs"
-                      value={entry.organizationName}
-                      onChange={(e) =>
-                        onUpdateDamageEntry(idx, { organizationName: e.target.value })
-                      }
-                      placeholder="Masalan: Uzum Nasiya, TBC Bank, Alif..."
-                      className="h-9 text-xs"
-                    />
+                    <div className="relative">
+                      <Input
+                        value={entry.organizationName}
+                        autoComplete="off"
+                        onFocus={() => setOpenOrgDropdownIdx(idx)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setOpenOrgDropdownIdx(null);
+                          }
+                        }}
+                        onChange={(e) => {
+                          onUpdateDamageEntry(idx, { organizationName: e.target.value });
+                          setOpenOrgDropdownIdx(idx);
+                        }}
+                        placeholder="Masalan: Uzum Nasiya, TBC Bank, Alif..."
+                        className="h-9 text-xs pr-14"
+                      />
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                        {entry.organizationName && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateDamageEntry(idx, { organizationName: '' });
+                              setOpenOrgDropdownIdx(idx);
+                            }}
+                            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                            title="Tozalash"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setOpenOrgDropdownIdx(isOrgDropdownOpen ? null : idx)}
+                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                          title="Ro‘yxatni ochish"
+                        >
+                          <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform ${
+                              isOrgDropdownOpen ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {isOrgDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl p-1.5 max-h-52 overflow-y-auto">
+                          <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1 flex items-center justify-between">
+                            <span>Bank / platforma tanlang yoki o‘zingiz yozing</span>
+                            <span className="font-mono">{filteredOrgs.length}</span>
+                          </div>
+                          {filteredOrgs.length > 0 ? (
+                            filteredOrgs.map((item) => (
+                              <button
+                                key={`${item.category}-${item.name}`}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  onUpdateDamageEntry(idx, { organizationName: item.name });
+                                  setOpenOrgDropdownIdx(null);
+                                }}
+                                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-muted text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                              >
+                                <span className="font-medium text-foreground truncate">
+                                  {item.name}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                                  {item.category}
+                                </span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-2 py-2 text-[11px] text-muted-foreground">
+                              Ro‘yxatda topilmadi — kiritilgan{' '}
+                              <strong className="text-foreground">
+                                «{entry.organizationName}»
+                              </strong>{' '}
+                              nomi saqlanadi.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {QUICK_PLATFORMS.slice(0, 5).map((plat) => (
                         <button
                           key={plat}
                           type="button"
-                          onClick={() => onUpdateDamageEntry(idx, { organizationName: plat })}
+                          onClick={() => {
+                            onUpdateDamageEntry(idx, { organizationName: plat });
+                            setOpenOrgDropdownIdx(null);
+                          }}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-amber-500/15 hover:text-amber-700 dark:hover:text-amber-300 text-muted-foreground transition-colors cursor-pointer"
                         >
                           {plat}
@@ -319,26 +428,27 @@ export function NonCardDamagesSection({
             );
           })}
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div className="space-y-3 pt-1">
+            {totalNonCardUzs > 0 && (
+              <div className="flex justify-end">
+                <div className="text-xs font-semibold text-foreground bg-card border border-amber-500/30 rounded-lg px-3.5 py-2 shadow-2xs">
+                  Kartasiz zararlar jami:{' '}
+                  <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
+                    {new Intl.NumberFormat('uz-UZ').format(Math.round(totalNonCardUzs))} UZS
+                  </span>
+                </div>
+              </div>
+            )}
+
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={onAddDamageEntry}
-              className="gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer font-semibold self-start"
+              className="w-full border-dashed py-5 text-xs font-semibold gap-2 border-amber-500/50 hover:border-amber-600 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 transition-all shadow-sm cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               Yana kredit / nasiya / zarar bandi qo‘shish
             </Button>
-
-            {totalNonCardUzs > 0 && (
-              <div className="text-xs font-semibold text-foreground bg-card border border-amber-500/30 rounded-lg px-3 py-1.5">
-                Kartasiz zararlar jami:{' '}
-                <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
-                  {new Intl.NumberFormat('uz-UZ').format(Math.round(totalNonCardUzs))} UZS
-                </span>
-              </div>
-            )}
           </div>
         </div>
       )}
