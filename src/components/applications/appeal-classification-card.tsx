@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
-  Check,
   ChevronDown,
   Copy,
   FilePlus2,
@@ -51,33 +50,11 @@ const APPLICANT_TYPE_OPTIONS: { value: ApplicantType; label: string }[] = [
 const REPEAT_TYPE_OPTIONS: {
   value: ApplicationRepeatType;
   label: string;
-  desc: string;
-  activeCls: string;
 }[] = [
-  {
-    value: 'PRIMARY',
-    label: 'Birlamchi',
-    desc: 'Ilk bor kelib tushgan murojaat',
-    activeCls: 'bg-emerald-600 text-white border-emerald-600 shadow-xs',
-  },
-  {
-    value: 'REPEAT',
-    label: 'Takroriy',
-    desc: 'Avvalgi qarordan norozilik / qayta murojaat',
-    activeCls: 'bg-amber-600 text-white border-amber-600 shadow-xs',
-  },
-  {
-    value: 'DUPLICATE',
-    label: 'Dublikat',
-    desc: 'Ayni bir arizaning ko‘chirma nusxasi (zararga qo‘shilmaydi)',
-    activeCls: 'bg-purple-600 text-white border-purple-600 shadow-xs',
-  },
-  {
-    value: 'SUPPLEMENTAL',
-    label: 'Qo‘shimcha',
-    desc: 'Avvalgi arizaga yangi fakt, karta yoki dalil qo‘shish',
-    activeCls: 'bg-blue-600 text-white border-blue-600 shadow-xs',
-  },
+  { value: 'PRIMARY', label: 'Birlamchi' },
+  { value: 'REPEAT', label: 'Takroriy' },
+  { value: 'DUPLICATE', label: 'Dublikat' },
+  { value: 'SUPPLEMENTAL', label: 'Qo‘shimcha' },
 ];
 
 interface AppealClassificationCardProps {
@@ -205,20 +182,13 @@ export function AppealClassificationCard({
     Boolean(selectedCitizenId) && citizenPrevApps.length > 0 && repeatType === 'PRIMARY';
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-card/70 p-4 sm:p-5 space-y-4 shadow-xs">
+    <div className="rounded-xl border border-border/80 bg-card/70 p-3.5 sm:p-4 space-y-3 shadow-2xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Scale className="h-4 w-4" />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
-              Murojaat tasnifi va takroriylik (O‘RQ-445)
-            </h3>
-            <p className="text-[11px] text-muted-foreground">
-              Ariza turi, shakli hamda avvalgi murojaat bilan bog‘liqlik zanjiri
-            </p>
-          </div>
+          <Scale className="h-4 w-4 text-primary shrink-0" />
+          <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
+            Murojaat tasnifi va takroriylik
+          </h3>
         </div>
 
         {isLinkedMode && (
@@ -226,10 +196,10 @@ export function AppealClassificationCard({
             variant="outline"
             className={
               repeatType === 'REPEAT'
-                ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px]'
                 : repeatType === 'DUPLICATE'
-                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                  : 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[11px]'
+                  : 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[11px]'
             }
           >
             <GitBranch className="h-3 w-3 mr-1" />
@@ -321,59 +291,49 @@ export function AppealClassificationCard({
         </div>
       )}
 
-      {/* 1-QATOR: Turi, Shakli, Subyekti */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* 1-QATOR: Barcha tasnif maydonlari ixcham select ko'rinishida */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Murojaat turi */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <label className="text-[11px] font-semibold text-muted-foreground">Murojaat turi</label>
-          <div className="grid grid-cols-3 gap-1 rounded-lg border border-input bg-muted/30 p-1">
+          <select
+            value={appealType}
+            onChange={(e) => onAppealTypeChange(e.target.value as AppealType)}
+            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+          >
             {APPEAL_TYPE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onAppealTypeChange(opt.value)}
-                className={`h-7 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                  appealType === opt.value
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-background/70'
-                }`}
-              >
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
-        {/* Murojaat shakli */}
-        <div className="space-y-1.5">
+        {/* Berilish shakli */}
+        <div className="space-y-1">
           <label className="text-[11px] font-semibold text-muted-foreground">Berilish shakli</label>
-          <div className="grid grid-cols-3 gap-1 rounded-lg border border-input bg-muted/30 p-1">
+          <select
+            value={submissionForm}
+            onChange={(e) => onSubmissionFormChange(e.target.value as SubmissionForm)}
+            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+          >
             {SUBMISSION_FORM_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onSubmissionFormChange(opt.value)}
-                className={`h-7 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                  submissionForm === opt.value
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-background/70'
-                }`}
-              >
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
-        {/* Subyekt */}
-        <div className="space-y-1.5">
+        {/* Murojaat etuvchi toifasi */}
+        <div className="space-y-1">
           <label className="text-[11px] font-semibold text-muted-foreground">
             Murojaat etuvchi toifasi
           </label>
           <select
             value={applicantType}
             onChange={(e) => onApplicantTypeChange(e.target.value as ApplicantType)}
-            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
           >
             {APPLICANT_TYPE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -382,47 +342,29 @@ export function AppealClassificationCard({
             ))}
           </select>
         </div>
-      </div>
 
-      {/* 2-QATOR: Takroriylik darajasi */}
-      <div className="space-y-1.5">
-        <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-          <History className="h-3.5 w-3.5 text-primary" />
-          Takroriylik darajasi
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {REPEAT_TYPE_OPTIONS.map((opt) => {
-            const active = repeatType === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  onRepeatTypeChange(opt.value);
-                  if (opt.value === 'PRIMARY') {
-                    onParentApplicationChange(null, null);
-                  }
-                }}
-                className={`rounded-xl border px-3 py-2 text-left transition-all cursor-pointer ${
-                  active
-                    ? opt.activeCls
-                    : 'border-border bg-background hover:border-primary/40 hover:bg-muted/30'
-                }`}
-              >
-                <div className="text-xs font-bold flex items-center justify-between">
-                  <span>{opt.label}</span>
-                  {active && <Check className="h-3.5 w-3.5 shrink-0" />}
-                </div>
-                <div
-                  className={`text-[10px] mt-0.5 leading-tight ${
-                    active ? 'text-white/85' : 'text-muted-foreground'
-                  }`}
-                >
-                  {opt.desc}
-                </div>
-              </button>
-            );
-          })}
+        {/* Takroriylik darajasi */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-semibold text-muted-foreground">
+            Takroriylik darajasi
+          </label>
+          <select
+            value={repeatType}
+            onChange={(e) => {
+              const val = e.target.value as ApplicationRepeatType;
+              onRepeatTypeChange(val);
+              if (val === 'PRIMARY') {
+                onParentApplicationChange(null, null);
+              }
+            }}
+            className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+          >
+            {REPEAT_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
