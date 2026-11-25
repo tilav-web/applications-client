@@ -17,7 +17,6 @@ import {
   Shield,
   Sparkles,
   Trash2,
-  Upload,
   User,
   X,
 } from 'lucide-react';
@@ -35,7 +34,6 @@ import type {
   AppCustomFieldState,
   FinancialTransferEntry,
 } from '@/components/applications/application-form.types';
-import { ApplicationsExcelImportDialog } from '@/components/applications/applications-excel-import-dialog';
 import { EmploymentSectionCard } from '@/components/applications/employment-section-card';
 import { EvidenceAndCitizensSection } from '@/components/applications/evidence-and-citizens-section';
 import { FinancialTransfersSection } from '@/components/applications/financial-transfers-section';
@@ -150,7 +148,6 @@ export function ApplicationCreatePage() {
     !id && !initialParentParam ? loadApplicationDraft(currentUserId) : null,
   );
   const [wasDraftRestored, setWasDraftRestored] = useState<boolean>(() => Boolean(restoredDraft));
-  const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
   const draftClearedRef = useRef(false);
 
   const [quickLocationState, setQuickLocationState] = useState<{
@@ -1659,19 +1656,6 @@ export function ApplicationCreatePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {!isEditMode && canWrite && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsExcelImportOpen(true)}
-                className="h-10 gap-2 border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 cursor-pointer font-semibold text-xs"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                <span>Exceldan yuklash</span>
-              </Button>
-            )}
-
             {/* Murojaat manbasi (102, 112, etc.) */}
             <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-3 py-1.5 shadow-sm">
               <Radio className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -3118,17 +3102,6 @@ export function ApplicationCreatePage() {
             setCitizenMahallaId(neighborhood.id);
           } else if (citizenDistrictId !== district.id) {
             setCitizenMahallaId(null);
-          }
-        }}
-      />
-
-      {/* EXCEL ORQALI OMMAVIY ARIZA YUKLASH MODALI */}
-      <ApplicationsExcelImportDialog
-        open={isExcelImportOpen}
-        onOpenChange={setIsExcelImportOpen}
-        onCloseAfterCommit={(res) => {
-          if (res.createdCount > 0 && res.failedCount === 0) {
-            navigate('/applications');
           }
         }}
       />

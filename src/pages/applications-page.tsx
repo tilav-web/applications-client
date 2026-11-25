@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CreditCard,
+  Download,
   Edit2,
   Eye,
   FileSpreadsheet,
@@ -15,10 +16,9 @@ import {
   Upload,
   User,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { ApplicationsExcelImportDialog } from '@/components/applications/applications-excel-import-dialog';
 import { SlaBadge } from '@/components/applications/sla-components';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -123,7 +123,120 @@ export function ApplicationsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [isExporting, setIsExporting] = useState(false);
-  const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const excelImportInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDownloadImportTemplate = async () => {
+    try {
+      setIsDownloadingTemplate(true);
+      const blob = await applicationsApi.downloadImportTemplate();
+      const url = window.URL.createObjectURL(
+        new Blob([blob], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `Arizalar_Import_Shabloni_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel import shabloni yuklab olindi');
+    } catch (err) {
+      toast.error('Shablonni yuklab olishda xatolik', {
+        description: getErrorMessage(err),
+      });
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
+  const handleImportExcelFile = async (file: File | null) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      toast.error('Faqat .xlsx (Excel) formatidagi faylni yuklang');
+      if (excelImportInputRef.current) excelImportInputRef.current.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Fayl hajmi 10 MB dan oshmasligi kerak');
+      if (excelImportInputRef.current) excelImportInputRef.current.value = '';
+      return;
+    }
+
+    const toastId = toast.loading('Excel fayli tekshirilmoqda va bazaga yuklanmoqda...');
+    try {
+      setIsImportingExcel(true);
+      const result = await applicationsApi.commitExcelImport(file, { skipErrors: true });
+
+      if (result.errorReportBase64 && result.errorReportFileName) {
+        const binary = window.atob(result.errorReportBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const errUrl = window.URL.createObjectURL(
+          new Blob([bytes], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        );
+        const a = document.createElement('a');
+        a.href = errUrl;
+        a.download = result.errorReportFileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(errUrl);
+      }
+
+      if (result.createdCount > 0) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['applications'], refetchType: 'all' }),
+          queryClient.invalidateQueries({ queryKey: ['dashboard-statistics'], refetchType: 'all' }),
+          queryClient.invalidateQueries({ queryKey: ['citizens'], refetchType: 'all' }),
+          queryClient.invalidateQueries({ queryKey: ['cards'], refetchType: 'all' }),
+          queryClient.invalidateQueries({ queryKey: ['transfers'], refetchType: 'all' }),
+        ]);
+      }
+
+      const parts: string[] = [];
+      if (result.createdCount > 0) parts.push(`${result.createdCount} ta qo'shildi`);
+      if (result.skippedDuplicateCount > 0)
+        parts.push(`${result.skippedDuplicateCount} ta dublikat o'tkazildi`);
+      if (result.failedCount > 0) parts.push(`${result.failedCount} ta xatoli`);
+
+      if (result.failedCount > 0) {
+        toast.warning(`Import yakunlandi: ${parts.join(', ')}`, {
+          id: toastId,
+          description:
+            'Bazaga yozilmay qolgan xatoli qatorlar qizil fon bilan belgilangan Excel faylida yuklab olindi. Tuzatib qayta yuklashingiz mumkin.',
+          duration: 8000,
+        });
+      } else if (result.createdCount > 0) {
+        toast.success(`Import muvaffaqiyatli: ${parts.join(', ')}`, { id: toastId });
+      } else {
+        toast.info(
+          result.totalRows === 0
+            ? 'Excel faylida yuklash uchun yangi qatorlar topilmadi'
+            : `Yangi ariza qo'shilmadi (${parts.join(', ')})`,
+          { id: toastId },
+        );
+      }
+    } catch (err) {
+      toast.error('Excel import qilishda xatolik', {
+        id: toastId,
+        description: getErrorMessage(err),
+      });
+    } finally {
+      setIsImportingExcel(false);
+      if (excelImportInputRef.current) {
+        excelImportInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleExportExcel = async () => {
     try {
@@ -528,17 +641,45 @@ export function ApplicationsPage() {
           </p>
         </div>
 
-        {/* ARIZA YARATISH VA EXCEL IMPORT TUGMALARI */}
+        {/* SHABLON, IMPORT VA ARIZA YARATISH TUGMALARI */}
         {canWrite && (
-          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <input
+              ref={excelImportInputRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(e) => void handleImportExcelFile(e.target.files?.[0] || null)}
+            />
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsExcelImportOpen(true)}
-              className="gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer font-medium"
+              disabled={isDownloadingTemplate}
+              onClick={handleDownloadImportTemplate}
+              className="gap-2 border-blue-500/40 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 cursor-pointer font-medium"
+              title="Dropdownlar va enum yo'riqnomasi bilan tayyor Excel shablonini yuklab olish"
             >
-              <Upload className="h-4 w-4" />
-              <span>Excel Import</span>
+              {isDownloadingTemplate ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span>Shablon</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isImportingExcel}
+              onClick={() => excelImportInputRef.current?.click()}
+              className="gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer font-medium"
+              title="To'ldirilgan Excel (.xlsx) faylini bazaga yuklash"
+            >
+              {isImportingExcel ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              <span>Import</span>
             </Button>
             <Button
               onClick={() => navigate('/applications/create')}
@@ -1257,9 +1398,6 @@ export function ApplicationsPage() {
           }}
         />
       )}
-
-      {/* EXCEL ORQALI OMMAVIY ARIZA IMPORT MODALI */}
-      <ApplicationsExcelImportDialog open={isExcelImportOpen} onOpenChange={setIsExcelImportOpen} />
     </div>
   );
 }
