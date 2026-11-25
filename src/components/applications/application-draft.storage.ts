@@ -8,7 +8,11 @@ import type {
   Workplace,
 } from '@/types/models';
 
-import type { AppCustomFieldState, FinancialTransferEntry } from './application-form.types';
+import type {
+  AppCustomFieldState,
+  FinancialTransferEntry,
+  NonCardDamageEntry,
+} from './application-form.types';
 
 export interface ApplicationCreateDraft {
   v: 1;
@@ -64,6 +68,8 @@ export interface ApplicationCreateDraft {
   decisionNote: string;
   hasFinancialLoss: boolean;
   financialTransfers: FinancialTransferEntry[];
+  hasNonCardDamage?: boolean;
+  nonCardDamages?: NonCardDamageEntry[];
   evidenceFiles: UploadedFile[];
   customFields: AppCustomFieldState[];
 }

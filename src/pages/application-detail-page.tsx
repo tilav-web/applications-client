@@ -10,6 +10,7 @@ import {
   Edit2,
   Eye,
   FileText,
+  Landmark,
   Link2,
   Loader2,
   MapPin,
@@ -54,7 +55,11 @@ import {
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
-import type { ApplicationStatus, ApplicationStatusItem } from '@/types/models';
+import {
+  APPLICATION_DAMAGE_TYPE_LABELS,
+  type ApplicationStatus,
+  type ApplicationStatusItem,
+} from '@/types/models';
 
 const formatCurrency = (amount?: number | string | null, currency = 'UZS') => {
   if (amount === undefined || amount === null || amount === '') return '0 UZS';
@@ -396,14 +401,19 @@ export function ApplicationDetailPage() {
     return list;
   }, [app]);
 
-  // Jami zarar summasi
+  // Jami zarar summasi (Plastik karta o'tkazmalari + Kartasiz moddiy zararlar)
   const totalCalculatedLoss = useMemo(() => {
     let sum = 0;
     allTransfersList.forEach((t) => {
       if (t.amount) sum += Number(t.amount);
     });
+    if (Array.isArray(app?.damages)) {
+      app.damages.forEach((d) => {
+        if (d.amount) sum += Number(d.amount);
+      });
+    }
     return sum;
-  }, [allTransfersList]);
+  }, [allTransfersList, app]);
 
   if (isLoading) {
     return (
@@ -701,8 +711,15 @@ export function ApplicationDetailPage() {
               <span className="text-sm sm:text-base font-bold text-foreground font-mono block">
                 {allTransfersList.length > 0
                   ? `${allTransfersList.length} ta shakl`
-                  : 'Mavjud emas'}
+                  : app.damages && app.damages.length > 0
+                    ? `${app.damages.length} ta kredit/nasiya`
+                    : 'Mavjud emas'}
               </span>
+              {allTransfersList.length > 0 && app.damages && app.damages.length > 0 && (
+                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold block">
+                  + {app.damages.length} ta kartasiz zarar
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1089,6 +1106,108 @@ export function ApplicationDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ===================================================================== */}
+      {/* KARTA 3.5: KARTASIZ MODDIY ZARARLAR (ONLAYN KREDIT / NASIYA / MULK) */}
+      {/* ===================================================================== */}
+      {app.damages && app.damages.length > 0 && (
+        <Card className="py-0 gap-0 border-amber-500/30 shadow-2xs overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-amber-500/20 bg-amber-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 text-amber-700 dark:text-amber-300">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/15 border border-amber-500/25 shrink-0">
+                <Landmark className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  <span>Kartasiz Moddiy Zararlar (Onlayn Kredit / Nasiya / Mulk)</span>
+                  <Badge
+                    variant="outline"
+                    className="text-xs font-mono border-amber-500/40 text-amber-700 dark:text-amber-300"
+                  >
+                    {app.damages.length} ta band
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Fuqaro nomiga kredit, nasiya (Uzum, Alif, Open) yoki pasport/telefon orqali
+                  rasmiylashtirilgan zararlar
+                </CardDescription>
+              </div>
+            </div>
+
+            <div className="text-right self-start sm:self-auto">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Jami kartasiz zarar:
+              </span>
+              <span className="font-mono text-sm font-extrabold text-amber-700 dark:text-amber-300">
+                {formatCurrency(
+                  app.damages.reduce((acc, item) => acc + Number(item.amount || 0), 0),
+                )}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 space-y-3">
+            {app.damages.map((dmg, idx) => (
+              <div
+                key={dmg.id || idx}
+                className="p-4 rounded-xl border border-amber-500/25 bg-card flex flex-col gap-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/50">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="secondary"
+                      className="text-[11px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/25"
+                    >
+                      #{idx + 1}{' '}
+                      {APPLICATION_DAMAGE_TYPE_LABELS[dmg.damage_type] || dmg.damage_type}
+                    </Badge>
+                    {(dmg.organization_name || dmg.bank?.name || dmg.payment_provider?.name) && (
+                      <span className="text-xs font-bold text-foreground">
+                        {dmg.organization_name || dmg.bank?.name || dmg.payment_provider?.name}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-mono text-sm font-extrabold text-red-600 dark:text-red-400">
+                    {formatCurrency(dmg.amount, dmg.currency || 'UZS')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                      Shartnoma / Buyurtma №
+                    </span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {dmg.contract_number || '—'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                      Rasmiylashtirilgan sana
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {dmg.damage_date ? formatDate(dmg.damage_date) : '—'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                      Bog‘langan tashkilot (Baza)
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {dmg.bank?.name || dmg.payment_provider?.name || dmg.organization_name || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {dmg.description && (
+                  <p className="text-xs text-muted-foreground leading-relaxed bg-muted/20 p-2.5 rounded-lg border border-border/40">
+                    {dmg.description}
+                  </p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ===================================================================== */}
       {/* KARTA 4: RASMIY WORD HUJJATLARI (.DOCX / ONLYOFFICE) */}

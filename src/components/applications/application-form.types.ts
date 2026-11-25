@@ -1,4 +1,9 @@
-import type { CrimeGravity, CustomFieldType, TransferCustomField } from '@/types/models';
+import type {
+  ApplicationDamageType,
+  CrimeGravity,
+  CustomFieldType,
+  TransferCustomField,
+} from '@/types/models';
 
 export interface AppCustomFieldState {
   clientId: string;
@@ -77,4 +82,15 @@ export interface FinancialTransferEntry {
   receiverCardNumber: string;
   receiverCardFullName: string;
   receiverBankName: string;
+}
+
+export interface NonCardDamageEntry {
+  clientId: string;
+  damageType: ApplicationDamageType;
+  organizationName: string;
+  amount: string;
+  currency: string;
+  contractNumber: string;
+  damageDate: string;
+  description: string;
 }

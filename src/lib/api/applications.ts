@@ -174,6 +174,7 @@ export interface ApplicationImportPreviewRow {
   currency: string;
   transfersCount: number;
   suspectCluesCount: number;
+  nonCardDamagesCount?: number;
   status: 'READY' | 'DUPLICATE' | 'ERROR';
   duplicateReason?: string | null;
   matchedExistingCitizen?: boolean;
@@ -184,7 +185,7 @@ export interface ApplicationImportPreviewRow {
 }
 
 export interface ApplicationImportOrphanError {
-  sheet: 'EXTRA_TRANSFERS' | 'SUSPECT_CLUES';
+  sheet: 'EXTRA_TRANSFERS' | 'SUSPECT_CLUES' | 'NON_CARD_DAMAGES';
   rowNumber: number;
   appRef: string | null;
   message: string;
@@ -239,6 +240,8 @@ export interface DashboardStatistics {
     resolvedApplications: number;
     rejectedApplications: number;
     totalLoss: number;
+    cardTransfersLoss?: number;
+    nonCardDamagesLoss?: number;
     resolvedLoss: number;
     avgLoss: number;
     maxLoss: number;

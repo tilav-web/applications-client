@@ -33,10 +33,12 @@ import {
 import type {
   AppCustomFieldState,
   FinancialTransferEntry,
+  NonCardDamageEntry,
 } from '@/components/applications/application-form.types';
 import { EmploymentSectionCard } from '@/components/applications/employment-section-card';
 import { EvidenceAndCitizensSection } from '@/components/applications/evidence-and-citizens-section';
 import { FinancialTransfersSection } from '@/components/applications/financial-transfers-section';
+import { NonCardDamagesSection } from '@/components/applications/non-card-damages-section';
 import { SuspectTreeBuilder } from '@/components/applications/suspect-tree-builder';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -100,6 +102,7 @@ import type {
 export type {
   AppCustomFieldState,
   FinancialTransferEntry,
+  NonCardDamageEntry,
 } from '@/components/applications/application-form.types';
 
 let transferClientIdCounter = 0;
@@ -120,6 +123,18 @@ const createDefaultTransferEntry = (): FinancialTransferEntry => ({
   receiverCardNumber: '',
   receiverCardFullName: '',
   receiverBankName: '',
+});
+
+let damageClientIdCounter = 0;
+const createDefaultNonCardDamageEntry = (): NonCardDamageEntry => ({
+  clientId: `ncd_${++damageClientIdCounter}`,
+  damageType: 'ONLINE_CREDIT',
+  organizationName: '',
+  amount: '',
+  currency: 'UZS',
+  contractNumber: '',
+  damageDate: '',
+  description: '',
 });
 
 export function ApplicationCreatePage() {
@@ -334,6 +349,33 @@ export function ApplicationCreatePage() {
     }
     handleUpdateTransferEntry(index, { victimCardFullName: fullName.toUpperCase() });
     toast.success('Arizachining F.I.SH. ma‘lumoti kartaga nusxalandi');
+  };
+
+  // ==========================================================================
+  // 4.5. KARTASIZ MODDIY ZARARLAR (ONLAYN KREDIT, NASIYA, MULK / XIZMAT)
+  // ==========================================================================
+  const [hasNonCardDamage, setHasNonCardDamage] = useState(() =>
+    Boolean(restoredDraft?.hasNonCardDamage),
+  );
+
+  const [nonCardDamages, setNonCardDamages] = useState<NonCardDamageEntry[]>(() =>
+    Array.isArray(restoredDraft?.nonCardDamages) && restoredDraft.nonCardDamages.length > 0
+      ? restoredDraft.nonCardDamages
+      : [createDefaultNonCardDamageEntry()],
+  );
+
+  const handleUpdateDamageEntry = (index: number, patch: Partial<NonCardDamageEntry>) => {
+    setNonCardDamages((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const handleAddDamageEntry = () => {
+    setNonCardDamages((prev) => [...prev, createDefaultNonCardDamageEntry()]);
+  };
+
+  const handleRemoveDamageEntry = (index: number) => {
+    setNonCardDamages((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   // ==========================================================================
@@ -962,6 +1004,26 @@ export function ApplicationCreatePage() {
       setHasFinancialLoss(true);
       setFinancialTransfers(loadedTransfers);
     }
+
+    if (Array.isArray(initialApp.damages) && initialApp.damages.length > 0) {
+      setHasNonCardDamage(true);
+      setNonCardDamages(
+        initialApp.damages.map((d, idx) => ({
+          clientId: `ncd_${++damageClientIdCounter}_${idx}`,
+          damageType: d.damage_type || 'ONLINE_CREDIT',
+          organizationName: d.organization_name || d.bank?.name || d.payment_provider?.name || '',
+          amount:
+            d.amount !== undefined && d.amount !== null ? String(Math.round(Number(d.amount))) : '',
+          currency: d.currency || 'UZS',
+          contractNumber: d.contract_number || '',
+          damageDate: d.damage_date ? String(d.damage_date).slice(0, 10) : '',
+          description: d.description || '',
+        })),
+      );
+    } else {
+      setHasNonCardDamage(false);
+      setNonCardDamages([createDefaultNonCardDamageEntry()]);
+    }
   }, [initialApp]);
 
   const hasUnsavedData = Boolean(
@@ -979,6 +1041,7 @@ export function ApplicationCreatePage() {
     selectedCrimeId ||
     selectedCrimeMethodId ||
     hasFinancialLoss ||
+    hasNonCardDamage ||
     evidenceFiles.length > 0 ||
     customFields.length > 0 ||
     repeatType !== 'PRIMARY' ||
@@ -1040,6 +1103,8 @@ export function ApplicationCreatePage() {
       decisionNote,
       hasFinancialLoss,
       financialTransfers,
+      hasNonCardDamage,
+      nonCardDamages,
       evidenceFiles,
       customFields,
     };
@@ -1089,6 +1154,8 @@ export function ApplicationCreatePage() {
     decisionNote,
     hasFinancialLoss,
     financialTransfers,
+    hasNonCardDamage,
+    nonCardDamages,
     evidenceFiles,
     customFields,
   ]);
@@ -1486,6 +1553,51 @@ export function ApplicationCreatePage() {
       } else {
         payload.card_id = null;
         payload.transfer_id = null;
+      }
+
+      // 4.5. Kartasiz moddiy zararlar (Onlayn kredit, nasiya, mulk/xizmat)
+      if (hasNonCardDamage) {
+        const validDamages: Array<{
+          damage_type: string;
+          organization_name?: string;
+          amount: number;
+          currency: string;
+          contract_number?: string;
+          damage_date?: string;
+          description?: string;
+          order: number;
+        }> = [];
+        for (let idx = 0; idx < nonCardDamages.length; idx++) {
+          const entry = nonCardDamages[idx];
+          const numericAmount = Number(String(entry.amount || '').replace(/[^\d.]/g, ''));
+          const hasAnyDetail = Boolean(
+            entry.organizationName.trim() ||
+            entry.contractNumber.trim() ||
+            entry.damageDate ||
+            entry.description.trim(),
+          );
+          if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+            if (hasAnyDetail) {
+              throw new Error(
+                `Kartasiz moddiy zarar #${idx + 1} bandida zarar summasi kiritilmagan`,
+              );
+            }
+            continue;
+          }
+          validDamages.push({
+            damage_type: entry.damageType,
+            organization_name: entry.organizationName.trim() || undefined,
+            amount: numericAmount,
+            currency: entry.currency || 'UZS',
+            contract_number: entry.contractNumber.trim() || undefined,
+            damage_date: entry.damageDate || undefined,
+            description: entry.description.trim() || undefined,
+            order: validDamages.length,
+          });
+        }
+        payload.damages = validDamages;
+      } else {
+        payload.damages = [];
       }
 
       // 5. Universal Custom Fields & MinIO Dalillar
@@ -2797,6 +2909,17 @@ export function ApplicationCreatePage() {
           onAddTransferEntry={handleAddTransferEntry}
           onRemoveTransferEntry={handleRemoveTransferEntry}
           onFillApplicantName={handleFillApplicantName}
+        />
+
+        <NonCardDamagesSection
+          hasNonCardDamage={hasNonCardDamage}
+          setHasNonCardDamage={setHasNonCardDamage}
+          nonCardDamages={nonCardDamages}
+          allBanks={allBanks}
+          allProviders={allProviders}
+          onUpdateDamageEntry={handleUpdateDamageEntry}
+          onAddDamageEntry={handleAddDamageEntry}
+          onRemoveDamageEntry={handleRemoveDamageEntry}
         />
 
         <EvidenceAndCitizensSection

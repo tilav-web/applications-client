@@ -99,10 +99,14 @@ export function ApplicationsPage() {
     return Number.isFinite(num) ? num : undefined;
   };
 
-  const getApplicationTotalLoss = (app: Application): { total: number; currency: string } => {
+  const getApplicationTotalLoss = (
+    app: Application,
+  ): { total: number; currency: string; nonCardCount: number; nonCardTotal: number } => {
     const seen = new Set<string>();
     let total = 0;
     let currency = 'UZS';
+    let nonCardCount = 0;
+    let nonCardTotal = 0;
     if (app.transfer) {
       if (app.transfer.id) seen.add(app.transfer.id);
       total += Number(app.transfer.amount || 0);
@@ -117,7 +121,18 @@ export function ApplicationsPage() {
         }
       }
     }
-    return { total, currency };
+    if (Array.isArray(app.damages)) {
+      for (const dmg of app.damages) {
+        const amt = Number(dmg.amount || 0);
+        if (amt > 0) {
+          nonCardCount++;
+          nonCardTotal += amt;
+          total += amt;
+          if (dmg.currency && currency === 'UZS') currency = dmg.currency;
+        }
+      }
+    }
+    return { total, currency, nonCardCount, nonCardTotal };
   };
 
   const [page, setPage] = useState(1);
@@ -1249,20 +1264,27 @@ export function ApplicationsPage() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {(() => {
-                        const { total, currency } = getApplicationTotalLoss(app);
+                        const { total, currency, nonCardCount } = getApplicationTotalLoss(app);
                         if (total <= 0) {
                           return <span className="text-muted-foreground text-xs">—</span>;
                         }
                         return (
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
-                              total >= 50_000_000
-                                ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
-                                : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
-                            }`}
-                          >
-                            {new Intl.NumberFormat('uz-UZ').format(Math.round(total))} {currency}
-                          </span>
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
+                                total >= 50_000_000
+                                  ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
+                                  : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
+                              }`}
+                            >
+                              {new Intl.NumberFormat('uz-UZ').format(Math.round(total))} {currency}
+                            </span>
+                            {nonCardCount > 0 && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+                                Kredit/Nasiya: {nonCardCount} ta
+                              </span>
+                            )}
+                          </div>
                         );
                       })()}
                     </TableCell>

@@ -640,6 +640,34 @@ export interface ApplicationCustomField {
   order?: number | null;
 }
 
+export type ApplicationDamageType =
+  'ONLINE_CREDIT' | 'INSTALLMENT' | 'GOODS_SERVICE' | 'CASH_OTHER' | 'OTHER';
+
+export const APPLICATION_DAMAGE_TYPE_LABELS: Record<ApplicationDamageType, string> = {
+  ONLINE_CREDIT: 'Onlayn kredit / Mikroqarz',
+  INSTALLMENT: "Nasiya / Bo'lib to'lash",
+  GOODS_SERVICE: 'Tovar / Xizmat / Akkaunt aldovi',
+  CASH_OTHER: 'Naqd pul / Hisob raqam',
+  OTHER: 'Boshqa moddiy zarar',
+};
+
+export interface ApplicationDamage {
+  id: string;
+  application_id: string;
+  damage_type: ApplicationDamageType;
+  organization_name?: string | null;
+  bank_id?: string | null;
+  bank?: Bank | null;
+  payment_provider_id?: string | null;
+  payment_provider?: PaymentProvider | null;
+  amount: number | string;
+  currency: string;
+  contract_number?: string | null;
+  damage_date?: string | null;
+  description?: string | null;
+  order?: number;
+}
+
 export interface Application {
   id: string;
   application_number: string | null;
@@ -710,6 +738,7 @@ export interface Application {
   is_deleted?: boolean;
   suspect_tree?: SuspectTreeNode[] | null;
   custom_fields?: ApplicationCustomField[];
+  damages?: ApplicationDamage[];
   documents?: {
     id: string;
     title: string;
