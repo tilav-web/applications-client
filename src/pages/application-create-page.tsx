@@ -824,6 +824,10 @@ export function ApplicationCreatePage() {
       setDate(toLocalDateInputValue(initialApp.date));
     }
 
+    const initWp = initialApp.workplace || initialApp.citizen?.workplace || null;
+    setSelectedWorkplace(initWp);
+    setWorkPosition(initialApp.work_position || initialApp.citizen?.work_position || '');
+
     if (initialApp.citizen) {
       setSelectedCitizenId(initialApp.citizen.id);
       setCitizenDistrictId(
@@ -840,9 +844,6 @@ export function ApplicationCreatePage() {
       setOccupationId(
         initialApp.citizen.occupation_id || initialApp.citizen.occupation?.id || null,
       );
-      const initWp = initialApp.workplace || initialApp.citizen.workplace || null;
-      if (initWp) setSelectedWorkplace(initWp);
-      setWorkPosition(initialApp.work_position || initialApp.citizen.work_position || '');
       setCitizenForm({
         full_name: initialApp.citizen.full_name || '',
         passport: initialApp.citizen.passport || '',
@@ -1362,8 +1363,8 @@ export function ApplicationCreatePage() {
     mutationFn: async () => {
       const payload: Record<string, unknown> = {
         application_number: applicationNumber.trim() ? applicationNumber.trim() : null,
-        description: description || undefined,
-        officer_notes: officerNotes || undefined,
+        description: description.trim() ? description : null,
+        officer_notes: officerNotes.trim() ? officerNotes : null,
         suspect_tree: suspectTree,
         status,
         status_id: statusId || undefined,
@@ -1390,44 +1391,52 @@ export function ApplicationCreatePage() {
           repeatType === 'REPEAT' && isReviewTerminated ? terminationNote.trim() || null : null,
       };
 
-      // 1. Fuqaro
+      // 1. Fuqaro (tahrirlashda maydon tozalansa null yuboriladi, ajratilsa eski fuqaro ustidan yozilmaydi)
+      const emptyVal = selectedCitizenId ? null : undefined;
       const citizenDataObj: Record<string, unknown> = {
-        full_name: citizenForm.full_name ? formatUzbekName(citizenForm.full_name) : undefined,
+        full_name: citizenForm.full_name.trim() ? formatUzbekName(citizenForm.full_name) : emptyVal,
         passport:
           citizenForm.passport && citizenForm.passport.trim() !== ''
             ? citizenForm.passport.trim().toUpperCase()
-            : undefined,
-        phone_number: citizenForm.phone_number || undefined,
+            : emptyVal,
+        phone_number: citizenForm.phone_number.trim() ? citizenForm.phone_number : emptyVal,
         pinfl:
           citizenForm.pinfl && citizenForm.pinfl.trim() !== ''
             ? citizenForm.pinfl.trim()
-            : undefined,
-        birth_date: citizenForm.birth_date || undefined,
-        gender: citizenForm.gender || undefined,
-        address: citizenForm.address || undefined,
-        district_id: citizenDistrictId || undefined,
-        neighborhood_id: citizenMahallaId || undefined,
+            : emptyVal,
+        birth_date: citizenForm.birth_date || emptyVal,
+        gender: citizenForm.gender || emptyVal,
+        address: citizenForm.address.trim() ? citizenForm.address : emptyVal,
+        district_id: citizenDistrictId || emptyVal,
+        neighborhood_id: citizenMahallaId || emptyVal,
         occupation_category_id: occupationCategoryId || null,
         occupation_id: occupationId || null,
       };
 
-      if (selectedCitizenId) {
-        payload.citizen_id = selectedCitizenId;
-        payload.citizen_data = citizenDataObj;
-      } else if (
-        citizenForm.full_name ||
-        citizenForm.phone_number ||
-        citizenForm.passport ||
-        citizenForm.pinfl ||
+      const hasAnyCitizenInput = Boolean(
+        citizenForm.full_name.trim() ||
+        citizenForm.phone_number.trim() ||
+        citizenForm.passport.trim() ||
+        citizenForm.pinfl.trim() ||
         citizenForm.birth_date ||
         citizenForm.gender ||
         citizenDistrictId ||
         citizenMahallaId ||
-        citizenForm.address ||
+        citizenForm.address.trim() ||
         occupationCategoryId ||
-        occupationId
-      ) {
+        occupationId,
+      );
+
+      if (selectedCitizenId) {
+        payload.citizen_id = selectedCitizenId;
         payload.citizen_data = citizenDataObj;
+      } else {
+        if (id) {
+          payload.citizen_id = null;
+        }
+        if (hasAnyCitizenInput) {
+          payload.citizen_data = citizenDataObj;
+        }
       }
 
       // 1.5. Ish joyi / Tashkilot va lavozimi (Snapshot + Citizen profili)
@@ -1438,19 +1447,25 @@ export function ApplicationCreatePage() {
       if (selectedDistrictId) {
         payload.district_id = selectedDistrictId;
       } else if (districtForm.name.trim()) {
+        if (id) payload.district_id = null;
         payload.district_data = {
           name: districtForm.name.trim(),
         };
+      } else if (id) {
+        payload.district_id = null;
       }
 
       // 3. Jinoyat turi
       if (selectedCrimeId) {
         payload.crime_id = selectedCrimeId;
       } else if (crimeForm.article.trim()) {
+        if (id) payload.crime_id = null;
         payload.crime_data = {
           article: crimeForm.article.trim(),
           title: crimeForm.article.trim(),
         };
+      } else if (id) {
+        payload.crime_id = null;
       }
       payload.crime_method_id = selectedCrimeMethodId || null;
 
@@ -1464,9 +1479,17 @@ export function ApplicationCreatePage() {
       }
 
       // 4. Moliyaviy Zarar / Karta va O'tkazmalar
-      const activeMethodFieldKeys = new Set(activeMethodFields.map((mf) => mf.key || mf.label));
+      const allKnownMethodFieldKeys = new Set<string>(
+        activeMethodFields.map((mf) => mf.key || mf.label),
+      );
+      for (const m of allCrimeMethods) {
+        for (const f of m.fields || []) {
+          const fk = f.key || f.label;
+          if (fk) allKnownMethodFieldKeys.add(fk);
+        }
+      }
       const allCustomFields = customFields.filter(
-        (cf) => !cf.key || !activeMethodFieldKeys.has(cf.key),
+        (cf) => !cf.key || !allKnownMethodFieldKeys.has(cf.key),
       );
 
       for (const mf of activeMethodFields) {
