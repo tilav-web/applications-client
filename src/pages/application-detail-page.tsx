@@ -55,6 +55,7 @@ import {
   getFileViewUrl,
   type UploadedFile,
 } from '@/lib/api';
+import { useDossierTrail } from '@/lib/dossier-navigation';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import {
@@ -120,6 +121,29 @@ export function ApplicationDetailPage() {
     staleTime: 0,
     refetchOnMount: 'always',
   });
+
+  const currentTrailItem = useMemo(
+    () => ({
+      label: `Ariza № ${app?.application_number || '...'}`,
+      to: `/applications/${id}`,
+      kind: 'application' as const,
+    }),
+    [app?.application_number, id],
+  );
+
+  const fallbackTrailRoot = useMemo(
+    () => ({
+      label: 'Arizalar ro‘yxati',
+      to: '/applications',
+      kind: 'applications' as const,
+    }),
+    [],
+  );
+
+  const { previousItem, navigateWithTrail, goBack } = useDossierTrail(
+    fallbackTrailRoot,
+    currentTrailItem,
+  );
 
   // 2. Delete Mutation
   const deleteMutation = useMutation({
@@ -501,11 +525,11 @@ export function ApplicationDetailPage() {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/applications')}
+          onClick={goBack}
           className="gap-2 text-muted-foreground hover:text-foreground cursor-pointer -ml-2 self-start"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Arizalar ro‘yxatiga qaytish</span>
+          <span>Orqaga: {previousItem.label}</span>
         </Button>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -550,7 +574,7 @@ export function ApplicationDetailPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/applications/${app.id}/relations`)}
+            onClick={() => navigateWithTrail(`/applications/${app.id}/relations`)}
             className="h-9 px-3 text-xs gap-1.5 border-border/80 hover:bg-muted font-medium cursor-pointer"
             title="Mazkur arizaning boshqa arizalar bilan bog'liqliklarini ko'rish"
           >
@@ -945,7 +969,7 @@ export function ApplicationDetailPage() {
             {app.citizen ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs min-w-0">
                 <div
-                  onClick={() => navigate(`/citizens/${app.citizen!.id}`)}
+                  onClick={() => navigateWithTrail(`/citizens/${app.citizen!.id}`)}
                   className="p-3 rounded-xl bg-muted/30 border border-border/50 hover:border-primary/50 hover:bg-primary/5 sm:col-span-2 flex flex-wrap items-center justify-between gap-2 cursor-pointer transition-all group min-w-0"
                 >
                   <div className="min-w-0">

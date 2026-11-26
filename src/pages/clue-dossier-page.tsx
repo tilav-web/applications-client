@@ -1,27 +1,38 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
-  ArrowLeft,
+  ExternalLink,
   Eye,
   FileSpreadsheet,
   FileText,
   Fingerprint,
   GitBranch,
-  Layers,
   Loader2,
   Phone,
   RefreshCw,
   Sparkles,
-  TrendingUp,
   User,
   UserCheck,
 } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
 import { EntityNetworkGraph } from '@/components/graph/entity-network-graph';
 import { BindToCitizenDialog } from '@/components/intelligence/bind-to-citizen-dialog';
 import { DossierAnalyticsSection } from '@/components/intelligence/dossier-analytics-section';
+import {
+  DossierQuickDrawer,
+  type QuickDrawerTarget,
+} from '@/components/intelligence/dossier-quick-drawer';
+import {
+  CollapsibleInsightPanel,
+  DossierMetricStrip,
+  type DossierNavSection,
+  DossierSectionNav,
+  DossierTopBar,
+  RoleVerdictBanner,
+  SectionHeading,
+} from '@/components/intelligence/dossier-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,33 +45,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { intelligenceApi } from '@/lib/api';
+import {
+  buildClueVerdict,
+  formatDossierDate,
+  formatDossierMoney,
+  formatDossierPhone,
+  getRoleMeta,
+  useDossierTrail,
+} from '@/lib/dossier-navigation';
 import { getErrorMessage } from '@/lib/error';
-
-const formatMoney = (val?: number | null, cur = 'UZS') =>
-  `${new Intl.NumberFormat('uz-UZ').format(Math.round(Number(val || 0)))} ${cur}`;
-
-const formatDate = (d?: string | null) => {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('uz-UZ', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return d;
-  }
-};
 
 export function ClueDossierPage() {
   const { type, id } = useParams<{ type: 'phone' | 'identifier'; id: string }>();
-  const navigate = useNavigate();
 
   const entityType: 'phone' | 'identifier' = type === 'phone' ? 'phone' : 'identifier';
   const [bindOpen, setBindOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<'excel' | 'docx' | null>(null);
+  const [drawerTarget, setDrawerTarget] = useState<QuickDrawerTarget | null>(null);
 
   const {
     data: dossier,
@@ -77,6 +79,36 @@ export function ClueDossierPage() {
         : intelligenceApi.getIdentifierDossier(id!),
     enabled: !!id,
   });
+
+  const isPhone = entityType === 'phone';
+  const mainTitle = isPhone
+    ? dossier?.phone?.formatted_number ||
+      formatDossierPhone(dossier?.phone?.phone_number) ||
+      'Telefon'
+    : dossier?.identifier?.raw_value || 'Raqamli iz';
+
+  const currentTrailItem = useMemo(
+    () => ({
+      label: mainTitle,
+      to: `/dossier/${entityType}/${id}`,
+      kind: entityType,
+    }),
+    [mainTitle, entityType, id],
+  );
+
+  const fallbackRoot = useMemo(
+    () => ({
+      label: 'Arizalar roʻyxati',
+      to: '/applications',
+      kind: 'applications' as const,
+    }),
+    [],
+  );
+
+  const { breadcrumbs, previousItem, navigateWithTrail, goBack, goToBreadcrumb } = useDossierTrail(
+    fallbackRoot,
+    currentTrailItem,
+  );
 
   const handleExport = async (format: 'excel' | 'docx') => {
     if (!id) return;
@@ -99,11 +131,25 @@ export function ClueDossierPage() {
     }
   };
 
+  const navSections = useMemo<DossierNavSection[]>(() => {
+    if (!dossier) return [];
+    return [
+      { id: 'sec-clue', step: 1, label: isPhone ? 'Telefon va Egasi' : 'Raqamli iz va Egasi' },
+      {
+        id: 'sec-apps',
+        step: 2,
+        label: 'Uchragan arizalar',
+        count: dossier.directApplications.length,
+      },
+      { id: 'sec-graph', step: 3, label: 'Graf va Statistika' },
+    ];
+  }, [dossier, isPhone]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground">360° Tahliliy Dosye yuklanmoqda...</p>
+        <p className="text-xs text-muted-foreground">Rekvizit dosyesi yuklanmoqda...</p>
       </div>
     );
   }
@@ -111,10 +157,12 @@ export function ClueDossierPage() {
   if (isError || !dossier) {
     return (
       <div className="p-6 max-w-xl mx-auto space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Orqaga qaytish
-        </Button>
+        <DossierTopBar
+          breadcrumbs={breadcrumbs}
+          backLabel={previousItem.label}
+          onBack={goBack}
+          onBreadcrumbClick={goToBreadcrumb}
+        />
         <Card className="border-rose-500/30 bg-rose-500/5">
           <CardContent className="p-6 text-center space-y-2">
             <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto" />
@@ -125,10 +173,6 @@ export function ClueDossierPage() {
     );
   }
 
-  const isPhone = entityType === 'phone';
-  const mainTitle = isPhone
-    ? dossier.phone?.formatted_number || `+${dossier.phone?.phone_number || ''}`
-    : dossier.identifier?.raw_value || 'Identifikator';
   const subTitle = isPhone
     ? `Aloqa operatori: ${dossier.phone?.operator || 'Nomaʼlum'}`
     : `Turi: ${dossier.identifier?.type_label || dossier.identifier?.type || 'Raqamli iz'}`;
@@ -136,206 +180,195 @@ export function ClueDossierPage() {
   const owner = dossier.citizen;
   const ownerName = owner?.full_name?.trim() || null;
   const stats = dossier.stats;
+  const verdict = buildClueVerdict(stats, isPhone ? 'Telefon raqami' : 'Raqamli iz');
 
   return (
-    <div className="w-full space-y-6 pb-12">
-      {/* Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="gap-2 -ml-2 cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Orqaga qaytish</span>
-        </Button>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="h-8 text-xs gap-1.5 cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            Yangilash
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('excel')}
-            disabled={exportingFormat !== null}
-            className="h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-600 cursor-pointer"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            Excel Dosye
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('docx')}
-            disabled={exportingFormat !== null}
-            className="h-8 text-xs gap-1.5 border-blue-500/40 text-blue-600 cursor-pointer"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Word Maʼlumotnoma
-          </Button>
-        </div>
-      </div>
-
-      {/* Header Card */}
-      <Card className="py-0 gap-0 border-border/80 bg-card/70 backdrop-blur-md min-w-0 overflow-hidden">
-        <CardContent className="p-4 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4 min-w-0">
-          <div className="flex items-start gap-3.5 sm:gap-4 min-w-0">
-            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-purple-500/15 border-2 border-purple-500/40 text-purple-500 flex items-center justify-center shrink-0">
-              {isPhone ? (
-                <Phone className="h-6 w-6 sm:h-7 sm:w-7" />
-              ) : (
-                <Fingerprint className="h-6 w-6 sm:h-7 sm:w-7" />
-              )}
-            </div>
-
-            <div className="space-y-1.5 min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2 min-w-0">
-                <h1 className="text-lg sm:text-2xl font-extrabold font-mono text-foreground break-all">
-                  {mainTitle}
-                </h1>
-                <Badge
-                  className={
-                    stats.suspectOrDropperAppsCount > 0
-                      ? 'bg-rose-500/15 text-rose-600 border-rose-500/30 font-bold'
-                      : 'bg-blue-500/15 text-blue-600 border-blue-500/30'
-                  }
-                >
-                  Xavf: {stats.riskScore}%
-                </Badge>
-                <span
-                  className={`text-xs font-semibold break-words ${
-                    stats.suspectOrDropperAppsCount > 0
-                      ? 'text-rose-600 dark:text-rose-400'
-                      : 'text-blue-600 dark:text-blue-400'
-                  }`}
-                >
-                  {stats.riskLabel}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground break-words">
-                <span>{subTitle}</span>
-                {owner ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/citizens/${owner.id}`)}
-                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline cursor-pointer break-words text-left"
-                  >
-                    <User className="h-3.5 w-3.5 shrink-0" />
-                    <span>Egasi: {ownerName} ➔</span>
-                  </button>
-                ) : (
-                  <Badge variant="outline" className="text-amber-600 border-amber-500/30">
-                    Egasi hali shaxsga biriktirilmagan
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {dossier.canMutate && (
+    <div className="w-full space-y-6 pb-16">
+      {/* Yuqori Breadcrumb va Amallar */}
+      <DossierTopBar
+        breadcrumbs={breadcrumbs}
+        backLabel={previousItem.label}
+        onBack={goBack}
+        onBreadcrumbClick={goToBreadcrumb}
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setBindOpen(true)}
-              className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer self-start xl:self-auto"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-8 text-xs gap-1.5 cursor-pointer"
             >
-              <UserCheck className="h-3.5 w-3.5 text-primary" />
-              {owner ? 'Boshqa fuqaroga oʻtkazish' : 'Fuqaroga biriktirish'}
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+              Yangilash
             </Button>
-          )}
-        </CardContent>
-      </Card>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('excel')}
+              disabled={exportingFormat !== null}
+              className="h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-600 cursor-pointer"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('docx')}
+              disabled={exportingFormat !== null}
+              className="h-8 text-xs gap-1.5 border-blue-500/40 text-blue-600 cursor-pointer"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Word
+            </Button>
+          </>
+        }
+      />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Uchragan Arizalar
-              </p>
-              <p className="text-2xl font-extrabold font-mono mt-0.5">{stats.totalApplications}</p>
+      {/* Sticky Navigatsiya */}
+      <DossierSectionNav sections={navSections} />
+
+      {/* ===================================================================== */}
+      {/* 1-BO'LIM: REKVIZIT PASPORTI, EGASI VA ROL HUKMI                       */}
+      {/* ===================================================================== */}
+      <section id="sec-clue" className="scroll-mt-20 space-y-4">
+        <Card className="py-0 gap-0 border-border/80 bg-card/70 overflow-hidden">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
+              <div className="flex items-start gap-3.5 min-w-0">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-purple-500/15 border-2 border-purple-500/40 text-purple-500 flex items-center justify-center shrink-0">
+                  {isPhone ? (
+                    <Phone className="h-6 w-6 sm:h-7 sm:w-7" />
+                  ) : (
+                    <Fingerprint className="h-6 w-6 sm:h-7 sm:w-7" />
+                  )}
+                </div>
+
+                <div className="space-y-1 min-w-0">
+                  <h1 className="text-lg sm:text-2xl font-extrabold font-mono text-foreground break-all">
+                    {mainTitle}
+                  </h1>
+                  <p className="text-xs text-muted-foreground">{subTitle}</p>
+                </div>
+              </div>
+
+              {dossier.canMutate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBindOpen(true)}
+                  className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer self-start"
+                >
+                  <UserCheck className="h-3.5 w-3.5 text-primary" />
+                  {owner ? 'Boshqa fuqaroga oʻtkazish' : 'Fuqaroga biriktirish'}
+                </Button>
+              )}
             </div>
-            <Layers className="h-8 w-8 text-primary opacity-75 shrink-0" />
+
+            {/* Egasi (Fuqaro) */}
+            {owner ? (
+              <div className="p-3.5 rounded-xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-primary block">
+                      Rekvizit egasi (Fuqaro)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigateWithTrail(`/citizens/${owner.id}`)}
+                      className="text-sm font-extrabold text-foreground hover:text-primary hover:underline cursor-pointer text-left truncate block"
+                    >
+                      {ownerName}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDrawerTarget({ type: 'citizen', id: owner.id })}
+                    className="h-7 text-xs gap-1 cursor-pointer"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Tez koʻrish
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => navigateWithTrail(`/citizens/${owner.id}`)}
+                    className="h-7 text-xs gap-1 cursor-pointer"
+                  >
+                    <span>Fuqaro dosyesi</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 text-xs text-amber-700 dark:text-amber-300">
+                Ushbu rekvizit egasi hali bazadagi fuqaro profiliga biriktirilmagan.
+              </div>
+            )}
+
+            <RoleVerdictBanner verdict={verdict} riskScore={stats.riskScore} />
           </CardContent>
         </Card>
 
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Jami Bogʻliq Zarar
-              </p>
-              <p className="text-lg sm:text-xl font-extrabold font-mono text-rose-500 mt-0.5 break-words">
-                {formatMoney(stats.totalLossInLinkedApps)}
-              </p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-rose-500 opacity-75 shrink-0" />
-          </CardContent>
-        </Card>
+        <DossierMetricStrip
+          items={[
+            {
+              label: 'Uchragan arizalar',
+              value: `${stats.totalApplications} ta`,
+              sub: 'Jami bogʻlangan ishlar',
+            },
+            {
+              label: 'Bogʻliq zarar',
+              value: formatDossierMoney(stats.totalLossInLinkedApps),
+              sub: 'Arizalar yigʻindisi',
+              tone: 'danger',
+            },
+            {
+              label: 'Birga uchragan izlar',
+              value: `${dossier.coOccurringClues.length} ta`,
+              sub: 'Aloqador karta va niklar',
+              tone: 'info',
+            },
+            {
+              label: 'Gumonlanuvchi ishlari',
+              value: `${stats.suspectOrDropperAppsCount} ta`,
+              sub: `Jabrlanuvchi: ${stats.victimAppsCount} ta`,
+            },
+          ]}
+        />
+      </section>
 
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Birga Uchragan Rekvizitlar
-              </p>
-              <p className="text-2xl font-extrabold font-mono mt-0.5">
-                {dossier.coOccurringClues.length}
-              </p>
-            </div>
-            <Fingerprint className="h-8 w-8 text-purple-500 opacity-75 shrink-0" />
-          </CardContent>
-        </Card>
-      </div>
+      {/* ===================================================================== */}
+      {/* 2-BO'LIM: UCHRAGAN ARIZALAR                                           */}
+      {/* ===================================================================== */}
+      <section id="sec-apps" className="scroll-mt-20 space-y-4">
+        <SectionHeading
+          step={2}
+          title="Ushbu rekvizit uchragan arizalar"
+          subtitle="Rekvizit qayd etilgan barcha murojaatlar"
+          count={dossier.directApplications.length}
+          icon={<FileText className="h-4 w-4 text-primary" />}
+        />
 
-      {/* Tabs */}
-      <Tabs defaultValue="graph" className="w-full space-y-4">
-        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-          <TabsTrigger value="graph" className="text-xs gap-1.5 cursor-pointer">
-            <GitBranch className="h-3.5 w-3.5" />
-            Bogʻliqliklar Xaritasi
-          </TabsTrigger>
-          <TabsTrigger value="applications" className="text-xs gap-1.5 cursor-pointer">
-            <FileText className="h-3.5 w-3.5" />
-            Uchragan Arizalar ({dossier.directApplications.length})
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs gap-1.5 cursor-pointer">
-            <Sparkles className="h-3.5 w-3.5" />
-            Mikro-Statistika & Aloqador Rekvizitlar
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="graph">
-          <EntityNetworkGraph
-            networkGraph={dossier.networkGraph}
-            financialGraph={dossier.financialGraph}
-            defaultMode="network"
-          />
-        </TabsContent>
-
-        <TabsContent value="applications">
-          <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+        <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/20">
                   <TableHead>Ariza №</TableHead>
                   <TableHead>Jabrlanuvchi</TableHead>
                   <TableHead>Roli</TableHead>
                   <TableHead>Tuman</TableHead>
-                  <TableHead>Zarar Summasi</TableHead>
+                  <TableHead>Zarar summasi</TableHead>
                   <TableHead>Sana</TableHead>
-                  <TableHead className="text-right">Koʻrish</TableHead>
+                  <TableHead className="text-right">Oʻtish</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -349,53 +382,108 @@ export function ClueDossierPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  dossier.directApplications.map((app) => (
-                    <TableRow
-                      key={app.id}
-                      onClick={() => navigate(`/applications/${app.id}`)}
-                      className="cursor-pointer hover:bg-muted/40"
-                    >
-                      <TableCell className="font-mono font-bold text-primary">
-                        № {app.application_number}
-                      </TableCell>
-                      <TableCell className="text-xs">{app.victim_name || '—'}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            app.role_in_app === 'SUSPECT'
-                              ? 'bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px]'
-                              : 'bg-blue-500/15 text-blue-600 border-blue-500/30 text-[10px]'
-                          }
-                        >
-                          {app.role_in_app}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{app.district_name || '—'}</TableCell>
-                      <TableCell className="font-mono font-bold text-rose-500 text-xs">
-                        {formatMoney(app.transfer_amount, app.currency)}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatDate(app.date)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Eye className="h-4 w-4 ml-auto text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  dossier.directApplications.map((app) => {
+                    const roleMeta = getRoleMeta(app.role_in_app);
+                    return (
+                      <TableRow
+                        key={app.id}
+                        onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                        className="cursor-pointer hover:bg-muted/40 text-xs"
+                      >
+                        <TableCell className="font-mono font-bold text-primary whitespace-nowrap">
+                          № {app.application_number}
+                        </TableCell>
+                        <TableCell>{app.victim_name || '—'}</TableCell>
+                        <TableCell>
+                          <Badge className={`text-[11px] ${roleMeta.badgeClass}`}>
+                            {roleMeta.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{app.district_name || '—'}</TableCell>
+                        <TableCell className="font-mono font-bold text-rose-500 whitespace-nowrap">
+                          {formatDossierMoney(app.transfer_amount, app.currency)}
+                        </TableCell>
+                        <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
+                          {formatDossierDate(app.date)}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                              className="h-7 w-7 p-0 cursor-pointer"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigateWithTrail(`/applications/${app.id}`)}
+                              className="h-7 w-7 p-0 text-primary cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
-          </Card>
-        </TabsContent>
+          </div>
+        </Card>
+      </section>
 
-        <TabsContent value="analytics">
+      {/* ===================================================================== */}
+      {/* 3-BO'LIM: GRAFIK SXEMA VA MIKRO-STATISTIKA (YIG'ILGAN HOLDA)          */}
+      {/* ===================================================================== */}
+      <section id="sec-graph" className="scroll-mt-20 space-y-3">
+        <SectionHeading
+          step={3}
+          title="Grafik sxema va mikro-statistika"
+          subtitle="Bogʻliqliklar xaritasi va birga uchragan boshqa rekvizitlar"
+          icon={<GitBranch className="h-4 w-4 text-primary" />}
+        />
+
+        <CollapsibleInsightPanel
+          title="Bogʻliqliklar grafigi"
+          subtitle="Ushbu rekvizit bilan bogʻlangan barcha shaxslar va arizalar xaritada"
+          icon={<GitBranch className="h-4 w-4" />}
+          badgeText={`${dossier.networkGraph?.nodes.length || 0} ta tugun`}
+          defaultOpen={false}
+        >
+          <EntityNetworkGraph
+            networkGraph={dossier.networkGraph}
+            financialGraph={dossier.financialGraph}
+            defaultMode="network"
+          />
+        </CollapsibleInsightPanel>
+
+        <CollapsibleInsightPanel
+          title="Mikro-statistika va birga uchragan rekvizitlar"
+          subtitle="Hududlar kesimi, vaqt faolligi va aloqador kartalar/niklar"
+          icon={<Sparkles className="h-4 w-4" />}
+          badgeText={`${dossier.coOccurringClues.length} rekvizit`}
+          defaultOpen={false}
+        >
           <DossierAnalyticsSection
             stats={dossier.stats}
             coOccurringClues={dossier.coOccurringClues}
             evidenceFiles={dossier.evidenceFiles}
           />
-        </TabsContent>
-      </Tabs>
+        </CollapsibleInsightPanel>
+      </section>
+
+      {/* Tezkor Yon Oyna */}
+      <DossierQuickDrawer
+        target={drawerTarget}
+        onClose={() => setDrawerTarget(null)}
+        trail={breadcrumbs}
+      />
 
       <BindToCitizenDialog
         open={bindOpen}

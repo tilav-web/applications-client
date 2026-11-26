@@ -1,38 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
-  ArrowDownLeft,
-  ArrowLeft,
   ArrowRight,
   ArrowRightLeft,
-  ArrowUpRight,
-  Building2,
   CheckCircle2,
   CreditCard,
+  ExternalLink,
   Eye,
   FileSpreadsheet,
   FileText,
   Fingerprint,
   GitBranch,
-  Layers,
   Link2,
   Loader2,
   MapPin,
   Phone,
   Plus,
   RefreshCw,
-  ShieldAlert,
   Sparkles,
   Trash2,
-  TrendingUp,
   User,
 } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
 import { EntityNetworkGraph } from '@/components/graph/entity-network-graph';
+import { CitizenCardsBreakdown } from '@/components/intelligence/citizen-cards-breakdown';
 import { CitizenDetectedCrimesCard } from '@/components/intelligence/citizen-detected-crimes-card';
 import { DossierAnalyticsSection } from '@/components/intelligence/dossier-analytics-section';
+import {
+  DossierQuickDrawer,
+  type QuickDrawerTarget,
+} from '@/components/intelligence/dossier-quick-drawer';
+import {
+  CollapsibleInsightPanel,
+  DossierMetricStrip,
+  type DossierNavSection,
+  DossierSectionNav,
+  DossierTopBar,
+  RoleVerdictBanner,
+  SectionHeading,
+} from '@/components/intelligence/dossier-shell';
 import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
 import { TransitTransferDialog } from '@/components/intelligence/transit-transfer-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -56,39 +64,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { applicationsApi, banksApi, intelligenceApi, suspectFieldConfigsApi } from '@/lib/api';
+import {
+  buildCitizenVerdict,
+  formatDossierDate,
+  formatDossierMoney,
+  formatDossierPhone,
+  getRoleMeta,
+  isDangerRole,
+  useDossierTrail,
+} from '@/lib/dossier-navigation';
 import { getErrorMessage } from '@/lib/error';
 import type { EntityLinkRole } from '@/types/models';
 
-const formatMoney = (val?: number | null, cur = 'UZS') =>
-  `${new Intl.NumberFormat('uz-UZ').format(Math.round(Number(val || 0)))} ${cur}`;
-
-const formatDate = (d?: string | null) => {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('uz-UZ', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return d;
-  }
-};
-
-const formatCard = (num?: string | null, masked?: string | null) => {
-  const clean = (num || '').replace(/\D/g, '');
-  if (clean.length === 16) {
-    return `${clean.slice(0, 4)} ${clean.slice(4, 8)} ${clean.slice(8, 12)} ${clean.slice(12, 16)}`;
-  }
-  return masked || num || '—';
-};
+type AppRoleFilter = 'ALL' | 'VICTIM' | 'DANGER' | 'OTHER';
 
 export function CitizenDossierPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const [drawerTarget, setDrawerTarget] = useState<QuickDrawerTarget | null>(null);
+  const [roleFilter, setRoleFilter] = useState<AppRoleFilter>('ALL');
 
   const [addPhoneOpen, setAddPhoneOpen] = useState(false);
   const [phoneForm, setPhoneForm] = useState({
@@ -150,6 +146,31 @@ export function CitizenDossierPage() {
     queryFn: () => applicationsApi.getAll({ page: 1, limit: 50 }),
     enabled: linkAppOpen,
   });
+
+  const fullName = dossier?.citizen?.full_name?.trim() || 'Fuqaro';
+
+  const currentTrailItem = useMemo(
+    () => ({
+      label: fullName,
+      to: `/citizens/${id}`,
+      kind: 'citizen' as const,
+    }),
+    [fullName, id],
+  );
+
+  const fallbackRoot = useMemo(
+    () => ({
+      label: 'Fuqarolar bazasi',
+      to: '/citizens',
+      kind: 'citizens' as const,
+    }),
+    [],
+  );
+
+  const { breadcrumbs, previousItem, navigateWithTrail, goBack, goToBreadcrumb } = useDossierTrail(
+    fallbackRoot,
+    currentTrailItem,
+  );
 
   const invalidateAll = async () => {
     await Promise.all([
@@ -283,11 +304,65 @@ export function CitizenDossierPage() {
     }
   };
 
+  const filteredApplications = useMemo(() => {
+    const apps = dossier?.directApplications || [];
+    if (roleFilter === 'ALL') return apps;
+    if (roleFilter === 'DANGER') return apps.filter((a) => isDangerRole(a.role_in_app));
+    if (roleFilter === 'VICTIM') return apps.filter((a) => a.role_in_app === 'VICTIM');
+    return apps.filter((a) => a.role_in_app !== 'VICTIM' && !isDangerRole(a.role_in_app));
+  }, [dossier?.directApplications, roleFilter]);
+
+  const roleCounts = useMemo(() => {
+    const apps = dossier?.directApplications || [];
+    return {
+      all: apps.length,
+      victim: apps.filter((a) => a.role_in_app === 'VICTIM').length,
+      danger: apps.filter((a) => isDangerRole(a.role_in_app)).length,
+      other: apps.filter((a) => a.role_in_app !== 'VICTIM' && !isDangerRole(a.role_in_app)).length,
+    };
+  }, [dossier?.directApplications]);
+
+  const navSections = useMemo<DossierNavSection[]>(() => {
+    if (!dossier) return [];
+    const cluesCount = dossier.ownedPhones.length + dossier.ownedIdentifiers.length;
+    return [
+      {
+        id: 'sec-profile',
+        step: 1,
+        label: 'Shaxs va Rol',
+        alert: dossier.stats.isCrossRoleCollision || dossier.stats.suspectOrDropperAppsCount > 0,
+      },
+      {
+        id: 'sec-apps',
+        step: 2,
+        label: 'Arizalar',
+        count: dossier.directApplications.length + dossier.multiHopChains.length,
+      },
+      {
+        id: 'sec-cards',
+        step: 3,
+        label: 'Kartalar va Oʻtkazmalar',
+        count: dossier.ownedCards.length,
+      },
+      {
+        id: 'sec-clues',
+        step: 4,
+        label: 'Telefon va Izlar',
+        count: cluesCount,
+      },
+      {
+        id: 'sec-graph',
+        step: 5,
+        label: 'Graf va Statistika',
+      },
+    ];
+  }, [dossier]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground">Fuqaro 360° tahliliy dosyesi yuklanmoqda...</p>
+        <p className="text-xs text-muted-foreground">Fuqaro bogʻliqlik dosyesi yuklanmoqda...</p>
       </div>
     );
   }
@@ -295,10 +370,12 @@ export function CitizenDossierPage() {
   if (isError || !dossier || !dossier.citizen) {
     return (
       <div className="p-6 max-w-xl mx-auto space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/citizens')} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Fuqarolar roʻyxatiga qaytish
-        </Button>
+        <DossierTopBar
+          breadcrumbs={breadcrumbs}
+          backLabel={previousItem.label}
+          onBack={goBack}
+          onBreadcrumbClick={goToBreadcrumb}
+        />
         <Card className="border-rose-500/30 bg-rose-500/5">
           <CardContent className="p-6 text-center space-y-3">
             <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto" />
@@ -311,545 +388,278 @@ export function CitizenDossierPage() {
 
   const cit = dossier.citizen;
   const stats = dossier.stats;
-  const fullName = cit.full_name?.trim() || 'Ismsiz fuqaro';
+  const verdict = buildCitizenVerdict(stats);
+  const hasMultipleRoles =
+    [roleCounts.victim > 0, roleCounts.danger > 0, roleCounts.other > 0].filter(Boolean).length > 1;
 
   return (
-    <div className="w-full space-y-6 pb-12">
-      {/* Yuqori Navigatsiya va Eksport Tugmalari */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/citizens')}
-          className="gap-2 -ml-2 cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Fuqarolar bazasiga qaytish</span>
-        </Button>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="h-8 text-xs gap-1.5 cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            Yangilash
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('excel')}
-            disabled={exportingFormat !== null}
-            className="h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 cursor-pointer"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            Excel Dosye
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('docx')}
-            disabled={exportingFormat !== null}
-            className="h-8 text-xs gap-1.5 border-blue-500/40 text-blue-600 dark:text-blue-400 cursor-pointer"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Word Maʼlumotnoma
-          </Button>
-        </div>
-      </div>
-
-      {/* Shaxsiy Pasport / Dosye Sarlavha Bloki */}
-      <Card className="py-0 gap-0 border-border/80 bg-card/70 backdrop-blur-md overflow-hidden min-w-0">
-        <CardContent className="p-4 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4 min-w-0">
-          <div className="flex items-start gap-3.5 sm:gap-4 min-w-0">
-            <div
-              className={`h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center shrink-0 border-2 ${
-                stats.riskLevel === 'CRITICAL' || stats.riskLevel === 'HIGH'
-                  ? 'bg-rose-500/15 border-rose-500 text-rose-500'
-                  : 'bg-primary/15 border-primary/40 text-primary'
-              }`}
+    <div className="w-full space-y-6 pb-16">
+      {/* Yuqori Breadcrumb va Eksport Tugmalari */}
+      <DossierTopBar
+        breadcrumbs={breadcrumbs}
+        backLabel={previousItem.label}
+        onBack={goBack}
+        onBreadcrumbClick={goToBreadcrumb}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-8 text-xs gap-1.5 cursor-pointer"
             >
-              <User className="h-6 w-6 sm:h-7 sm:w-7" />
-            </div>
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+              Yangilash
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('excel')}
+              disabled={exportingFormat !== null}
+              className="h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 cursor-pointer"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('docx')}
+              disabled={exportingFormat !== null}
+              className="h-8 text-xs gap-1.5 border-blue-500/40 text-blue-600 dark:text-blue-400 cursor-pointer"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Word
+            </Button>
+          </>
+        }
+      />
 
-            <div className="space-y-1.5 min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2 min-w-0">
-                <h1 className="text-lg sm:text-2xl font-extrabold tracking-tight text-foreground break-words">
-                  {fullName}
-                </h1>
-                <Badge
-                  className={
-                    stats.riskLevel === 'CRITICAL' || stats.riskLevel === 'HIGH'
-                      ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold'
-                      : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
-                  }
-                >
-                  Xavf: {stats.riskScore}%
-                </Badge>
-                <span
-                  className={`text-xs font-semibold break-words ${
-                    stats.riskLevel === 'CRITICAL' || stats.riskLevel === 'HIGH'
-                      ? 'text-rose-600 dark:text-rose-400'
-                      : 'text-blue-600 dark:text-blue-400'
+      {/* Sticky Tezkor Sakrash Paneli */}
+      <DossierSectionNav sections={navSections} />
+
+      {/* ===================================================================== */}
+      {/* 1-BO'LIM: SHAXS PASPORTI VA ANIQ ROL HUKMI                            */}
+      {/* ===================================================================== */}
+      <section id="sec-profile" className="scroll-mt-20 space-y-4">
+        <Card className="py-0 gap-0 border-border/80 bg-card/70 overflow-hidden">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
+              <div className="flex items-start gap-3.5 min-w-0">
+                <div
+                  className={`h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center shrink-0 border-2 ${
+                    verdict.tone === 'critical' || verdict.tone === 'danger'
+                      ? 'bg-rose-500/15 border-rose-500 text-rose-500'
+                      : 'bg-primary/15 border-primary/40 text-primary'
                   }`}
                 >
-                  {stats.riskLabel}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground font-mono break-words">
-                <span>
-                  Pasport: <strong className="text-foreground">{cit.passport || '—'}</strong>
-                </span>
-                <span>
-                  JSHSHIR: <strong className="text-foreground">{cit.pinfl || '—'}</strong>
-                </span>
-                {cit.birth_date && <span>T.Sana: {formatDate(cit.birth_date)}</span>}
-                {(cit.district?.name || cit.neighborhood?.name || cit.address) && (
-                  <span className="flex items-center gap-1 font-sans break-words">
-                    <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span>
-                      {[cit.district?.name, cit.neighborhood?.name, cit.address]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </span>
-                  </span>
-                )}
-                {(cit.occupation_category ||
-                  cit.occupation ||
-                  cit.workplace ||
-                  cit.work_position) && (
-                  <span className="inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
-                    <span>
-                      {[
-                        cit.occupation_category?.name,
-                        cit.occupation?.name,
-                        cit.workplace?.name,
-                        cit.work_position,
-                      ]
-                        .filter(Boolean)
-                        .join(' • ')}
-                    </span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {dossier.canMutate && (
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddCardOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
-              >
-                <CreditCard className="h-3.5 w-3.5 text-amber-500" />+ Karta biriktirish
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddPhoneOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
-              >
-                <Phone className="h-3.5 w-3.5 text-emerald-500" />+ Telefon qoʻshish
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddIdentOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
-              >
-                <Fingerprint className="h-3.5 w-3.5 text-purple-500" />+ Raqamli iz
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setTransitOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
-              >
-                <ArrowRightLeft className="h-3.5 w-3.5" />+ Oʻtkazma / Vipiska
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Aniqlangan Jinoyatlar / MJTK Tarixi */}
-      <CitizenDetectedCrimesCard citizenId={cit.id} />
-
-      {/* Ikki tomonlama rol (Cross-Role Collision) ogohlantirish banneri */}
-      {stats.isCrossRoleCollision && (
-        <div className="rounded-xl border border-rose-500/50 bg-rose-500/10 p-4 flex items-start gap-3 min-w-0 overflow-hidden">
-          <ShieldAlert className="h-6 w-6 text-rose-500 shrink-0 animate-pulse mt-0.5" />
-          <div className="text-xs sm:text-sm space-y-1 min-w-0">
-            <h4 className="font-bold text-rose-600 dark:text-rose-400 break-words">
-              Muhim Tergov Signali: Qarama-qarshi Rollar Toʻqnashuvi!
-            </h4>
-            <p className="text-muted-foreground break-words">
-              Ushbu shaxs <strong>{stats.victimAppsCount} ta arizada Jabrlanuvchi</strong> sifatida,
-              ammo boshqa{' '}
-              <strong>{stats.suspectOrDropperAppsCount} ta arizada Dropper / Gumonlanuvchi</strong>{' '}
-              sifatida qatnashgan!
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Ehtimoliy Mosliklar (Soft/Fuzzy Matches) — 1-klik bilan tasdiqlash */}
-      {dossier.probableMatches.length > 0 && (
-        <Card className="py-0 gap-0 border-amber-500/40 bg-amber-500/5 min-w-0 overflow-hidden">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-amber-700 dark:text-amber-400">
-              <Sparkles className="h-4 w-4 shrink-0" />
-              <span className="break-words">
-                Ehtimoliy Bogʻliqliklar Topildi ({dossier.probableMatches.length} ta — Tasdiqlash
-                kutilmoqda)
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-2 space-y-2.5 min-w-0">
-            {dossier.probableMatches.map((pm) => (
-              <div
-                key={pm.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-amber-500/30 bg-background/80 min-w-0 overflow-hidden"
-              >
-                <div className="space-y-0.5 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 min-w-0">
-                    <span
-                      onClick={() => navigate(pm.target_route)}
-                      className="font-mono font-bold text-sm text-primary hover:underline cursor-pointer break-all"
-                    >
-                      {pm.title}
-                    </span>
-                    <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
-                      {pm.confidence}% moslik
-                    </Badge>
-                    {pm.linked_apps_count > 0 && (
-                      <Badge variant="outline" className="text-[10px]">
-                        {pm.linked_apps_count} ta ariza · {formatMoney(pm.total_amount)}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground break-words">{pm.reason}</p>
+                  <User className="h-6 w-6 sm:h-7 sm:w-7" />
                 </div>
 
-                {dossier.canMutate && (
-                  <Button
-                    size="sm"
-                    onClick={() => confirmMatchMut.mutate(pm.confirm_action)}
-                    disabled={confirmMatchMut.isPending}
-                    className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer self-start sm:self-auto"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Tasdiqlash va biriktirish
-                  </Button>
-                )}
+                <div className="space-y-1.5 min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground break-words">
+                    {fullName}
+                  </h1>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground font-mono">
+                    {cit.phone_number && (
+                      <span className="inline-flex items-center gap-1 text-foreground font-semibold">
+                        <Phone className="h-3.5 w-3.5 text-primary" />
+                        {formatDossierPhone(cit.phone_number)}
+                      </span>
+                    )}
+                    <span>
+                      Pasport: <strong className="text-foreground">{cit.passport || '—'}</strong>
+                    </span>
+                    <span>
+                      JSHSHIR: <strong className="text-foreground">{cit.pinfl || '—'}</strong>
+                    </span>
+                    {cit.birth_date && <span>T.sana: {formatDossierDate(cit.birth_date)}</span>}
+                  </div>
+
+                  {(cit.district?.name ||
+                    cit.neighborhood?.name ||
+                    cit.address ||
+                    cit.occupation_category ||
+                    cit.occupation ||
+                    cit.workplace ||
+                    cit.work_position) && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      {(cit.district?.name || cit.neighborhood?.name || cit.address) && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                          {[cit.district?.name, cit.neighborhood?.name, cit.address]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </span>
+                      )}
+                      {(cit.occupation_category ||
+                        cit.occupation ||
+                        cit.workplace ||
+                        cit.work_position) && (
+                        <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                          {[
+                            cit.occupation_category?.name,
+                            cit.occupation?.name,
+                            cit.workplace?.name,
+                            cit.work_position,
+                          ]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* 4 ta Asosiy KPI Kartochkalari */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Bogʻliq Arizalar
-              </p>
-              <p className="text-2xl font-extrabold font-mono mt-0.5">{stats.totalApplications}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
-                Jabr.: {stats.victimAppsCount} · Gumon/Drop.: {stats.suspectOrDropperAppsCount}
-              </p>
-            </div>
-            <Layers className="h-8 w-8 text-primary opacity-75 shrink-0" />
-          </CardContent>
-        </Card>
-
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Arizalardagi Zarar
-              </p>
-              <p className="text-lg sm:text-xl font-extrabold font-mono text-rose-500 mt-0.5 break-words">
-                {formatMoney(stats.totalLossInLinkedApps)}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
-                Zanjirli: {dossier.multiHopChains.length} ta qoʻshimcha ish
-              </p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-rose-500 opacity-75 shrink-0" />
-          </CardContent>
-        </Card>
-
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Kartalarga Kirim
-              </p>
-              <p className="text-lg sm:text-xl font-extrabold font-mono text-emerald-600 mt-0.5 break-words">
-                {formatMoney(stats.totalIncomingAmount)}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
-                Chiqim: {formatMoney(stats.totalOutgoingAmount)}
-              </p>
-            </div>
-            <ArrowDownLeft className="h-8 w-8 text-emerald-500 opacity-75 shrink-0" />
-          </CardContent>
-        </Card>
-
-        <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-          <CardContent className="p-4 flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Biriktirilgan Rekvizitlar
-              </p>
-              <p className="text-2xl font-extrabold font-mono mt-0.5">
-                {dossier.ownedCards.length +
-                  dossier.ownedPhones.length +
-                  dossier.ownedIdentifiers.length}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
-                {dossier.ownedCards.length} karta · {dossier.ownedPhones.length} tel ·{' '}
-                {dossier.ownedIdentifiers.length} iz
-              </p>
-            </div>
-            <CreditCard className="h-8 w-8 text-amber-500 opacity-75 shrink-0" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Asosiy Tablar */}
-      <Tabs defaultValue="overview" className="w-full space-y-4">
-        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-          <TabsTrigger value="overview" className="text-xs gap-1.5 cursor-pointer">
-            <GitBranch className="h-3.5 w-3.5" />
-            Rekvizitlar & Xarita
-          </TabsTrigger>
-          <TabsTrigger value="applications" className="text-xs gap-1.5 cursor-pointer">
-            <FileText className="h-3.5 w-3.5" />
-            Bogʻliq Arizalar ({dossier.directApplications.length + dossier.multiHopChains.length})
-          </TabsTrigger>
-          <TabsTrigger value="flows" className="text-xs gap-1.5 cursor-pointer">
-            <ArrowRightLeft className="h-3.5 w-3.5" />
-            Kartalar Oqimi ({dossier.transfers.length})
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs gap-1.5 cursor-pointer">
-            <Sparkles className="h-3.5 w-3.5" />
-            Mikro-Statistika & Dalillar
-          </TabsTrigger>
-        </TabsList>
-
-        {/* TAB 1: REKVIZITLAR VA IKKI REJIMLI XARITA */}
-        <TabsContent value="overview" className="space-y-6">
-          {/* Kartalar, Telefonlar va Raqamli Izlar 3 ta ustunda */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {/* 1. Fuqaro Kartalari */}
-            <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between gap-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 min-w-0">
-                  <CreditCard className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="truncate">Plastik Kartalar ({dossier.ownedCards.length})</span>
-                </CardTitle>
-                {dossier.canMutate && (
+              {dossier.canMutate && (
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <Button
-                    variant="ghost"
                     size="sm"
+                    variant="outline"
                     onClick={() => setAddCardOpen(true)}
-                    className="h-7 px-2 text-xs gap-1 shrink-0 cursor-pointer"
+                    className="h-8 text-xs gap-1.5 cursor-pointer"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Qoʻshish
+                    <CreditCard className="h-3.5 w-3.5 text-amber-500" />+ Karta
                   </Button>
-                )}
-              </CardHeader>
-              <CardContent className="p-4 pt-2 space-y-2 min-w-0">
-                {dossier.ownedCards.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-3 text-center">
-                    Karta biriktirilmagan
-                  </p>
-                ) : (
-                  dossier.ownedCards.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => navigate(`/cards/${c.id}`)}
-                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/80 bg-background/70 hover:border-primary/50 cursor-pointer transition-all min-w-0 overflow-hidden"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-mono text-xs font-extrabold text-foreground break-all">
-                          {formatCard(c.card_number, c.masked_number)}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 truncate">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          <span className="truncate">
-                            {c.bank?.name || 'Bank'} {c.expire_date ? `· ${c.expire_date}` : ''}
-                          </span>
-                        </p>
-                      </div>
-                      {dossier.canMutate && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            unlinkCardMut.mutate(c.id);
-                          }}
-                          className="p-1 text-muted-foreground hover:text-rose-500 cursor-pointer shrink-0"
-                          title="Fuqarodan uzish"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            {/* 2. Fuqaro Telefon Raqamlari */}
-            <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden">
-              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between gap-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 min-w-0">
-                  <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span className="truncate">Telefon Raqamlar ({dossier.ownedPhones.length})</span>
-                </CardTitle>
-                {dossier.canMutate && (
                   <Button
-                    variant="ghost"
                     size="sm"
+                    variant="outline"
                     onClick={() => setAddPhoneOpen(true)}
-                    className="h-7 px-2 text-xs gap-1 shrink-0 cursor-pointer"
+                    className="h-8 text-xs gap-1.5 cursor-pointer"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Qoʻshish
+                    <Phone className="h-3.5 w-3.5 text-emerald-500" />+ Telefon
                   </Button>
-                )}
-              </CardHeader>
-              <CardContent className="p-4 pt-2 space-y-2 min-w-0">
-                {dossier.ownedPhones.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-3 text-center">
-                    Telefon kiritilmagan
-                  </p>
-                ) : (
-                  dossier.ownedPhones.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => navigate(`/dossier/phone/${p.id}`)}
-                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/80 bg-background/70 hover:border-primary/50 cursor-pointer transition-all min-w-0 overflow-hidden"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                          <span className="font-mono text-xs font-extrabold text-foreground break-all">
-                            {p.formatted_number || `+${p.phone_number}`}
-                          </span>
-                          {p.is_primary && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0">
-                              Asosiy
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-muted-foreground break-words">
-                          {p.operator || 'Aloqa'} {p.label ? `· ${p.label}` : ''}
-                        </p>
-                      </div>
-                      {dossier.canMutate && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removePhoneMut.mutate(p.id);
-                          }}
-                          className="p-1 text-muted-foreground hover:text-rose-500 cursor-pointer shrink-0"
-                          title="O'chirish / Uzish"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            {/* 3. Raqamli Izlar (Telegram, IP, IMEI, Kripto) */}
-            <Card className="py-0 gap-0 border-border/80 bg-card/60 min-w-0 overflow-hidden md:col-span-2 xl:col-span-1">
-              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between gap-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 min-w-0">
-                  <Fingerprint className="h-4 w-4 text-purple-500 shrink-0" />
-                  <span className="truncate">
-                    Raqamli Izlar ({dossier.ownedIdentifiers.length})
-                  </span>
-                </CardTitle>
-                {dossier.canMutate && (
                   <Button
-                    variant="ghost"
                     size="sm"
+                    variant="outline"
                     onClick={() => setAddIdentOpen(true)}
-                    className="h-7 px-2 text-xs gap-1 shrink-0 cursor-pointer"
+                    className="h-8 text-xs gap-1.5 cursor-pointer"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Qoʻshish
+                    <Fingerprint className="h-3.5 w-3.5 text-purple-500" />+ Raqamli iz
                   </Button>
-                )}
-              </CardHeader>
-              <CardContent className="p-4 pt-2 space-y-2 min-w-0">
-                {dossier.ownedIdentifiers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-3 text-center">
-                    Telegram, IMEI, IP yoki kripto-hamyon biriktirilmagan
-                  </p>
-                ) : (
-                  dossier.ownedIdentifiers.map((ident) => (
-                    <div
-                      key={ident.id}
-                      onClick={() => navigate(`/dossier/identifier/${ident.id}`)}
-                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/80 bg-background/70 hover:border-primary/50 cursor-pointer transition-all min-w-0 overflow-hidden"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-mono text-xs font-extrabold text-foreground break-all">
-                          {ident.raw_value}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground break-words">
-                          {ident.type_label || ident.type} {ident.notes ? `· ${ident.notes}` : ''}
-                        </p>
-                      </div>
-                      {dossier.canMutate && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeIdentMut.mutate(ident.id);
-                          }}
-                          className="p-1 text-muted-foreground hover:text-rose-500 cursor-pointer shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                  <Button
+                    size="sm"
+                    onClick={() => setTransitOpen(true)}
+                    className="h-8 text-xs gap-1.5 cursor-pointer"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" />+ Oʻtkazma
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Aniq Rol Hukmi — Jabrlanuvchimi yoki Firibgar/Droppermi */}
+            <RoleVerdictBanner verdict={verdict} riskScore={stats.riskScore} />
+          </CardContent>
+        </Card>
+
+        {/* Ixcham 4 ta Ko'rsatkich Qatori */}
+        <DossierMetricStrip
+          items={[
+            {
+              label: 'Jami arizalar',
+              value: `${stats.totalApplications} ta`,
+              sub: `Jabrlanuvchi: ${stats.victimAppsCount} · Firibgar/Dropper: ${stats.suspectOrDropperAppsCount}`,
+            },
+            {
+              label: 'Arizalardagi zarar',
+              value: formatDossierMoney(stats.totalLossInLinkedApps),
+              sub:
+                dossier.multiHopChains.length > 0
+                  ? `+ ${dossier.multiHopChains.length} ta zanjirli ish`
+                  : 'Bogʻliq ishlar yigʻindisi',
+              tone: 'danger',
+            },
+            {
+              label: 'Kartalarga kirim',
+              value: formatDossierMoney(stats.totalIncomingAmount),
+              sub: `Chiqim: ${formatDossierMoney(stats.totalOutgoingAmount)}`,
+              tone: 'success',
+            },
+            {
+              label: 'Rekvizitlar',
+              value: `${dossier.ownedCards.length} karta`,
+              sub: `${dossier.ownedPhones.length} telefon · ${dossier.ownedIdentifiers.length} raqamli iz`,
+              tone: 'info',
+            },
+          ]}
+        />
+
+        {/* Aniqlangan Jinoyatlar / MJTK Tarixi (faqat mavjud bo'lsa chiqadi) */}
+        <CitizenDetectedCrimesCard citizenId={cit.id} />
+
+        {/* Ehtimoliy Mosliklar — 1 bosishda tasdiqlash (faqat mavjud bo'lsa chiqadi) */}
+        {dossier.probableMatches.length > 0 && (
+          <Card className="py-0 gap-0 border-amber-500/40 bg-amber-500/5 overflow-hidden">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span>
+                  Ehtimoliy mosliklar topildi ({dossier.probableMatches.length} ta — tasdiqlash
+                  kutilmoqda)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2">
+              {dossier.probableMatches.map((pm) => (
+                <div
+                  key={pm.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-amber-500/30 bg-background/80"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigateWithTrail(pm.target_route)}
+                        className="font-mono font-bold text-sm text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {pm.title}
+                      </button>
+                      <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
+                        {pm.confidence}% moslik
+                      </Badge>
+                      {pm.linked_apps_count > 0 && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {pm.linked_apps_count} ta ariza · {formatDossierMoney(pm.total_amount)}
+                        </Badge>
                       )}
                     </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                    <p className="text-xs text-muted-foreground">{pm.reason}</p>
+                  </div>
 
-          {/* Ikki rejimli Interaktiv Bog'liqliklar Grafi */}
-          <EntityNetworkGraph
-            networkGraph={dossier.networkGraph}
-            financialGraph={dossier.financialGraph}
-            defaultMode="network"
-          />
-        </TabsContent>
+                  {dossier.canMutate && (
+                    <Button
+                      size="sm"
+                      onClick={() => confirmMatchMut.mutate(pm.confirm_action)}
+                      disabled={confirmMatchMut.isPending}
+                      className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Tasdiqlash
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </section>
 
-        {/* TAB 2: BOG'LANGAN ARIZALAR VA ZANJIRLAR */}
-        <TabsContent value="applications" className="space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold">
-              Toʻgʻridan-toʻgʻri bogʻlangan arizalar ({dossier.directApplications.length})
-            </h3>
-            {dossier.canMutate && (
+      {/* ===================================================================== */}
+      {/* 2-BO'LIM: SHU FUQAROGA TEGISHLI BARCHA ARIZALAR                       */}
+      {/* ===================================================================== */}
+      <section id="sec-apps" className="scroll-mt-20 space-y-4">
+        <SectionHeading
+          step={2}
+          title="Shu fuqaroga tegishli arizalar"
+          subtitle="Har bir arizada fuqaroning aniq roli, bogʻlanish sababi va zarar summasi"
+          count={dossier.directApplications.length}
+          icon={<FileText className="h-4 w-4 text-primary" />}
+          action={
+            dossier.canMutate ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -857,265 +667,441 @@ export function CitizenDossierPage() {
                 className="h-8 text-xs gap-1.5 cursor-pointer"
               >
                 <Link2 className="h-3.5 w-3.5" />
-                Arizaga aniq rol bilan biriktirish
+                Arizaga biriktirish
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+        {hasMultipleRoles && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(
+              [
+                { key: 'ALL', label: `Barchasi (${roleCounts.all})` },
+                ...(roleCounts.victim > 0
+                  ? [{ key: 'VICTIM', label: `Jabrlanuvchi (${roleCounts.victim})` }]
+                  : []),
+                ...(roleCounts.danger > 0
+                  ? [{ key: 'DANGER', label: `Firibgar / Dropper (${roleCounts.danger})` }]
+                  : []),
+                ...(roleCounts.other > 0
+                  ? [{ key: 'OTHER', label: `Boshqa (${roleCounts.other})` }]
+                  : []),
+              ] as { key: AppRoleFilter; label: string }[]
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setRoleFilter(opt.key)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+                  roleFilter === opt.key
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/20">
                   <TableHead>Ariza №</TableHead>
-                  <TableHead>Fuqaroning Roli</TableHead>
-                  <TableHead>Bogʻlanish Asosi</TableHead>
+                  <TableHead>Fuqaroning roli</TableHead>
+                  <TableHead>Bogʻlanish asosi</TableHead>
                   <TableHead>Tuman</TableHead>
-                  <TableHead>Zarar Summasi</TableHead>
+                  <TableHead>Zarar summasi</TableHead>
                   <TableHead>Sana</TableHead>
-                  <TableHead className="text-right">Amal</TableHead>
+                  <TableHead className="text-right">Oʻtish</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dossier.directApplications.length === 0 ? (
+                {filteredApplications.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={7}
                       className="text-center py-8 text-xs text-muted-foreground"
                     >
-                      Hozircha arizalar topilmadi
+                      Arizalar topilmadi
                     </TableCell>
                   </TableRow>
                 ) : (
-                  dossier.directApplications.map((app) => (
-                    <TableRow
-                      key={app.id}
-                      onClick={() => navigate(`/applications/${app.id}`)}
-                      className="cursor-pointer hover:bg-muted/40"
-                    >
-                      <TableCell className="font-mono font-bold text-primary">
-                        № {app.application_number}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            app.role_in_app === 'DROPPER' || app.role_in_app === 'SUSPECT'
-                              ? 'bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px]'
-                              : 'bg-blue-500/15 text-blue-600 border-blue-500/30 text-[10px]'
-                          }
-                        >
-                          {app.role_in_app}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs max-w-xs truncate">
-                        {app.match_reasons.join('; ')}
-                      </TableCell>
-                      <TableCell className="text-xs">{app.district_name || '—'}</TableCell>
-                      <TableCell className="font-mono font-bold text-rose-500 text-xs">
-                        {app.transfer_amount ? formatMoney(app.transfer_amount, app.currency) : '—'}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatDate(app.date)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredApplications.map((app) => {
+                    const roleMeta = getRoleMeta(app.role_in_app);
+                    return (
+                      <TableRow
+                        key={app.id}
+                        onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                        className="cursor-pointer hover:bg-muted/40 transition-colors"
+                      >
+                        <TableCell className="font-mono font-bold text-primary whitespace-nowrap">
+                          № {app.application_number}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-[11px] ${roleMeta.badgeClass}`}>
+                            {roleMeta.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                          {app.match_reasons.join('; ') || '—'}
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {app.district_name || '—'}
+                        </TableCell>
+                        <TableCell className="font-mono font-bold text-rose-600 dark:text-rose-400 text-xs whitespace-nowrap">
+                          {app.transfer_amount
+                            ? formatDossierMoney(app.transfer_amount, app.currency)
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDossierDate(app.date)}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                              className="h-7 w-7 p-0 cursor-pointer"
+                              title="Tez koʻrish"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigateWithTrail(`/applications/${app.id}`)}
+                              className="h-7 w-7 p-0 text-primary cursor-pointer"
+                              title="Toʻliq ochish"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
-          </Card>
+          </div>
+        </Card>
 
-          {/* Zanjirli (2-3 qadamli Multi-Hop) Bog'liqliklar */}
-          {dossier.multiHopChains.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold flex flex-wrap items-center gap-2">
-                <GitBranch className="h-4 w-4 text-amber-500 shrink-0" />
-                <span>
-                  Zanjirli (Bilvosita 2–3 qadamli) bogʻlangan arizalar (
-                  {dossier.multiHopChains.length})
-                </span>
-              </h3>
-              <div className="space-y-2.5">
-                {dossier.multiHopChains.map((chain, idx) => (
-                  <Card
-                    key={idx}
-                    onClick={() => navigate(`/applications/${chain.target_application.id}`)}
-                    className="py-0 gap-0 border-amber-500/30 bg-amber-500/[0.03] hover:border-amber-500/60 cursor-pointer transition-all min-w-0 overflow-hidden"
-                  >
-                    <CardContent className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono min-w-0">
-                          {chain.chain_steps.map((step, sIdx) => (
-                            <span
-                              key={sIdx}
-                              className="inline-flex items-center gap-1.5 max-w-full"
-                            >
-                              <span className="px-2 py-0.5 rounded bg-background border border-border font-semibold break-all">
-                                {step}
-                              </span>
-                              {sIdx < chain.chain_steps.length - 1 && (
-                                <ArrowRight className="h-3 w-3 text-amber-500 shrink-0" />
-                              )}
-                            </span>
-                          ))}
+        {/* Bilvosita 2–3 qadamli zanjirli arizalar */}
+        {dossier.multiHopChains.length > 0 && (
+          <div className="space-y-2.5 pt-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <GitBranch className="h-3.5 w-3.5" />
+              Bilvosita (2–3 qadamli) zanjirli arizalar ({dossier.multiHopChains.length})
+            </p>
+            {dossier.multiHopChains.map((chain, idx) => (
+              <Card
+                key={idx}
+                onClick={() =>
+                  setDrawerTarget({ type: 'application', id: chain.target_application.id })
+                }
+                className="py-0 gap-0 border-amber-500/35 bg-amber-500/[0.03] hover:border-amber-500 cursor-pointer transition-all"
+              >
+                <CardContent className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                      {chain.chain_steps.map((step, sIdx) => (
+                        <span key={sIdx} className="inline-flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded bg-background border border-border font-semibold break-all">
+                            {step}
+                          </span>
+                          {sIdx < chain.chain_steps.length - 1 && (
+                            <ArrowRight className="h-3 w-3 text-amber-500 shrink-0" />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {chain.target_application.description || 'Izoh kiritilmagan'}
+                    </p>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-rose-500 shrink-0">
+                    {formatDossierMoney(chain.target_application.transfer_amount)}
+                  </span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 3-BO'LIM: KARTALAR -> ICHIDA TRANZAKSIYALAR VA TUSHGAN ARIZALAR       */}
+      {/* ===================================================================== */}
+      <section id="sec-cards" className="scroll-mt-20 space-y-4">
+        <SectionHeading
+          step={3}
+          title="Fuqaroning kartalari, tranzaksiyalari va tushgan arizalari"
+          subtitle="Har bir karta ichida uning kirim-chiqim oʻtkazmalari va bogʻlangan arizalari jamlangan"
+          count={dossier.ownedCards.length}
+          icon={<CreditCard className="h-4 w-4 text-amber-500" />}
+          action={
+            dossier.canMutate ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddCardOpen(true)}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Karta biriktirish
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setTransitOpen(true)}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  Vipiska / Oʻtkazma
+                </Button>
+              </>
+            ) : undefined
+          }
+        />
+
+        <CitizenCardsBreakdown
+          cards={dossier.ownedCards}
+          transfers={dossier.transfers}
+          directApplications={dossier.directApplications}
+          canMutate={dossier.canMutate}
+          onUnlinkCard={(cardId) => unlinkCardMut.mutate(cardId)}
+          onQuickViewCard={(cardId) => setDrawerTarget({ type: 'card', id: cardId })}
+          onOpenFullCard={(cardId) => navigateWithTrail(`/cards/${cardId}`)}
+          onQuickViewApp={(appId) => setDrawerTarget({ type: 'application', id: appId })}
+          onOpenFullApp={(appId) => navigateWithTrail(`/applications/${appId}`)}
+        />
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 4-BO'LIM: TELEFON RAQAMLAR VA RAQAMLI IZLAR                           */}
+      {/* ===================================================================== */}
+      <section id="sec-clues" className="scroll-mt-20 space-y-4">
+        <SectionHeading
+          step={4}
+          title="Telefon raqamlar va raqamli izlar"
+          subtitle="Aloqa raqamlari, Telegram, Instagram, IMEI, IP va kripto-hamyonlar"
+          count={dossier.ownedPhones.length + dossier.ownedIdentifiers.length}
+          icon={<Fingerprint className="h-4 w-4 text-purple-500" />}
+          action={
+            dossier.canMutate ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddPhoneOpen(true)}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Telefon
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddIdentOpen(true)}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Raqamli iz
+                </Button>
+              </>
+            ) : undefined
+          }
+        />
+
+        {dossier.ownedPhones.length === 0 && dossier.ownedIdentifiers.length === 0 ? (
+          <Card className="border-border/70 bg-muted/20">
+            <CardContent className="p-5 text-center text-xs text-muted-foreground">
+              Qoʻshimcha telefon raqamlari yoki raqamli izlar kiritilmagan.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Telefonlar */}
+            <Card className="py-0 gap-0 border-border/80 bg-card/70 overflow-hidden">
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-emerald-500" />
+                  Telefon raqamlar ({dossier.ownedPhones.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-2 space-y-2">
+                {dossier.ownedPhones.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">Kiritilmagan</p>
+                ) : (
+                  dossier.ownedPhones.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => setDrawerTarget({ type: 'phone', id: p.id })}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/80 bg-background/70 hover:border-primary/50 cursor-pointer transition-all"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono text-xs font-extrabold text-foreground">
+                            {p.formatted_number || formatDossierPhone(p.phone_number)}
+                          </span>
+                          {p.is_primary && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Asosiy
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground break-words">
-                          {chain.target_application.description || 'Izoh kiritilmagan'}
+                        <p className="text-[11px] text-muted-foreground">
+                          {p.operator || 'Aloqa'}
+                          {p.label ? ` · ${p.label}` : ''}
                         </p>
                       </div>
-                      <span className="font-mono text-xs font-bold text-rose-500 shrink-0">
-                        {formatMoney(chain.target_application.transfer_amount)}
-                      </span>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* TAB 3: KARTALAR OQIMI VA O'TKAZMALAR */}
-        <TabsContent value="flows" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold">
-                Fuqaroning barcha kartalari boʻyicha oʻtkazmalar harakati (
-                {dossier.transfers.length})
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Kirim va chiqim pul oqimlari hamda kontragent kartalar
-              </p>
-            </div>
-            {dossier.canMutate && (
-              <Button
-                size="sm"
-                onClick={() => setTransitOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Vipiska / Tranzit oʻtkazma qoʻshish
-              </Button>
-            )}
-          </div>
-
-          <Card className="py-0 gap-0 border-border/80 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Yoʻnalish</TableHead>
-                  <TableHead>Summa</TableHead>
-                  <TableHead>Joʻnatuvchi Karta</TableHead>
-                  <TableHead>Qabul Qiluvchi Karta</TableHead>
-                  <TableHead>Toʻlov Tizimi</TableHead>
-                  <TableHead>Sana va Soat</TableHead>
-                  <TableHead>Ariza</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dossier.transfers.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-center py-8 text-xs text-muted-foreground"
-                    >
-                      Fuqaro kartalari boʻyicha oʻtkazmalar topilmadi
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  dossier.transfers.map((tr) => (
-                    <TableRow key={tr.id}>
-                      <TableCell>
-                        {tr.direction === 'INCOMING' ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] gap-1">
-                            <ArrowDownLeft className="h-3 w-3" /> Kirim
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px] gap-1">
-                            <ArrowUpRight className="h-3 w-3" /> Chiqim
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono font-bold text-xs">
-                        {formatMoney(tr.amount, tr.currency)}
-                      </TableCell>
-                      <TableCell>
-                        {tr.sender_card_id ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/cards/${tr.sender_card_id}`)}
-                            className="text-left hover:underline cursor-pointer"
-                          >
-                            <span className="font-mono text-xs font-semibold text-primary block">
-                              {tr.sender_card_number}
-                            </span>
-                            {tr.sender_owner_name && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {tr.sender_owner_name}
-                              </span>
-                            )}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {tr.receiver_card_id ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/cards/${tr.receiver_card_id}`)}
-                            className="text-left hover:underline cursor-pointer"
-                          >
-                            <span className="font-mono text-xs font-semibold text-primary block">
-                              {tr.receiver_card_number}
-                            </span>
-                            {tr.receiver_owner_name && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {tr.receiver_owner_name}
-                              </span>
-                            )}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs">{tr.payment_provider || '—'}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatDate(tr.transfer_date)} {tr.transfer_time || ''}
-                      </TableCell>
-                      <TableCell>
-                        {tr.application_id ? (
+                      <div
+                        className="flex items-center gap-1 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigateWithTrail(`/dossier/phone/${p.id}`)}
+                          className="h-7 w-7 p-0 text-primary cursor-pointer"
+                          title="Toʻliq dosye"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                        {dossier.canMutate && (
                           <Button
-                            variant="link"
+                            type="button"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/applications/${tr.application_id}`)}
-                            className="h-auto p-0 font-mono text-xs"
+                            onClick={() => removePhoneMut.mutate(p.id)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-500 cursor-pointer"
+                            title="Oʻchirish"
                           >
-                            № {tr.application_number || 'Ariza'}
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">Vipiska</span>
                         )}
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
 
-        {/* TAB 4: MIKRO-STATISTIKA VA DALILLAR */}
-        <TabsContent value="analytics">
+            {/* Raqamli izlar */}
+            <Card className="py-0 gap-0 border-border/80 bg-card/70 overflow-hidden">
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Fingerprint className="h-4 w-4 text-purple-500" />
+                  Raqamli izlar ({dossier.ownedIdentifiers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-2 space-y-2">
+                {dossier.ownedIdentifiers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">Kiritilmagan</p>
+                ) : (
+                  dossier.ownedIdentifiers.map((ident) => (
+                    <div
+                      key={ident.id}
+                      onClick={() => setDrawerTarget({ type: 'identifier', id: ident.id })}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/80 bg-background/70 hover:border-primary/50 cursor-pointer transition-all"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-mono text-xs font-extrabold text-foreground break-all">
+                          {ident.raw_value}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {ident.type_label || ident.type}
+                          {ident.notes ? ` · ${ident.notes}` : ''}
+                        </p>
+                      </div>
+                      <div
+                        className="flex items-center gap-1 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigateWithTrail(`/dossier/identifier/${ident.id}`)}
+                          className="h-7 w-7 p-0 text-primary cursor-pointer"
+                          title="Toʻliq dosye"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                        {dossier.canMutate && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeIdentMut.mutate(ident.id)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-500 cursor-pointer"
+                            title="Uzish"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 5-BO'LIM: GRAFIK SXEMA VA MIKRO-STATISTIKA (YIG'ILGAN HOLDA)          */}
+      {/* ===================================================================== */}
+      <section id="sec-graph" className="scroll-mt-20 space-y-3">
+        <SectionHeading
+          step={5}
+          title="Grafik sxema, mikro-statistika va dalillar"
+          subtitle="Asosiy oʻqishga xalaqit bermasligi uchun yigʻilgan — kerak paytda 1 bosishda ochiladi"
+          icon={<GitBranch className="h-4 w-4 text-primary" />}
+        />
+
+        <CollapsibleInsightPanel
+          title="Interaktiv bogʻliqliklar va pul oqimi grafigi"
+          subtitle="Fuqaro, kartalar, telefonlar va bogʻlangan arizalar vizual xaritada"
+          icon={<GitBranch className="h-4 w-4" />}
+          badgeText={`${dossier.networkGraph?.nodes.length || 0} ta tugun`}
+          defaultOpen={false}
+        >
+          <EntityNetworkGraph
+            networkGraph={dossier.networkGraph}
+            financialGraph={dossier.financialGraph}
+            defaultMode="network"
+          />
+        </CollapsibleInsightPanel>
+
+        <CollapsibleInsightPanel
+          title="Mikro-statistika, birga uchragan rekvizitlar va chek/dalil fayllar"
+          subtitle="Soatbay faollik, tumanlar kesimi, toʻlov provayderlari va biriktirilgan cheklar"
+          icon={<Sparkles className="h-4 w-4" />}
+          badgeText={`${dossier.coOccurringClues.length} rekvizit · ${dossier.evidenceFiles.length} fayl`}
+          defaultOpen={false}
+        >
           <DossierAnalyticsSection
             stats={dossier.stats}
             coOccurringClues={dossier.coOccurringClues}
             evidenceFiles={dossier.evidenceFiles}
           />
-        </TabsContent>
-      </Tabs>
+        </CollapsibleInsightPanel>
+      </section>
+
+      {/* Tezkor Yon Oyna */}
+      <DossierQuickDrawer
+        target={drawerTarget}
+        onClose={() => setDrawerTarget(null)}
+        trail={breadcrumbs}
+      />
 
       {/* DIALOG 1: TELEFON QO'SHISH */}
       <Dialog open={addPhoneOpen} onOpenChange={setAddPhoneOpen}>
@@ -1319,7 +1305,7 @@ export function CitizenDossierPage() {
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">Arizadagi Roli *</label>
+              <label className="text-xs font-semibold">Arizadagi roli *</label>
               <select
                 value={linkAppForm.role}
                 onChange={(e) =>
