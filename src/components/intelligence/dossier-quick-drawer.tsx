@@ -13,13 +13,14 @@ import {
   Link2,
   Loader2,
   Phone,
+  ShieldAlert,
   User,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { RoleVerdictBanner } from '@/components/intelligence/dossier-shell';
+import { InlineRoleBadge } from '@/components/intelligence/dossier-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { applicationsApi, intelligenceApi } from '@/lib/api';
@@ -29,12 +30,14 @@ import {
   buildClueVerdict,
   type DossierLocationState,
   type DossierTrailItem,
+  extractSuspectCluesFromTree,
   formatDossierCard,
   formatDossierDate,
   formatDossierMoney,
   formatDossierPhone,
   getRoleMeta,
 } from '@/lib/dossier-navigation';
+import type { Transfer } from '@/types/models';
 
 export type QuickDrawerTarget = {
   type: 'citizen' | 'card' | 'application' | 'phone' | 'identifier';
@@ -45,9 +48,16 @@ interface DossierQuickDrawerProps {
   target: QuickDrawerTarget | null;
   onClose: () => void;
   trail?: DossierTrailItem[];
+  /** Joriy sahifada boshqa arizalar bilan kesishgan (takrorlangan) tokenlar — masalan Telegram username, telefon */
+  repeatedTokens?: Set<string>;
 }
 
-export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawerProps) {
+export function DossierQuickDrawer({
+  target,
+  onClose,
+  trail,
+  repeatedTokens,
+}: DossierQuickDrawerProps) {
   const navigate = useNavigate();
   const rootKey = target ? `${target.type}:${target.id}` : '';
   const [extraState, setExtraState] = useState<{ rootKey: string; items: QuickDrawerTarget[] }>({
@@ -59,7 +69,6 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
     ? [target, ...(extraState.rootKey === rootKey ? extraState.items : [])]
     : [];
 
-  // Escape bilan yopish
   useEffect(() => {
     if (!target) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -93,6 +102,27 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
     queryFn: () => applicationsApi.getOne(activeTarget!.id),
     enabled: Boolean(activeTarget && activeTarget.type === 'application'),
   });
+
+  // Arizadagi barcha o'tkazmalarni (asosiy + qo'shimcha custom_fields) birlashtirish
+  const appTransfers = useMemo<Transfer[]>(() => {
+    if (!applicationData) return [];
+    const map = new Map<string, Transfer>();
+    if (applicationData.transfer?.id) {
+      map.set(applicationData.transfer.id, applicationData.transfer);
+    }
+    for (const cf of applicationData.custom_fields || []) {
+      if (cf.transfer?.id && !map.has(cf.transfer.id)) {
+        map.set(cf.transfer.id, cf.transfer);
+      }
+    }
+    return Array.from(map.values());
+  }, [applicationData]);
+
+  // Arizadagi barcha gumonlanuvchi belgilari (Telegram, telefon, Instagram va b.)
+  const appSuspectClues = useMemo(
+    () => extractSuspectCluesFromTree(applicationData?.suspect_tree),
+    [applicationData?.suspect_tree],
+  );
 
   if (!target || !activeTarget) return null;
 
@@ -144,16 +174,14 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
 
   const headerSubtitle =
     activeTarget.type === 'citizen'
-      ? 'Fuqaro — tezkor koʻrinish'
+      ? 'Fuqaro maʼlumotlari'
       : activeTarget.type === 'card'
-        ? dossier?.card?.inferred_bank_name ||
-          dossier?.card?.bank?.name ||
-          'Plastik karta — tezkor koʻrinish'
+        ? dossier?.card?.inferred_bank_name || dossier?.card?.bank?.name || 'Plastik karta'
         : activeTarget.type === 'application'
-          ? 'Ariza — tezkor koʻrinish'
+          ? 'Ariza tafsilotlari va belgilari'
           : activeTarget.type === 'phone'
-            ? `Telefon raqami${dossier?.phone?.operator ? ` · ${dossier.phone.operator}` : ''}`
-            : dossier?.identifier?.type_label || 'Raqamli iz — tezkor koʻrinish';
+            ? `Telefon${dossier?.phone?.operator ? ` · ${dossier.phone.operator}` : ''}`
+            : dossier?.identifier?.type_label || 'Raqamli iz';
 
   const HeaderIcon =
     activeTarget.type === 'citizen'
@@ -168,7 +196,7 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-[1px]"
+      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[1px]"
       onClick={onClose}
     >
       <div
@@ -176,7 +204,7 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-border flex items-center justify-between gap-2 bg-muted/30">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2 bg-muted/25">
           <div className="flex items-center gap-2.5 min-w-0">
             {historyStack.length > 1 && (
               <Button
@@ -185,16 +213,16 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
                 size="sm"
                 onClick={popTarget}
                 className="h-8 w-8 p-0 shrink-0 cursor-pointer"
-                title="Oldingi tezkor oynaga qaytish"
+                title="Oldingi oynaga qaytish"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <HeaderIcon className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-extrabold truncate font-mono">{headerTitle}</h3>
+              <h3 className="text-sm font-bold truncate font-mono">{headerTitle}</h3>
               <p className="text-[11px] text-muted-foreground truncate">{headerSubtitle}</p>
             </div>
           </div>
@@ -215,34 +243,39 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span>Maʼlumotlar yuklanmoqda...</span>
+              <span>Yuklanmoqda...</span>
             </div>
           ) : activeTarget.type === 'application' && applicationData ? (
             <>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-xs font-semibold">
+              {/* Holat, sana, tuman */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant="outline" className="font-semibold">
                   {applicationData.application_status?.name || applicationData.status || 'YANGI'}
                 </Badge>
                 {applicationData.date && (
-                  <span className="text-xs text-muted-foreground font-mono inline-flex items-center gap-1">
+                  <span className="text-muted-foreground font-mono inline-flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
                     {formatDossierDate(applicationData.date)}
                   </span>
                 )}
                 {applicationData.district?.name && (
-                  <Badge variant="secondary" className="text-xs">
-                    {applicationData.district.name}
-                  </Badge>
+                  <Badge variant="secondary">{applicationData.district.name}</Badge>
+                )}
+                {applicationData.crime?.article && (
+                  <Badge variant="outline">{applicationData.crime.article}</Badge>
                 )}
               </div>
 
+              {/* Arizachi fuqaro */}
               {applicationData.citizen && (
                 <div
                   onClick={() => pushTarget({ type: 'citizen', id: applicationData.citizen!.id })}
-                  className="p-3 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors flex items-center justify-between gap-2"
+                  className="p-3 rounded-lg border border-border hover:border-primary bg-muted/20 cursor-pointer transition-colors flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase font-bold text-primary">Arizachi fuqaro</p>
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+                      Arizachi fuqaro
+                    </p>
                     <p className="text-sm font-bold text-foreground truncate">
                       {applicationData.citizen.full_name || 'Fuqaro'}
                     </p>
@@ -261,74 +294,121 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
                 </div>
               )}
 
-              {applicationData.transfer && (
-                <div className="p-3 rounded-xl border border-border bg-muted/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase text-muted-foreground">
-                      Asosiy pul oʻtkazmasi
-                    </span>
-                    <span className="font-mono text-sm font-extrabold text-rose-600 dark:text-rose-400">
-                      {formatDossierMoney(
-                        applicationData.transfer.amount,
-                        applicationData.transfer.currency || 'UZS',
-                      )}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-1.5 text-xs">
-                    {applicationData.transfer.sender_card && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          pushTarget({
-                            type: 'card',
-                            id: applicationData.transfer!.sender_card!.id,
-                          })
-                        }
-                        className="p-2 rounded-lg border border-border bg-background hover:border-primary text-left cursor-pointer"
-                      >
-                        <span className="text-[10px] text-blue-600 font-semibold block">
-                          Joʻnatuvchi (Jabrlanuvchi)
-                        </span>
-                        <span className="font-mono font-bold">
-                          {formatDossierCard(
-                            applicationData.transfer.sender_card.card_number,
-                            applicationData.transfer.sender_card.masked_number,
+              {/* Arizaga biriktirilgan Gumonlanuvchi belgilari (Telegram, telefon, Instagram va b.) */}
+              {appSuspectClues.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase text-muted-foreground flex items-center gap-1.5">
+                    <Fingerprint className="h-3.5 w-3.5 text-purple-500" />
+                    Gumonlanuvchi belgilari ({appSuspectClues.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {appSuspectClues.map((clue, i) => {
+                      const isRepeated = Boolean(repeatedTokens?.has(clue.normalized));
+                      return (
+                        <div
+                          key={`${clue.path}-${clue.value}-${i}`}
+                          className={`px-3 py-2 rounded-lg border text-xs flex items-center justify-between gap-2 ${
+                            isRepeated
+                              ? 'border-rose-500/45 bg-rose-500/8'
+                              : 'border-border/80 bg-muted/20'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <span className="text-[10px] text-muted-foreground block">
+                              {clue.path}
+                            </span>
+                            <span className="font-mono font-bold text-foreground break-all">
+                              {clue.value}
+                            </span>
+                          </div>
+                          {isRepeated && (
+                            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/35 text-[10px] font-bold gap-1 shrink-0">
+                              <ShieldAlert className="h-3 w-3" />
+                              Takrorlangan
+                            </Badge>
                           )}
-                        </span>
-                      </button>
-                    )}
-                    {applicationData.transfer.receiver_card && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          pushTarget({
-                            type: 'card',
-                            id: applicationData.transfer!.receiver_card!.id,
-                          })
-                        }
-                        className="p-2 rounded-lg border border-rose-500/35 bg-rose-500/5 hover:border-rose-500 text-left cursor-pointer"
-                      >
-                        <span className="text-[10px] text-rose-600 font-bold block">
-                          Qabul qiluvchi (Firibgar / Dropper)
-                        </span>
-                        <span className="font-mono font-bold">
-                          {formatDossierCard(
-                            applicationData.transfer.receiver_card.card_number,
-                            applicationData.transfer.receiver_card.masked_number,
-                          )}
-                        </span>
-                      </button>
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
+              {/* Barcha pul o'tkazmalari (asosiy + qo'shimcha) */}
+              {appTransfers.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold uppercase text-muted-foreground block">
+                    Pul oʻtkazmalari ({appTransfers.length})
+                  </span>
+                  {appTransfers.map((tr, idx) => (
+                    <div
+                      key={tr.id || idx}
+                      className="p-3 rounded-lg border border-border bg-muted/15 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground font-mono">
+                          {formatDossierDate(tr.transfer_date)}{' '}
+                          {tr.payment_provider?.name ? `· ${tr.payment_provider.name}` : ''}
+                        </span>
+                        <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400">
+                          {formatDossierMoney(tr.amount, tr.currency || 'UZS')}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        {tr.sender_card && (
+                          <button
+                            type="button"
+                            onClick={() => pushTarget({ type: 'card', id: tr.sender_card!.id })}
+                            className="w-full px-2.5 py-1.5 rounded border border-border bg-background hover:border-primary text-left cursor-pointer flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-blue-600 font-semibold block">
+                                Joʻnatuvchi karta
+                              </span>
+                              <span className="font-mono font-bold">
+                                {formatDossierCard(
+                                  tr.sender_card.card_number,
+                                  tr.sender_card.masked_number,
+                                )}
+                              </span>
+                            </div>
+                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          </button>
+                        )}
+                        {tr.receiver_card && (
+                          <button
+                            type="button"
+                            onClick={() => pushTarget({ type: 'card', id: tr.receiver_card!.id })}
+                            className="w-full px-2.5 py-1.5 rounded border border-rose-500/35 bg-rose-500/5 hover:border-rose-500 text-left cursor-pointer flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-rose-600 font-bold block">
+                                Qabul qiluvchi (Firibgar / Dropper)
+                              </span>
+                              <span className="font-mono font-bold">
+                                {formatDossierCard(
+                                  tr.receiver_card.card_number,
+                                  tr.receiver_card.masked_number,
+                                )}
+                              </span>
+                            </div>
+                            <ArrowRight className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Ariza mazmuni */}
               {applicationData.description && (
                 <div className="space-y-1">
                   <p className="text-[11px] font-bold uppercase text-muted-foreground">
                     Ariza mazmuni
                   </p>
-                  <p className="text-xs leading-relaxed text-foreground bg-muted/30 rounded-xl p-3 border border-border/60 whitespace-pre-wrap">
+                  <p className="text-xs leading-relaxed text-foreground bg-muted/20 rounded-lg p-3 border border-border/60 whitespace-pre-wrap">
                     {applicationData.description}
                   </p>
                 </div>
@@ -336,30 +416,30 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
             </>
           ) : dossier ? (
             <>
-              {/* Aniq o‘zbekcha Rol Hukmi */}
-              <RoleVerdictBanner
-                compact
-                riskScore={dossier.stats.riskScore}
-                verdict={
-                  activeTarget.type === 'citizen'
-                    ? buildCitizenVerdict(dossier.stats)
-                    : activeTarget.type === 'card'
-                      ? buildCardVerdict(dossier.stats, dossier.directApplications)
-                      : buildClueVerdict(
-                          dossier.stats,
-                          activeTarget.type === 'phone' ? 'Telefon' : 'Raqamli iz',
-                        )
-                }
-              />
+              {/* Ixcham Rol Badge */}
+              <div className="flex flex-wrap items-center gap-2">
+                <InlineRoleBadge
+                  verdict={
+                    activeTarget.type === 'citizen'
+                      ? buildCitizenVerdict(dossier.stats)
+                      : activeTarget.type === 'card'
+                        ? buildCardVerdict(dossier.stats, dossier.directApplications)
+                        : buildClueVerdict(
+                            dossier.stats,
+                            activeTarget.type === 'phone' ? 'Telefon' : 'Raqamli iz',
+                          )
+                  }
+                />
+              </div>
 
-              {/* Karta yoki rekvizit egasi */}
+              {/* Egasi (karta yoki rekvizit uchun) */}
               {activeTarget.type !== 'citizen' && dossier.citizen && (
                 <div
                   onClick={() => pushTarget({ type: 'citizen', id: dossier.citizen!.id })}
-                  className="p-3 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 cursor-pointer flex items-center justify-between gap-2"
+                  className="p-3 rounded-lg border border-border hover:border-primary bg-muted/20 cursor-pointer flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase text-primary block">
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground block">
                       Egasi (Fuqaro)
                     </span>
                     <span className="text-sm font-bold text-foreground truncate block">
@@ -375,46 +455,46 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
                 </div>
               )}
 
-              {/* Fuqaro asosiy pasport ma'lumotlari */}
+              {/* Fuqaro asosiy ma'lumotlari */}
               {activeTarget.type === 'citizen' && dossier.citizen && (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 rounded-lg border border-border/70 bg-muted/20">
-                    <span className="text-[10px] text-muted-foreground block">Pasport</span>
-                    <span className="font-mono font-bold">{dossier.citizen.passport || '—'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-lg border border-border/70 bg-muted/20">
-                    <span className="text-[10px] text-muted-foreground block">JSHSHIR</span>
-                    <span className="font-mono font-bold">{dossier.citizen.pinfl || '—'}</span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground font-mono bg-muted/20 rounded-lg p-3 border border-border/60">
+                  {dossier.citizen.phone_number && (
+                    <span className="text-foreground font-semibold">
+                      {formatDossierPhone(dossier.citizen.phone_number)}
+                    </span>
+                  )}
+                  <span>Pasport: {dossier.citizen.passport || '—'}</span>
+                  <span>JSHSHIR: {dossier.citizen.pinfl || '—'}</span>
                 </div>
               )}
 
-              {/* Kirim / Chiqim */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-2.5 rounded-xl border border-border bg-background/60">
-                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-                    <ArrowDownLeft className="h-3 w-3 text-emerald-500" /> Kirim
-                  </span>
-                  <span className="font-mono text-xs font-bold text-emerald-600 block mt-0.5">
-                    {formatDossierMoney(dossier.stats.totalIncomingAmount)}
-                  </span>
+              {/* Kirim / Chiqim (faqat mavjud bo'lsa) */}
+              {(dossier.stats.totalIncomingAmount > 0 || dossier.stats.totalOutgoingAmount > 0) && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/15">
+                    <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                      <ArrowDownLeft className="h-3 w-3 text-emerald-500" /> Kirim
+                    </span>
+                    <span className="font-mono text-xs font-bold text-emerald-600 block mt-0.5">
+                      {formatDossierMoney(dossier.stats.totalIncomingAmount)}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/15">
+                    <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                      <ArrowUpRight className="h-3 w-3 text-rose-500" /> Chiqim
+                    </span>
+                    <span className="font-mono text-xs font-bold text-rose-500 block mt-0.5">
+                      {formatDossierMoney(dossier.stats.totalOutgoingAmount)}
+                    </span>
+                  </div>
                 </div>
-                <div className="p-2.5 rounded-xl border border-border bg-background/60">
-                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-                    <ArrowUpRight className="h-3 w-3 text-rose-500" /> Chiqim
-                  </span>
-                  <span className="font-mono text-xs font-bold text-rose-500 block mt-0.5">
-                    {formatDossierMoney(dossier.stats.totalOutgoingAmount)}
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Fuqaroning kartalari */}
               {activeTarget.type === 'citizen' && dossier.ownedCards.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="text-[11px] font-bold uppercase text-muted-foreground flex items-center gap-1">
-                    <CreditCard className="h-3.5 w-3.5" /> Plastik kartalar (
-                    {dossier.ownedCards.length})
+                    <CreditCard className="h-3.5 w-3.5" /> Kartalar ({dossier.ownedCards.length})
                   </span>
                   <div className="space-y-1.5">
                     {dossier.ownedCards.map((c) => (
@@ -461,8 +541,8 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
                 </div>
               )}
 
-              {/* Bog'langan Arizalar */}
-              <div className="space-y-2">
+              {/* Bog'langan arizalar */}
+              <div className="space-y-1.5">
                 <span className="text-[11px] font-bold uppercase text-muted-foreground flex items-center gap-1">
                   <FileText className="h-3.5 w-3.5" /> Bogʻlangan arizalar (
                   {dossier.directApplications.length})
@@ -510,13 +590,13 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
               {dossier.transfers.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="text-[11px] font-bold uppercase text-muted-foreground">
-                    Oxirgi tranzaksiyalar ({dossier.transfers.length})
+                    Tranzaksiyalar ({dossier.transfers.length})
                   </span>
                   <div className="space-y-1.5">
-                    {dossier.transfers.slice(0, 5).map((tr) => (
+                    {dossier.transfers.slice(0, 6).map((tr) => (
                       <div
                         key={tr.id}
-                        className="p-2.5 rounded-lg border border-border/80 bg-muted/20 text-xs flex items-center justify-between gap-2"
+                        className="p-2 rounded-lg border border-border/70 bg-muted/15 text-xs flex items-center justify-between gap-2"
                       >
                         <div className="min-w-0">
                           <span
@@ -548,17 +628,17 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-muted/30 flex flex-col gap-2">
+        <div className="p-3.5 border-t border-border bg-muted/25 flex flex-col gap-2">
           <Button
             type="button"
             onClick={() => openFullPage(fullRoute)}
-            className="w-full gap-2 cursor-pointer"
+            className="w-full h-9 text-xs gap-2 cursor-pointer"
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink className="h-3.5 w-3.5" />
             <span>
               {activeTarget.type === 'application'
-                ? 'Arizani toʻliq sahifada ochish'
-                : 'Toʻliq dosye sahifasini ochish'}
+                ? 'Arizani toʻliq ochish'
+                : 'Toʻliq sahifada ochish'}
             </span>
           </Button>
           {activeTarget.type === 'application' && (
@@ -566,10 +646,10 @@ export function DossierQuickDrawer({ target, onClose, trail }: DossierQuickDrawe
               type="button"
               variant="outline"
               onClick={() => openFullPage(`/applications/${activeTarget.id}/relations`)}
-              className="w-full gap-2 cursor-pointer text-xs"
+              className="w-full h-8 text-xs gap-1.5 cursor-pointer"
             >
               <Link2 className="h-3.5 w-3.5" />
-              <span>Ushbu arizaning bogʻliqliklarini ochish</span>
+              <span>Shu arizaning bogʻliqliklarini ochish</span>
             </Button>
           )}
         </div>

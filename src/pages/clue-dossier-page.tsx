@@ -6,11 +6,11 @@ import {
   FileSpreadsheet,
   FileText,
   Fingerprint,
-  GitBranch,
   Loader2,
   Phone,
   RefreshCw,
   Sparkles,
+  TrendingUp,
   User,
   UserCheck,
 } from 'lucide-react';
@@ -25,13 +25,9 @@ import {
   type QuickDrawerTarget,
 } from '@/components/intelligence/dossier-quick-drawer';
 import {
-  CollapsibleInsightPanel,
-  DossierMetricStrip,
-  type DossierNavSection,
-  DossierSectionNav,
   DossierTopBar,
-  RoleVerdictBanner,
-  SectionHeading,
+  InlineRoleBadge,
+  SectionTitle,
 } from '@/components/intelligence/dossier-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { intelligenceApi } from '@/lib/api';
 import {
   buildClueVerdict,
@@ -131,25 +128,11 @@ export function ClueDossierPage() {
     }
   };
 
-  const navSections = useMemo<DossierNavSection[]>(() => {
-    if (!dossier) return [];
-    return [
-      { id: 'sec-clue', step: 1, label: isPhone ? 'Telefon va Egasi' : 'Raqamli iz va Egasi' },
-      {
-        id: 'sec-apps',
-        step: 2,
-        label: 'Uchragan arizalar',
-        count: dossier.directApplications.length,
-      },
-      { id: 'sec-graph', step: 3, label: 'Graf va Statistika' },
-    ];
-  }, [dossier, isPhone]);
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground">Rekvizit dosyesi yuklanmoqda...</p>
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        <p className="text-xs text-muted-foreground">Rekvizit maʼlumotlari yuklanmoqda...</p>
       </div>
     );
   }
@@ -165,7 +148,7 @@ export function ClueDossierPage() {
         />
         <Card className="border-rose-500/30 bg-rose-500/5">
           <CardContent className="p-6 text-center space-y-2">
-            <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto" />
+            <AlertTriangle className="h-9 w-9 text-rose-500 mx-auto" />
             <p className="text-sm font-semibold">{getErrorMessage(error)}</p>
           </CardContent>
         </Card>
@@ -180,11 +163,11 @@ export function ClueDossierPage() {
   const owner = dossier.citizen;
   const ownerName = owner?.full_name?.trim() || null;
   const stats = dossier.stats;
-  const verdict = buildClueVerdict(stats, isPhone ? 'Telefon raqami' : 'Raqamli iz');
+  const verdict = buildClueVerdict(stats, isPhone ? 'Telefon' : 'Raqamli iz');
 
   return (
-    <div className="w-full space-y-6 pb-16">
-      {/* Yuqori Breadcrumb va Amallar */}
+    <div className="w-full space-y-4 pb-12">
+      {/* 1. Yagona qatorli TopBar */}
       <DossierTopBar
         breadcrumbs={breadcrumbs}
         backLabel={previousItem.label}
@@ -226,259 +209,197 @@ export function ClueDossierPage() {
         }
       />
 
-      {/* Sticky Navigatsiya */}
-      <DossierSectionNav sections={navSections} />
-
-      {/* ===================================================================== */}
-      {/* 1-BO'LIM: REKVIZIT PASPORTI, EGASI VA ROL HUKMI                       */}
-      {/* ===================================================================== */}
-      <section id="sec-clue" className="scroll-mt-20 space-y-4">
-        <Card className="py-0 gap-0 border-border/80 bg-card/70 overflow-hidden">
-          <CardContent className="p-4 sm:p-6 space-y-4">
-            <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
-              <div className="flex items-start gap-3.5 min-w-0">
-                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-purple-500/15 border-2 border-purple-500/40 text-purple-500 flex items-center justify-center shrink-0">
-                  {isPhone ? (
-                    <Phone className="h-6 w-6 sm:h-7 sm:w-7" />
-                  ) : (
-                    <Fingerprint className="h-6 w-6 sm:h-7 sm:w-7" />
-                  )}
-                </div>
-
-                <div className="space-y-1 min-w-0">
-                  <h1 className="text-lg sm:text-2xl font-extrabold font-mono text-foreground break-all">
-                    {mainTitle}
-                  </h1>
-                  <p className="text-xs text-muted-foreground">{subTitle}</p>
-                </div>
+      {/* 2. Ixcham Rekvizit Pasporti + Egasi */}
+      <Card className="py-0 gap-0 border-border/80 bg-card overflow-hidden">
+        <CardContent className="p-4 sm:p-5 space-y-3.5">
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="h-11 w-11 rounded-xl bg-purple-500/12 border border-purple-500/35 text-purple-600 flex items-center justify-center shrink-0">
+                {isPhone ? <Phone className="h-5 w-5" /> : <Fingerprint className="h-5 w-5" />}
               </div>
 
-              {dossier.canMutate && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBindOpen(true)}
-                  className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer self-start"
-                >
-                  <UserCheck className="h-3.5 w-3.5 text-primary" />
-                  {owner ? 'Boshqa fuqaroga oʻtkazish' : 'Fuqaroga biriktirish'}
-                </Button>
-              )}
-            </div>
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-extrabold font-mono text-foreground break-all">
+                    {mainTitle}
+                  </h1>
+                  <InlineRoleBadge verdict={verdict} />
+                </div>
 
-            {/* Egasi (Fuqaro) */}
-            {owner ? (
-              <div className="p-3.5 rounded-xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase text-primary block">
-                      Rekvizit egasi (Fuqaro)
-                    </span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>{subTitle}</span>
+                  {owner ? (
                     <button
                       type="button"
                       onClick={() => navigateWithTrail(`/citizens/${owner.id}`)}
-                      className="text-sm font-extrabold text-foreground hover:text-primary hover:underline cursor-pointer text-left truncate block"
+                      className="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
                     >
-                      {ownerName}
+                      <User className="h-3.5 w-3.5" />
+                      Egasi: {ownerName}
                     </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDrawerTarget({ type: 'citizen', id: owner.id })}
-                    className="h-7 text-xs gap-1 cursor-pointer"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> Tez koʻrish
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => navigateWithTrail(`/citizens/${owner.id}`)}
-                    className="h-7 text-xs gap-1 cursor-pointer"
-                  >
-                    <span>Fuqaro dosyesi</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
+                  ) : (
+                    <span>Egasi biriktirilmagan</span>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="p-3 rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 text-xs text-amber-700 dark:text-amber-300">
-                Ushbu rekvizit egasi hali bazadagi fuqaro profiliga biriktirilmagan.
-              </div>
+            </div>
+
+            {dossier.canMutate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBindOpen(true)}
+                className="h-7 px-2.5 text-xs gap-1 shrink-0 cursor-pointer self-start"
+              >
+                <UserCheck className="h-3.5 w-3.5 text-primary" />
+                {owner ? 'Egasini oʻzgartirish' : 'Fuqaroga biriktirish'}
+              </Button>
             )}
-
-            <RoleVerdictBanner verdict={verdict} riskScore={stats.riskScore} />
-          </CardContent>
-        </Card>
-
-        <DossierMetricStrip
-          items={[
-            {
-              label: 'Uchragan arizalar',
-              value: `${stats.totalApplications} ta`,
-              sub: 'Jami bogʻlangan ishlar',
-            },
-            {
-              label: 'Bogʻliq zarar',
-              value: formatDossierMoney(stats.totalLossInLinkedApps),
-              sub: 'Arizalar yigʻindisi',
-              tone: 'danger',
-            },
-            {
-              label: 'Birga uchragan izlar',
-              value: `${dossier.coOccurringClues.length} ta`,
-              sub: 'Aloqador karta va niklar',
-              tone: 'info',
-            },
-            {
-              label: 'Gumonlanuvchi ishlari',
-              value: `${stats.suspectOrDropperAppsCount} ta`,
-              sub: `Jabrlanuvchi: ${stats.victimAppsCount} ta`,
-            },
-          ]}
-        />
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 2-BO'LIM: UCHRAGAN ARIZALAR                                           */}
-      {/* ===================================================================== */}
-      <section id="sec-apps" className="scroll-mt-20 space-y-4">
-        <SectionHeading
-          step={2}
-          title="Ushbu rekvizit uchragan arizalar"
-          subtitle="Rekvizit qayd etilgan barcha murojaatlar"
-          count={dossier.directApplications.length}
-          icon={<FileText className="h-4 w-4 text-primary" />}
-        />
-
-        <Card className="py-0 gap-0 border-border/80 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead>Ariza №</TableHead>
-                  <TableHead>Jabrlanuvchi</TableHead>
-                  <TableHead>Roli</TableHead>
-                  <TableHead>Tuman</TableHead>
-                  <TableHead>Zarar summasi</TableHead>
-                  <TableHead>Sana</TableHead>
-                  <TableHead className="text-right">Oʻtish</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dossier.directApplications.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-center py-8 text-xs text-muted-foreground"
-                    >
-                      Arizalar topilmadi
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  dossier.directApplications.map((app) => {
-                    const roleMeta = getRoleMeta(app.role_in_app);
-                    return (
-                      <TableRow
-                        key={app.id}
-                        onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
-                        className="cursor-pointer hover:bg-muted/40 text-xs"
-                      >
-                        <TableCell className="font-mono font-bold text-primary whitespace-nowrap">
-                          № {app.application_number}
-                        </TableCell>
-                        <TableCell>{app.victim_name || '—'}</TableCell>
-                        <TableCell>
-                          <Badge className={`text-[11px] ${roleMeta.badgeClass}`}>
-                            {roleMeta.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{app.district_name || '—'}</TableCell>
-                        <TableCell className="font-mono font-bold text-rose-500 whitespace-nowrap">
-                          {formatDossierMoney(app.transfer_amount, app.currency)}
-                        </TableCell>
-                        <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
-                          {formatDossierDate(app.date)}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="inline-flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
-                              className="h-7 w-7 p-0 cursor-pointer"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigateWithTrail(`/applications/${app.id}`)}
-                              className="h-7 w-7 p-0 text-primary cursor-pointer"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
           </div>
-        </Card>
-      </section>
 
-      {/* ===================================================================== */}
-      {/* 3-BO'LIM: GRAFIK SXEMA VA MIKRO-STATISTIKA (YIG'ILGAN HOLDA)          */}
-      {/* ===================================================================== */}
-      <section id="sec-graph" className="scroll-mt-20 space-y-3">
-        <SectionHeading
-          step={3}
-          title="Grafik sxema va mikro-statistika"
-          subtitle="Bogʻliqliklar xaritasi va birga uchragan boshqa rekvizitlar"
-          icon={<GitBranch className="h-4 w-4 text-primary" />}
-        />
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-3 border-t border-border/60 text-xs">
+            <span>
+              Uchragan arizalar: <strong className="font-mono">{stats.totalApplications} ta</strong>
+            </span>
+            <span>
+              Bogʻliq zarar:{' '}
+              <strong className="font-mono text-rose-600 dark:text-rose-400">
+                {formatDossierMoney(stats.totalLossInLinkedApps)}
+              </strong>
+            </span>
+            <span className="text-muted-foreground">
+              Gumonlanuvchi: {stats.suspectOrDropperAppsCount} · Jabrlanuvchi:{' '}
+              {stats.victimAppsCount} · Birga uchragan izlar: {dossier.coOccurringClues.length}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
-        <CollapsibleInsightPanel
-          title="Bogʻliqliklar grafigi"
-          subtitle="Ushbu rekvizit bilan bogʻlangan barcha shaxslar va arizalar xaritada"
-          icon={<GitBranch className="h-4 w-4" />}
-          badgeText={`${dossier.networkGraph?.nodes.length || 0} ta tugun`}
-          defaultOpen={false}
-        >
-          <EntityNetworkGraph
-            networkGraph={dossier.networkGraph}
-            financialGraph={dossier.financialGraph}
-            defaultMode="network"
+      {/* 3. Alohida Tablar */}
+      <Tabs defaultValue="applications" className="w-full space-y-4">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 w-full justify-start">
+          <TabsTrigger value="applications" className="text-xs gap-1.5 cursor-pointer">
+            <FileText className="h-3.5 w-3.5" />
+            <span>Uchragan Arizalar</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+              {dossier.directApplications.length}
+            </Badge>
+          </TabsTrigger>
+
+          <TabsTrigger value="flow" className="text-xs gap-1.5 cursor-pointer">
+            <TrendingUp className="h-3.5 w-3.5" />
+            <span>Moliyaviy Pul Oqimi</span>
+          </TabsTrigger>
+
+          <TabsTrigger value="analytics" className="text-xs gap-1.5 cursor-pointer">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Statistika va Aloqador izlar</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="applications" className="space-y-3 mt-0">
+          <SectionTitle
+            title="Ushbu rekvizit uchragan arizalar"
+            count={dossier.directApplications.length}
           />
-        </CollapsibleInsightPanel>
+          <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead>Ariza №</TableHead>
+                    <TableHead>Jabrlanuvchi</TableHead>
+                    <TableHead>Roli</TableHead>
+                    <TableHead>Tuman</TableHead>
+                    <TableHead>Zarar summasi</TableHead>
+                    <TableHead>Sana</TableHead>
+                    <TableHead className="text-right">Oʻtish</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dossier.directApplications.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-xs text-muted-foreground"
+                      >
+                        Arizalar topilmadi
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    dossier.directApplications.map((app) => {
+                      const roleMeta = getRoleMeta(app.role_in_app);
+                      return (
+                        <TableRow
+                          key={app.id}
+                          onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                          className="cursor-pointer hover:bg-muted/40 text-xs"
+                        >
+                          <TableCell className="font-mono font-bold text-primary whitespace-nowrap">
+                            № {app.application_number}
+                          </TableCell>
+                          <TableCell>{app.victim_name || '—'}</TableCell>
+                          <TableCell>
+                            <Badge className={`text-[11px] ${roleMeta.badgeClass}`}>
+                              {roleMeta.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{app.district_name || '—'}</TableCell>
+                          <TableCell className="font-mono font-bold text-rose-500 whitespace-nowrap">
+                            {formatDossierMoney(app.transfer_amount, app.currency)}
+                          </TableCell>
+                          <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
+                            {formatDossierDate(app.date)}
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="inline-flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                                className="h-7 w-7 p-0 cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigateWithTrail(`/applications/${app.id}`)}
+                                className="h-7 w-7 p-0 text-primary cursor-pointer"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
 
-        <CollapsibleInsightPanel
-          title="Mikro-statistika va birga uchragan rekvizitlar"
-          subtitle="Hududlar kesimi, vaqt faolligi va aloqador kartalar/niklar"
-          icon={<Sparkles className="h-4 w-4" />}
-          badgeText={`${dossier.coOccurringClues.length} rekvizit`}
-          defaultOpen={false}
-        >
+        <TabsContent value="flow" className="mt-0">
+          <EntityNetworkGraph
+            financialGraph={dossier.financialGraph}
+            heightClassName="h-[520px]"
+            title="Moliyaviy Pul Oqimi"
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-0">
           <DossierAnalyticsSection
             stats={dossier.stats}
             coOccurringClues={dossier.coOccurringClues}
             evidenceFiles={dossier.evidenceFiles}
           />
-        </CollapsibleInsightPanel>
-      </section>
+        </TabsContent>
+      </Tabs>
 
-      {/* Tezkor Yon Oyna */}
       <DossierQuickDrawer
         target={drawerTarget}
         onClose={() => setDrawerTarget(null)}

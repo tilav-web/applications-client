@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import type { DossierApplicationItem, DossierMicroStats } from '@/types/models';
+import type { DossierApplicationItem, DossierMicroStats, SuspectTreeNode } from '@/types/models';
 
 export type TrailKind =
   | 'applications'
@@ -369,6 +369,72 @@ export function buildClueVerdict(
     summary: 'Hozircha bu rekvizit boʻyicha bogʻliq arizalar mavjud emas.',
     pills,
   };
+}
+
+export interface ExtractedSuspectClue {
+  path: string;
+  label: string;
+  value: string;
+  normalized: string;
+}
+
+export function normalizeClueValue(raw?: string | null): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length >= 7) return digits;
+  return trimmed.toLowerCase().replace(/^@/, '').trim();
+}
+
+export function extractSuspectCluesFromTree(
+  tree?: SuspectTreeNode[] | null,
+): ExtractedSuspectClue[] {
+  if (!tree || !Array.isArray(tree)) return [];
+  const results: ExtractedSuspectClue[] = [];
+  const seen = new Set<string>();
+
+  const walk = (nodes: SuspectTreeNode[], currentPath: string) => {
+    for (const node of nodes) {
+      if (!node) continue;
+      const nodeLabel = (node.label || '').trim();
+      const fullPath =
+        currentPath && nodeLabel ? `${currentPath} → ${nodeLabel}` : nodeLabel || currentPath;
+
+      if (node.value && typeof node.value === 'string' && node.value.trim().length >= 2) {
+        const val = node.value.trim();
+        const norm = normalizeClueValue(val);
+        const dedupeKey = `${fullPath}:${norm}`;
+        if (norm && !seen.has(dedupeKey)) {
+          seen.add(dedupeKey);
+          results.push({
+            path: fullPath || 'Belgi',
+            label: nodeLabel || fullPath || 'Belgi',
+            value: val,
+            normalized: norm,
+          });
+        }
+      }
+
+      if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+        walk(node.children, fullPath);
+      } else if (!node.value && nodeLabel.length >= 3 && currentPath) {
+        const norm = normalizeClueValue(nodeLabel);
+        const dedupeKey = `${currentPath}:${norm}`;
+        if (norm && !seen.has(dedupeKey)) {
+          seen.add(dedupeKey);
+          results.push({
+            path: currentPath,
+            label: currentPath,
+            value: nodeLabel,
+            normalized: norm,
+          });
+        }
+      }
+    }
+  };
+
+  walk(tree, '');
+  return results;
 }
 
 function sanitizeTrail(raw: unknown): DossierTrailItem[] {

@@ -879,6 +879,8 @@ export interface CardRelationItem {
     masked_number: string | null;
     full_name?: string | null;
     bank_name?: string | null;
+    citizen_id?: string | null;
+    citizen_name?: string | null;
   };
   role_in_current_app: 'RECEIVER' | 'SENDER' | 'RELATED';
   linked_applications: LinkedApplicationInfo[];
@@ -906,6 +908,8 @@ export interface ApplicationRelationsData {
     date: string | null;
     citizen?: Citizen | null;
     transfer?: Transfer | null;
+    transfers?: Transfer[];
+    suspect_tree?: SuspectTreeNode[] | null;
   };
   stats: {
     total_linked_applications: number;

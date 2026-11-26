@@ -19,6 +19,7 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  TrendingUp,
   User,
   UserCheck,
 } from 'lucide-react';
@@ -33,13 +34,9 @@ import {
   type QuickDrawerTarget,
 } from '@/components/intelligence/dossier-quick-drawer';
 import {
-  CollapsibleInsightPanel,
-  DossierMetricStrip,
-  type DossierNavSection,
-  DossierSectionNav,
   DossierTopBar,
-  RoleVerdictBanner,
-  SectionHeading,
+  InlineRoleBadge,
+  SectionTitle,
 } from '@/components/intelligence/dossier-shell';
 import { TransitTransferDialog } from '@/components/intelligence/transit-transfer-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { intelligenceApi } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import {
@@ -123,7 +121,7 @@ export function CardDossierPage() {
       intelligenceApi.confirmProbableMatch(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['card-dossier', id] });
-      toast.success('Karta egasi tasdiqlandi va fuqaroga biriktirildi');
+      toast.success('Karta egasi tasdiqlandi');
     },
     onError: (err) => toast.error('Xatolik', { description: getErrorMessage(err) }),
   });
@@ -164,31 +162,11 @@ export function CardDossierPage() {
     };
   }, [dossier?.transfers]);
 
-  const navSections = useMemo<DossierNavSection[]>(() => {
-    if (!dossier) return [];
-    return [
-      { id: 'sec-card', step: 1, label: 'Karta va Egasi' },
-      {
-        id: 'sec-transfers',
-        step: 2,
-        label: 'Tranzaksiyalar',
-        count: dossier.transfers.length,
-      },
-      {
-        id: 'sec-apps',
-        step: 3,
-        label: 'Tushgan arizalar',
-        count: dossier.directApplications.length + dossier.multiHopChains.length,
-      },
-      { id: 'sec-graph', step: 4, label: 'Graf va Statistika' },
-    ];
-  }, [dossier]);
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-xs text-muted-foreground">Plastik karta dosyesi yuklanmoqda...</p>
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        <p className="text-xs text-muted-foreground">Karta maʼlumotlari yuklanmoqda...</p>
       </div>
     );
   }
@@ -204,7 +182,7 @@ export function CardDossierPage() {
         />
         <Card className="border-rose-500/30 bg-rose-500/5">
           <CardContent className="p-6 text-center space-y-2">
-            <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto" />
+            <AlertTriangle className="h-9 w-9 text-rose-500 mx-auto" />
             <p className="text-sm font-semibold">{getErrorMessage(error)}</p>
           </CardContent>
         </Card>
@@ -219,8 +197,8 @@ export function CardDossierPage() {
   const verdict = buildCardVerdict(stats, dossier.directApplications);
 
   return (
-    <div className="w-full space-y-6 pb-16">
-      {/* Yuqori Breadcrumb va Amallar */}
+    <div className="w-full space-y-4 pb-12">
+      {/* 1. Yagona qatorli TopBar */}
       <DossierTopBar
         breadcrumbs={breadcrumbs}
         backLabel={previousItem.label}
@@ -262,596 +240,517 @@ export function CardDossierPage() {
         }
       />
 
-      {/* Sticky Navigatsiya */}
-      <DossierSectionNav sections={navSections} />
-
-      {/* ===================================================================== */}
-      {/* 1-BO'LIM: KARTA PASPORTI, EGASI VA ROL HUKMI                          */}
-      {/* ===================================================================== */}
-      <section id="sec-card" className="scroll-mt-20 space-y-4">
-        <Card className="py-0 gap-0 border-border/80 bg-card/70 overflow-hidden">
-          <CardContent className="p-4 sm:p-6 space-y-4">
-            <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
-              <div className="flex items-start gap-3.5 min-w-0">
-                <div
-                  className={`h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center shrink-0 border-2 ${
-                    verdict.tone === 'critical' || verdict.tone === 'danger'
-                      ? 'bg-rose-500/15 border-rose-500 text-rose-500'
-                      : 'bg-amber-500/15 border-amber-500/40 text-amber-500'
-                  }`}
-                >
-                  <CreditCard className="h-6 w-6 sm:h-7 sm:w-7" />
-                </div>
-
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-lg sm:text-2xl font-extrabold font-mono tracking-wider text-foreground break-all">
-                      {displayNum}
-                    </h1>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        void copyTextToClipboard(
-                          (card.card_number || displayNum).replace(/\s+/g, ''),
-                        ).then((ok) => {
-                          if (!ok) {
-                            toast.error('Nusxa olib boʻlmadi');
-                            return;
-                          }
-                          setCopied(true);
-                          toast.success('Karta raqami nusxalandi');
-                          setTimeout(() => setCopied(false), 1800);
-                        });
-                      }}
-                      className="h-7 px-2 text-xs gap-1 cursor-pointer shrink-0"
-                    >
-                      {copied ? (
-                        <Check className="h-3 w-3 text-emerald-500" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                      {copied ? 'Nusxalandi' : 'Nusxa'}
-                    </Button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="gap-1 text-xs">
-                      <Building2 className="h-3 w-3 shrink-0" />
-                      {card.inferred_bank_name || card.bank?.name || 'Bank koʻrsatilmagan'}
-                    </Badge>
-                    {card.expire_date && (
-                      <span className="font-mono">Muddati: {card.expire_date}</span>
-                    )}
-                  </div>
-                </div>
+      {/* 2. Ixcham Karta Pasporti + Egasi + Inline Ko'rsatkichlar */}
+      <Card className="py-0 gap-0 border-border/80 bg-card overflow-hidden">
+        <CardContent className="p-4 sm:p-5 space-y-3.5">
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div
+                className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 border ${
+                  verdict.tone === 'critical' || verdict.tone === 'danger'
+                    ? 'bg-rose-500/12 border-rose-500/40 text-rose-600'
+                    : 'bg-amber-500/12 border-amber-500/35 text-amber-600'
+                }`}
+              >
+                <CreditCard className="h-5 w-5" />
               </div>
 
-              {dossier.canMutate && (
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-extrabold font-mono tracking-wide text-foreground break-all">
+                    {displayNum}
+                  </h1>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => setBindOpen(true)}
-                    className="h-8 text-xs gap-1.5 cursor-pointer"
+                    onClick={() => {
+                      void copyTextToClipboard(
+                        (card.card_number || displayNum).replace(/\s+/g, ''),
+                      ).then((ok) => {
+                        if (!ok) {
+                          toast.error('Nusxa olib boʻlmadi');
+                          return;
+                        }
+                        setCopied(true);
+                        toast.success('Karta raqami nusxalandi');
+                        setTimeout(() => setCopied(false), 1800);
+                      });
+                    }}
+                    className="h-7 px-2 text-xs gap-1 cursor-pointer text-muted-foreground"
                   >
-                    <UserCheck className="h-3.5 w-3.5 text-primary" />
-                    {ownerCitizen ? 'Egasini oʻzgartirish' : 'Fuqaroga biriktirish'}
+                    {copied ? (
+                      <Check className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                    {copied ? 'Nusxalandi' : 'Nusxa'}
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setTransitOpen(true)}
-                    className="h-8 text-xs gap-1.5 cursor-pointer"
-                  >
-                    <ArrowRightLeft className="h-3.5 w-3.5" />+ Vipiska / Oʻtkazma
-                  </Button>
+                  <InlineRoleBadge verdict={verdict} />
                 </div>
-              )}
-            </div>
 
-            {/* Karta egasi (Fuqaro) aniq bloki */}
-            {ownerCitizen ? (
-              <div className="p-3.5 rounded-xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase text-primary block">
-                      Karta egasi (Fuqaro)
-                    </span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    {card.inferred_bank_name || card.bank?.name || 'Bank koʻrsatilmagan'}
+                  </span>
+                  {card.expire_date && (
+                    <span className="font-mono">Muddati: {card.expire_date}</span>
+                  )}
+                  {ownerCitizen ? (
                     <button
                       type="button"
                       onClick={() => navigateWithTrail(`/citizens/${ownerCitizen.id}`)}
-                      className="text-sm font-extrabold text-foreground hover:text-primary hover:underline cursor-pointer text-left truncate block"
+                      className="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
                     >
-                      {ownerFullName}
+                      <User className="h-3.5 w-3.5" />
+                      Egasi: {ownerFullName}
+                      {ownerCitizen.phone_number
+                        ? ` (${formatDossierPhone(ownerCitizen.phone_number)})`
+                        : ''}
                     </button>
-                    <p className="text-xs font-mono text-muted-foreground">
-                      {[
-                        ownerCitizen.phone_number
-                          ? formatDossierPhone(ownerCitizen.phone_number)
-                          : null,
-                        ownerCitizen.passport ? `Pasport: ${ownerCitizen.passport}` : null,
-                        ownerCitizen.pinfl ? `JSHSHIR: ${ownerCitizen.pinfl}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDrawerTarget({ type: 'citizen', id: ownerCitizen.id })}
-                    className="h-7 text-xs gap-1 cursor-pointer"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> Tez koʻrish
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => navigateWithTrail(`/citizens/${ownerCitizen.id}`)}
-                    className="h-7 text-xs gap-1 cursor-pointer"
-                  >
-                    <span>Fuqaro dosyesi</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
+                  ) : ownerFullName ? (
+                    <span>Kartadagi F.I.O: {ownerFullName}</span>
+                  ) : (
+                    <span>Egasi koʻrsatilmagan</span>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="p-3 rounded-xl border border-dashed border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                <span>
-                  {ownerFullName
-                    ? `Kartadagi F.I.O: ${ownerFullName} — hali bazadagi fuqaro profiliga bogʻlanmagan.`
-                    : 'Ushbu kartaning egasi (fuqaro) hali aniqlanmagan.'}
-                </span>
+            </div>
+
+            {dossier.canMutate && (
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBindOpen(true)}
+                  className="h-7 px-2.5 text-xs gap-1 cursor-pointer"
+                >
+                  <UserCheck className="h-3.5 w-3.5 text-primary" />
+                  {ownerCitizen ? 'Egasini oʻzgartirish' : 'Fuqaroga biriktirish'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setTransitOpen(true)}
+                  className="h-7 px-2.5 text-xs gap-1 cursor-pointer"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />+ Oʻtkazma
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Ixcham 1-qator ko'rsatkichlar */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-3 border-t border-border/60 text-xs">
+            <span>
+              Kirim:{' '}
+              <strong className="font-mono text-emerald-600 dark:text-emerald-400">
+                {formatDossierMoney(stats.totalIncomingAmount)}
+              </strong>{' '}
+              <span className="text-muted-foreground">({transferCounts.in})</span>
+            </span>
+            <span>
+              Chiqim:{' '}
+              <strong className="font-mono text-rose-600 dark:text-rose-400">
+                {formatDossierMoney(stats.totalOutgoingAmount)}
+              </strong>{' '}
+              <span className="text-muted-foreground">({transferCounts.out})</span>
+            </span>
+            <span>
+              Arizalar: <strong className="font-mono">{stats.totalApplications} ta</strong>
+            </span>
+            <span>
+              Tranzaksiyalar: <strong className="font-mono">{stats.transactionsCount} ta</strong>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {dossier.probableMatches.length > 0 && (
+        <Card className="py-0 gap-0 border-amber-500/40 bg-amber-500/5 overflow-hidden">
+          <CardHeader className="px-4 py-3 pb-2">
+            <CardTitle className="text-xs font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Sparkles className="h-3.5 w-3.5" />
+              Ehtimoliy karta egasi ({dossier.probableMatches.length} ta nomzod)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-1 space-y-2">
+            {dossier.probableMatches.map((pm) => (
+              <div
+                key={pm.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border border-amber-500/30 bg-background/80 text-xs"
+              >
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => navigateWithTrail(pm.target_route)}
+                    className="font-bold text-primary hover:underline cursor-pointer mr-2"
+                  >
+                    {pm.title}
+                  </button>
+                  <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30 text-[10px]">
+                    {pm.confidence}% moslik
+                  </Badge>
+                  <p className="text-muted-foreground mt-0.5">{pm.reason}</p>
+                </div>
                 {dossier.canMutate && (
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => setBindOpen(true)}
-                    className="h-7 text-xs cursor-pointer"
+                    onClick={() => confirmMatchMut.mutate(pm.confirm_action)}
+                    disabled={confirmMatchMut.isPending}
+                    className="h-7 text-xs gap-1 shrink-0 cursor-pointer"
                   >
-                    Fuqaroga biriktirish
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Tasdiqlash
                   </Button>
                 )}
               </div>
-            )}
-
-            {/* Karta Rol Hukmi */}
-            <RoleVerdictBanner verdict={verdict} riskScore={stats.riskScore} />
+            ))}
           </CardContent>
         </Card>
+      )}
 
-        {/* Ixcham Ko'rsatkichlar */}
-        <DossierMetricStrip
-          items={[
-            {
-              label: 'Jami kirim',
-              value: formatDossierMoney(stats.totalIncomingAmount),
-              sub: `${transferCounts.in} ta kirim oʻtkazma`,
-              tone: 'success',
-            },
-            {
-              label: 'Jami chiqim',
-              value: formatDossierMoney(stats.totalOutgoingAmount),
-              sub: `${transferCounts.out} ta chiqim oʻtkazma`,
-              tone: 'danger',
-            },
-            {
-              label: 'Bogʻlangan arizalar',
-              value: `${stats.totalApplications} ta`,
-              sub: 'Ushbu karta qatnashgan ishlar',
-              tone: 'info',
-            },
-            {
-              label: 'Jami tranzaksiyalar',
-              value: `${stats.transactionsCount} ta`,
-              sub: 'Arizalar va bank vipiskasi',
-            },
-          ]}
-        />
+      {/* 3. Alohida Tablar */}
+      <Tabs defaultValue="transfers" className="w-full space-y-4">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 w-full justify-start">
+          <TabsTrigger value="transfers" className="text-xs gap-1.5 cursor-pointer">
+            <ArrowRightLeft className="h-3.5 w-3.5" />
+            <span>Tranzaksiyalar</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+              {dossier.transfers.length}
+            </Badge>
+          </TabsTrigger>
 
-        {/* Ehtimoliy Karta Egasi Mosliklari */}
-        {dossier.probableMatches.length > 0 && (
-          <Card className="py-0 gap-0 border-amber-500/40 bg-amber-500/5 overflow-hidden">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span>
-                  Ehtimoliy karta egasi topildi ({dossier.probableMatches.length} ta nomzod)
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-2 space-y-2">
-              {dossier.probableMatches.map((pm) => (
-                <div
-                  key={pm.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-amber-500/30 bg-background/80"
+          <TabsTrigger value="applications" className="text-xs gap-1.5 cursor-pointer">
+            <FileText className="h-3.5 w-3.5" />
+            <span>Tushgan Arizalar</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+              {dossier.directApplications.length + dossier.multiHopChains.length}
+            </Badge>
+          </TabsTrigger>
+
+          <TabsTrigger value="flow" className="text-xs gap-1.5 cursor-pointer">
+            <TrendingUp className="h-3.5 w-3.5" />
+            <span>Moliyaviy Pul Oqimi</span>
+          </TabsTrigger>
+
+          <TabsTrigger value="analytics" className="text-xs gap-1.5 cursor-pointer">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Statistika va Dalillar</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: TRANZAKSIYALAR */}
+        <TabsContent value="transfers" className="space-y-3 mt-0">
+          <SectionTitle
+            title="Kartadagi kirim-chiqim tranzaksiyalar"
+            count={dossier.transfers.length}
+            action={
+              dossier.canMutate ? (
+                <Button
+                  size="sm"
+                  onClick={() => setTransitOpen(true)}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
                 >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => navigateWithTrail(pm.target_route)}
-                        className="font-bold text-sm text-primary hover:underline cursor-pointer text-left"
-                      >
-                        {pm.title}
-                      </button>
-                      <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30 text-[10px]">
-                        {pm.confidence}% moslik
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{pm.reason}</p>
-                  </div>
-                  {dossier.canMutate && (
-                    <Button
-                      size="sm"
-                      onClick={() => confirmMatchMut.mutate(pm.confirm_action)}
-                      disabled={confirmMatchMut.isPending}
-                      className="h-8 text-xs gap-1.5 shrink-0 cursor-pointer"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Tasdiqlab biriktirish
-                    </Button>
-                  )}
-                </div>
+                  <Plus className="h-3.5 w-3.5" /> Vipiska / Oʻtkazma
+                </Button>
+              ) : undefined
+            }
+          />
+
+          {transferCounts.in > 0 && transferCounts.out > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { key: 'ALL', label: `Barchasi (${transferCounts.all})` },
+                  { key: 'INCOMING', label: `↙ Kirim (${transferCounts.in})` },
+                  { key: 'OUTGOING', label: `↗ Chiqim (${transferCounts.out})` },
+                ] as { key: TransferDirFilter; label: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setDirFilter(opt.key)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+                    dirFilter === opt.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
               ))}
-            </CardContent>
-          </Card>
-        )}
-      </section>
+            </div>
+          )}
 
-      {/* ===================================================================== */}
-      {/* 2-BO'LIM: USHBU KARTADAGI TRANZAKSIYALAR (KIRIM / CHIQIM)             */}
-      {/* ===================================================================== */}
-      <section id="sec-transfers" className="scroll-mt-20 space-y-4">
-        <SectionHeading
-          step={2}
-          title="Ushbu kartadagi tranzaksiyalar"
-          subtitle="Kartaga tushgan (kirim) va kartadan chiqqan (chiqim) barcha pul oʻtkazmalari"
-          count={dossier.transfers.length}
-          icon={<ArrowRightLeft className="h-4 w-4 text-primary" />}
-          action={
-            dossier.canMutate ? (
-              <Button
-                size="sm"
-                onClick={() => setTransitOpen(true)}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Vipiska / Oʻtkazma
-              </Button>
-            ) : undefined
-          }
-        />
-
-        {transferCounts.in > 0 && transferCounts.out > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                { key: 'ALL', label: `Barchasi (${transferCounts.all})` },
-                { key: 'INCOMING', label: `↙ Kirim (${transferCounts.in})` },
-                { key: 'OUTGOING', label: `↗ Chiqim (${transferCounts.out})` },
-              ] as { key: TransferDirFilter; label: string }[]
-            ).map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setDirFilter(opt.key)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                  dirFilter === opt.key
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <Card className="py-0 gap-0 border-border/80 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead>Yoʻnalish</TableHead>
-                  <TableHead>Summa</TableHead>
-                  <TableHead>Joʻnatuvchi karta</TableHead>
-                  <TableHead>Qabul qiluvchi karta</TableHead>
-                  <TableHead>Provayder</TableHead>
-                  <TableHead>Sana va vaqt</TableHead>
-                  <TableHead>Ariza</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransfers.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-center py-8 text-xs text-muted-foreground"
-                    >
-                      Ushbu karta boʻyicha oʻtkazmalar topilmadi
-                    </TableCell>
+          <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead>Yoʻnalish</TableHead>
+                    <TableHead>Summa</TableHead>
+                    <TableHead>Joʻnatuvchi</TableHead>
+                    <TableHead>Qabul qiluvchi</TableHead>
+                    <TableHead>Provayder</TableHead>
+                    <TableHead>Sana va vaqt</TableHead>
+                    <TableHead>Ariza</TableHead>
                   </TableRow>
-                ) : (
-                  filteredTransfers.map((tr) => (
-                    <TableRow key={tr.id} className="text-xs">
-                      <TableCell>
-                        {tr.direction === 'INCOMING' ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] gap-1">
-                            <ArrowDownLeft className="h-3 w-3" /> Kirim
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] gap-1">
-                            <ArrowUpRight className="h-3 w-3" /> Chiqim
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono font-bold whitespace-nowrap">
-                        {formatDossierMoney(tr.amount, tr.currency)}
-                      </TableCell>
-                      <TableCell>
-                        {tr.sender_card_id ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              tr.sender_card_id === card.id
-                                ? undefined
-                                : setDrawerTarget({ type: 'card', id: tr.sender_card_id! })
-                            }
-                            className={`text-left ${
-                              tr.sender_card_id === card.id
-                                ? 'text-muted-foreground'
-                                : 'text-primary hover:underline cursor-pointer'
-                            }`}
-                          >
-                            <span className="font-mono font-semibold block">
-                              {formatDossierCard(tr.sender_card_number)}
-                            </span>
-                            {tr.sender_owner_name && (
-                              <span className="text-[11px] text-muted-foreground">
-                                {tr.sender_owner_name}
-                              </span>
-                            )}
-                          </button>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {tr.receiver_card_id ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              tr.receiver_card_id === card.id
-                                ? undefined
-                                : setDrawerTarget({ type: 'card', id: tr.receiver_card_id! })
-                            }
-                            className={`text-left ${
-                              tr.receiver_card_id === card.id
-                                ? 'text-muted-foreground'
-                                : 'text-primary hover:underline cursor-pointer'
-                            }`}
-                          >
-                            <span className="font-mono font-semibold block">
-                              {formatDossierCard(tr.receiver_card_number)}
-                            </span>
-                            {tr.receiver_owner_name && (
-                              <span className="text-[11px] text-muted-foreground">
-                                {tr.receiver_owner_name}
-                              </span>
-                            )}
-                          </button>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {tr.payment_provider || '—'}
-                      </TableCell>
-                      <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
-                        {formatDossierDate(tr.transfer_date)} {tr.transfer_time || ''}
-                      </TableCell>
-                      <TableCell>
-                        {tr.application_id ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDrawerTarget({ type: 'application', id: tr.application_id! })
-                            }
-                            className="font-mono font-bold text-primary hover:underline cursor-pointer"
-                          >
-                            № {tr.application_number || 'Ariza'}
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">Vipiska</span>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {filteredTransfers.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-xs text-muted-foreground"
+                      >
+                        Oʻtkazmalar topilmadi
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 3-BO'LIM: USHBU KARTAGA TUSHGAN ARIZALAR VA ZANJIRLAR                 */}
-      {/* ===================================================================== */}
-      <section id="sec-apps" className="scroll-mt-20 space-y-4">
-        <SectionHeading
-          step={3}
-          title="Ushbu karta qatnashgan arizalar"
-          subtitle="Karta raqami qayd etilgan barcha murojaatlar va ulardagi roli"
-          count={dossier.directApplications.length}
-          icon={<FileText className="h-4 w-4 text-primary" />}
-        />
-
-        <Card className="py-0 gap-0 border-border/80 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead>Ariza №</TableHead>
-                  <TableHead>Jabrlanuvchi</TableHead>
-                  <TableHead>Karta roli</TableHead>
-                  <TableHead>Zarar summasi</TableHead>
-                  <TableHead>Tuman</TableHead>
-                  <TableHead>Sana</TableHead>
-                  <TableHead className="text-right">Oʻtish</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dossier.directApplications.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-center py-8 text-xs text-muted-foreground"
-                    >
-                      Arizalar topilmadi
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  dossier.directApplications.map((app) => {
-                    const roleMeta = getRoleMeta(app.role_in_app);
-                    return (
-                      <TableRow
-                        key={app.id}
-                        onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
-                        className="cursor-pointer hover:bg-muted/40 text-xs"
-                      >
-                        <TableCell className="font-mono font-bold text-primary whitespace-nowrap">
-                          № {app.application_number}
-                        </TableCell>
-                        <TableCell className="font-medium">{app.victim_name || '—'}</TableCell>
+                  ) : (
+                    filteredTransfers.map((tr) => (
+                      <TableRow key={tr.id} className="text-xs">
                         <TableCell>
-                          <Badge className={`text-[11px] ${roleMeta.badgeClass}`}>
-                            {roleMeta.label}
-                          </Badge>
+                          {tr.direction === 'INCOMING' ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                              <ArrowDownLeft className="h-3.5 w-3.5" /> Kirim
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
+                              <ArrowUpRight className="h-3.5 w-3.5" /> Chiqim
+                            </span>
+                          )}
                         </TableCell>
-                        <TableCell className="font-mono font-bold text-rose-500 whitespace-nowrap">
-                          {formatDossierMoney(app.transfer_amount, app.currency)}
+                        <TableCell className="font-mono font-bold whitespace-nowrap">
+                          {formatDossierMoney(tr.amount, tr.currency)}
                         </TableCell>
-                        <TableCell>{app.district_name || '—'}</TableCell>
+                        <TableCell>
+                          {tr.sender_card_id ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                tr.sender_card_id === card.id
+                                  ? undefined
+                                  : setDrawerTarget({ type: 'card', id: tr.sender_card_id! })
+                              }
+                              className={`text-left ${
+                                tr.sender_card_id === card.id
+                                  ? 'text-muted-foreground'
+                                  : 'text-primary hover:underline cursor-pointer'
+                              }`}
+                            >
+                              <span className="font-mono font-semibold block">
+                                {formatDossierCard(tr.sender_card_number)}
+                              </span>
+                              {tr.sender_owner_name && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  {tr.sender_owner_name}
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            '—'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {tr.receiver_card_id ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                tr.receiver_card_id === card.id
+                                  ? undefined
+                                  : setDrawerTarget({ type: 'card', id: tr.receiver_card_id! })
+                              }
+                              className={`text-left ${
+                                tr.receiver_card_id === card.id
+                                  ? 'text-muted-foreground'
+                                  : 'text-primary hover:underline cursor-pointer'
+                              }`}
+                            >
+                              <span className="font-mono font-semibold block">
+                                {formatDossierCard(tr.receiver_card_number)}
+                              </span>
+                              {tr.receiver_owner_name && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  {tr.receiver_owner_name}
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            '—'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {tr.payment_provider || '—'}
+                        </TableCell>
                         <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
-                          {formatDossierDate(app.date)}
+                          {formatDossierDate(tr.transfer_date)} {tr.transfer_time || ''}
                         </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="inline-flex items-center gap-1">
-                            <Button
+                        <TableCell>
+                          {tr.application_id ? (
+                            <button
                               type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
-                              className="h-7 w-7 p-0 cursor-pointer"
+                              onClick={() =>
+                                setDrawerTarget({ type: 'application', id: tr.application_id! })
+                              }
+                              className="font-mono font-bold text-primary hover:underline cursor-pointer"
                             >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigateWithTrail(`/applications/${app.id}`)}
-                              className="h-7 w-7 p-0 text-primary cursor-pointer"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                              № {tr.application_number || 'Ariza'}
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">Vipiska</span>
+                          )}
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
 
-        {dossier.multiHopChains.length > 0 && (
-          <div className="space-y-2.5 pt-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-              <GitBranch className="h-3.5 w-3.5" />
-              Karta egasining boshqa kartalari orqali bogʻliq ishlar (
-              {dossier.multiHopChains.length})
-            </p>
-            {dossier.multiHopChains.map((chain, i) => (
-              <Card
-                key={i}
-                onClick={() =>
-                  setDrawerTarget({ type: 'application', id: chain.target_application.id })
-                }
-                className="py-0 gap-0 border-amber-500/35 bg-amber-500/[0.03] hover:border-amber-500 cursor-pointer"
-              >
-                <CardContent className="p-3.5 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
-                    {chain.chain_steps.map((step, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded bg-background border font-semibold break-all">
-                          {step}
-                        </span>
-                        {idx < chain.chain_steps.length - 1 && (
-                          <ArrowRight className="h-3 w-3 text-amber-500 shrink-0" />
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="font-mono text-xs font-bold text-rose-500 shrink-0">
-                    {formatDossierMoney(chain.target_application.transfer_amount)}
-                  </span>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 4-BO'LIM: GRAFIK SXEMA VA MIKRO-STATISTIKA (ENG PASTDA, YIG'ILGAN)    */}
-      {/* ===================================================================== */}
-      <section id="sec-graph" className="scroll-mt-20 space-y-3">
-        <SectionHeading
-          step={4}
-          title="Grafik sxema va mikro-statistika"
-          subtitle="Vizual pul oqimi xaritasi, vaqt statistikasi va dalil fayllar"
-          icon={<GitBranch className="h-4 w-4 text-primary" />}
-        />
-
-        <CollapsibleInsightPanel
-          title="Bogʻliqliklar va pul oqimi grafigi"
-          subtitle="Ushbu karta atrofidagi barcha oʻtkazmalar va shaxslar xaritasi"
-          icon={<GitBranch className="h-4 w-4" />}
-          badgeText={`${dossier.networkGraph?.nodes.length || 0} ta tugun`}
-          defaultOpen={false}
-        >
-          <EntityNetworkGraph
-            networkGraph={dossier.networkGraph}
-            financialGraph={dossier.financialGraph}
-            defaultMode="network"
+        {/* TAB 2: TUSHGAN ARIZALAR */}
+        <TabsContent value="applications" className="space-y-4 mt-0">
+          <SectionTitle
+            title="Ushbu karta qatnashgan arizalar"
+            count={dossier.directApplications.length}
           />
-        </CollapsibleInsightPanel>
+          <Card className="py-0 gap-0 border-border/80 overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead>Ariza №</TableHead>
+                    <TableHead>Jabrlanuvchi</TableHead>
+                    <TableHead>Karta roli</TableHead>
+                    <TableHead>Zarar summasi</TableHead>
+                    <TableHead>Tuman</TableHead>
+                    <TableHead>Sana</TableHead>
+                    <TableHead className="text-right">Oʻtish</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dossier.directApplications.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-xs text-muted-foreground"
+                      >
+                        Arizalar topilmadi
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    dossier.directApplications.map((app) => {
+                      const roleMeta = getRoleMeta(app.role_in_app);
+                      return (
+                        <TableRow
+                          key={app.id}
+                          onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                          className="cursor-pointer hover:bg-muted/40 text-xs"
+                        >
+                          <TableCell className="font-mono font-bold text-primary whitespace-nowrap">
+                            № {app.application_number}
+                          </TableCell>
+                          <TableCell className="font-medium">{app.victim_name || '—'}</TableCell>
+                          <TableCell>
+                            <Badge className={`text-[11px] ${roleMeta.badgeClass}`}>
+                              {roleMeta.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono font-bold text-rose-500 whitespace-nowrap">
+                            {formatDossierMoney(app.transfer_amount, app.currency)}
+                          </TableCell>
+                          <TableCell>{app.district_name || '—'}</TableCell>
+                          <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
+                            {formatDossierDate(app.date)}
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="inline-flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDrawerTarget({ type: 'application', id: app.id })}
+                                className="h-7 w-7 p-0 cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigateWithTrail(`/applications/${app.id}`)}
+                                className="h-7 w-7 p-0 text-primary cursor-pointer"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
 
-        <CollapsibleInsightPanel
-          title="Mikro-statistika, birga uchragan rekvizitlar va chek/dalil fayllar"
-          subtitle="Soatbay faollik, tumanlar kesimi va biriktirilgan cheklar"
-          icon={<Sparkles className="h-4 w-4" />}
-          badgeText={`${dossier.coOccurringClues.length} rekvizit · ${dossier.evidenceFiles.length} fayl`}
-          defaultOpen={false}
-        >
+          {dossier.multiHopChains.length > 0 && (
+            <div className="space-y-2.5 pt-1">
+              <SectionTitle
+                title="Karta egasining boshqa kartalari orqali bogʻliq ishlar"
+                count={dossier.multiHopChains.length}
+                icon={<GitBranch className="h-4 w-4 text-amber-500" />}
+              />
+              {dossier.multiHopChains.map((chain, i) => (
+                <Card
+                  key={i}
+                  onClick={() =>
+                    setDrawerTarget({ type: 'application', id: chain.target_application.id })
+                  }
+                  className="py-0 gap-0 border-l-4 border-l-amber-500 border-border/80 hover:bg-muted/20 cursor-pointer"
+                >
+                  <CardContent className="p-3.5 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                      {chain.chain_steps.map((step, idx) => (
+                        <span key={idx} className="inline-flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded bg-muted border font-semibold break-all">
+                            {step}
+                          </span>
+                          {idx < chain.chain_steps.length - 1 && (
+                            <ArrowRight className="h-3 w-3 text-amber-500 shrink-0" />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="font-mono text-xs font-bold text-rose-500 shrink-0">
+                      {formatDossierMoney(chain.target_application.transfer_amount)}
+                    </span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* TAB 3: MOLIYAVIY PUL OQIMI (TABSIZ + FULLSCREEN) */}
+        <TabsContent value="flow" className="mt-0">
+          <EntityNetworkGraph
+            financialGraph={dossier.financialGraph}
+            heightClassName="h-[520px]"
+            title="Moliyaviy Pul Oqimi"
+          />
+        </TabsContent>
+
+        {/* TAB 4: STATISTIKA VA DALILLAR */}
+        <TabsContent value="analytics" className="mt-0">
           <DossierAnalyticsSection
             stats={dossier.stats}
             coOccurringClues={dossier.coOccurringClues}
             evidenceFiles={dossier.evidenceFiles}
           />
-        </CollapsibleInsightPanel>
-      </section>
+        </TabsContent>
+      </Tabs>
 
-      {/* Tezkor Yon Oyna */}
       <DossierQuickDrawer
         target={drawerTarget}
         onClose={() => setDrawerTarget(null)}
