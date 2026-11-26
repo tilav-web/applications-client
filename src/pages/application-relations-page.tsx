@@ -292,32 +292,35 @@ export function ApplicationRelationsPage() {
 
     for (const cr of cardRelations) {
       const isRec = cr.role_in_current_app === 'RECEIVER';
+      const n = cr.linked_applications.length;
       items.push({
         key: `card-${cr.card.id}`,
-        text: `${isRec ? 'Firibgar kartasi' : 'Karta'} ${formatDossierCard(cr.card.card_number, cr.card.masked_number)} → ${cr.linked_applications.length} ta ariza`,
+        text: `${isRec ? 'Firibgar kartasi' : 'Karta'} ${formatDossierCard(cr.card.card_number, cr.card.masked_number)} → yana ${n} ta ariza (jami ${n + 1})`,
         danger: isRec,
         targetTab: 'cards',
       });
     }
 
     for (const citR of data?.citizen_relations || []) {
+      const n = citR.linked_applications.length;
       const label =
         citR.citizen.id === primaryCitizenId
           ? `Bir xil fuqaro (${citR.citizen.full_name?.trim() || 'Arizachi'})`
           : `Aloqador fuqaro (${citR.citizen.full_name?.trim() || 'Fuqaro'})`;
       items.push({
         key: `cit-${citR.citizen.id}`,
-        text: `${label} → ${citR.linked_applications.length} ta ariza`,
+        text: `${label} → yana ${n} ta ariza (jami ${n + 1})`,
         targetTab: 'applications',
       });
     }
 
     for (const cl of unifiedClues) {
       if (cl.linkedApps.length > 0) {
+        const n = cl.linkedApps.length;
         items.push({
           key: `clue-${cl.key}`,
-          text: `${cl.label}: ${cl.value} → ${cl.linkedApps.length} ta ariza`,
-          danger: cl.role === 'SUSPECT',
+          text: `${cl.label}: ${cl.value} → yana ${n} ta ariza (jami ${n + 1})`,
+          danger: getRoleMeta(cl.role).isDanger,
           targetTab: 'clues',
         });
       }
@@ -647,7 +650,11 @@ export function ApplicationRelationsPage() {
             <Fingerprint className="h-3.5 w-3.5" />
             <span>Telefon va Gumonlanuvchi belgilari</span>
             <Badge
-              variant={repeatedTokens.size > 0 ? 'destructive' : 'secondary'}
+              variant={
+                unifiedClues.some((c) => c.linkedApps.length > 0 && getRoleMeta(c.role).isDanger)
+                  ? 'destructive'
+                  : 'secondary'
+              }
               className="text-[10px] px-1.5 py-0 font-mono"
             >
               {unifiedClues.length}
@@ -1097,13 +1104,16 @@ export function ApplicationRelationsPage() {
               {unifiedClues.map((cl) => {
                 const roleMeta = getRoleMeta(cl.role);
                 const isRepeated = cl.linkedApps.length > 0;
+                const isDangerRepeat = isRepeated && roleMeta.isDanger;
                 return (
                   <Card
                     key={cl.key}
                     className={`py-0 gap-0 overflow-hidden ${
-                      isRepeated
+                      isDangerRepeat
                         ? 'border-l-4 border-l-rose-500 border-border/80 bg-card'
-                        : 'border-border/80 bg-card'
+                        : isRepeated
+                          ? 'border-l-4 border-l-blue-500 border-border/80 bg-card'
+                          : 'border-border/80 bg-card'
                     }`}
                   >
                     <CardContent className="p-3.5 space-y-2.5">
@@ -1130,8 +1140,15 @@ export function ApplicationRelationsPage() {
 
                         <div className="flex flex-wrap items-center gap-1 shrink-0">
                           {isRepeated && (
-                            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/35 text-[10px] font-bold">
-                              {cl.linkedApps.length} ta arizada takrorlangan
+                            <Badge
+                              className={
+                                isDangerRepeat
+                                  ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/35 text-[10px] font-bold'
+                                  : 'bg-blue-500/12 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-semibold'
+                              }
+                            >
+                              Yana {cl.linkedApps.length} ta arizada (jami{' '}
+                              {cl.linkedApps.length + 1} ta)
                             </Badge>
                           )}
                           <Badge className={`text-[10px] ${roleMeta.badgeClass}`}>
@@ -1158,6 +1175,9 @@ export function ApplicationRelationsPage() {
 
                       {cl.linkedApps.length > 0 ? (
                         <div className="space-y-1 pt-2 border-t border-border/60">
+                          <span className="text-[10px] font-semibold uppercase text-muted-foreground block px-2">
+                            Boshqa bogʻlangan arizalar ({cl.linkedApps.length}):
+                          </span>
                           {cl.linkedApps.map((la) => (
                             <div
                               key={la.id}
