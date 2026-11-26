@@ -446,11 +446,7 @@ export function AppealClassificationCard({
                           {selectedParentApp.application_number || 'Raqamsiz'}
                         </span>
                         <span className="text-muted-foreground mx-1.5">•</span>
-                        <span>
-                          {selectedParentApp.citizen
-                            ? `${selectedParentApp.citizen.last_name || ''} ${selectedParentApp.citizen.first_name || ''}`.trim()
-                            : 'Fuqaro'}
-                        </span>
+                        <span>{selectedParentApp.citizen?.full_name?.trim() || 'Fuqaro'}</span>
                         <span className="text-muted-foreground ml-1.5 text-[10px]">
                           ({formatShortDate(selectedParentApp.date)})
                         </span>
@@ -566,11 +562,7 @@ export function AppealClassificationCard({
                                 {a.application_number || 'Raqamsiz'}
                               </span>
                               <span className="mx-1.5 opacity-70">•</span>
-                              <span>
-                                {a.citizen
-                                  ? `${a.citizen.last_name || ''} ${a.citizen.first_name || ''}`.trim()
-                                  : 'Fuqaro'}
-                              </span>
+                              <span>{a.citizen?.full_name?.trim() || 'Fuqaro'}</span>
                               <span className="ml-1.5 text-[10px] opacity-70">
                                 ({formatShortDate(a.date)})
                               </span>

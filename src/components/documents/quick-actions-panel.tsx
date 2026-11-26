@@ -179,12 +179,13 @@ export function QuickActionsPanel({
 
     // 2. ASOSIY FUQARO (ARIZACHI)
     if (cit) {
-      const fName = cit.first_name || '';
-      const lName = cit.last_name || '';
-      const mName = cit.middle_name || '';
+      const fullName = (cit.full_name || '').trim();
+      const nameParts = fullName ? fullName.split(/\s+/) : [];
+      const lName = nameParts[0] || '';
+      const fName = nameParts[1] || '';
+      const mName = nameParts.slice(2).join(' ');
 
-      const fullName = `${lName} ${fName} ${mName}`.trim();
-      const shortName = `${lName} ${fName}`.trim();
+      const shortName = [lName, fName].filter(Boolean).join(' ').trim();
       const initials =
         `${lName} ${fName ? `${fName[0]}.` : ''} ${mName ? `${mName[0]}.` : ''}`.trim();
 
@@ -360,9 +361,9 @@ export function QuickActionsPanel({
         if (cf.type === 'CITIZEN' && cf.citizen) {
           const c = cf.citizen;
           const roleLabel = cf.label || `Qo‘shimcha fuqaro #${idx + 1}`;
-          const cFullName =
-            `${c.last_name || ''} ${c.first_name || ''} ${c.middle_name || ''}`.trim();
-          const cShort = `${c.last_name || ''} ${c.first_name || ''}`.trim();
+          const cFullName = (c.full_name || '').trim();
+          const cParts = cFullName ? cFullName.split(/\s+/) : [];
+          const cShort = cParts.slice(0, 2).join(' ').trim();
 
           if (cFullName) {
             result.push({

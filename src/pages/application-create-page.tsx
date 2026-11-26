@@ -235,20 +235,32 @@ export function ApplicationCreatePage() {
   const [selectedCitizenId, setSelectedCitizenId] = useState<string | null>(
     () => restoredDraft?.selectedCitizenId ?? null,
   );
-  const [citizenForm, setCitizenForm] = useState(
-    () =>
-      restoredDraft?.citizenForm || {
-        first_name: '',
-        last_name: '',
-        middle_name: '',
-        passport: '',
-        phone_number: '',
-        pinfl: '',
-        address: '',
-        birth_date: '',
-        gender: '' as 'male' | 'female' | '',
-      },
-  );
+  const [citizenForm, setCitizenForm] = useState(() => {
+    const saved = restoredDraft?.citizenForm;
+    if (saved) {
+      const legacyFullName = [saved.last_name, saved.first_name, saved.middle_name]
+        .filter((p): p is string => Boolean(p && p.trim()))
+        .join(' ');
+      return {
+        full_name: saved.full_name ?? legacyFullName,
+        passport: saved.passport || '',
+        phone_number: saved.phone_number || '',
+        pinfl: saved.pinfl || '',
+        address: saved.address || '',
+        birth_date: saved.birth_date || '',
+        gender: (saved.gender || '') as 'male' | 'female' | '',
+      };
+    }
+    return {
+      full_name: '',
+      passport: '',
+      phone_number: '',
+      pinfl: '',
+      address: '',
+      birth_date: '',
+      gender: '' as 'male' | 'female' | '',
+    };
+  });
   const [showCitizenPopover, setShowCitizenPopover] = useState(false);
   const citizenPopoverRef = useRef<HTMLDivElement>(null);
 
@@ -344,10 +356,7 @@ export function ApplicationCreatePage() {
   };
 
   const handleFillApplicantName = (index: number) => {
-    const parts = [citizenForm.last_name, citizenForm.first_name, citizenForm.middle_name].filter(
-      (p) => Boolean(p && p.trim()),
-    );
-    const fullName = parts.join(' ').trim();
+    const fullName = citizenForm.full_name.trim();
     if (!fullName) {
       toast.info('Avval 1-bo‘limda arizachining F.I.SH. ma‘lumotlarini kiriting');
       return;
@@ -498,9 +507,7 @@ export function ApplicationCreatePage() {
   const debouncedCitizenForm = useDebounce(citizenForm, 500);
 
   const isCitizenSearchActive = Boolean(
-    debouncedCitizenForm.first_name.trim() ||
-    debouncedCitizenForm.last_name.trim() ||
-    debouncedCitizenForm.middle_name.trim() ||
+    debouncedCitizenForm.full_name.trim() ||
     debouncedCitizenForm.phone_number.trim() ||
     debouncedCitizenForm.passport.trim() ||
     debouncedCitizenForm.pinfl.trim(),
@@ -509,18 +516,14 @@ export function ApplicationCreatePage() {
   const { data: searchedCitizensData, isFetching: isSearchingCitizens } = useQuery({
     queryKey: [
       'citizens-live-search',
-      debouncedCitizenForm.first_name.trim(),
-      debouncedCitizenForm.last_name.trim(),
-      debouncedCitizenForm.middle_name.trim(),
+      debouncedCitizenForm.full_name.trim(),
       debouncedCitizenForm.phone_number.trim(),
       debouncedCitizenForm.passport.trim(),
       debouncedCitizenForm.pinfl.trim(),
     ],
     queryFn: () =>
       citizensApi.getAll({
-        first_name: debouncedCitizenForm.first_name.trim() || undefined,
-        last_name: debouncedCitizenForm.last_name.trim() || undefined,
-        middle_name: debouncedCitizenForm.middle_name.trim() || undefined,
+        full_name: debouncedCitizenForm.full_name.trim() || undefined,
         phone_number: debouncedCitizenForm.phone_number.trim() || undefined,
         passport: debouncedCitizenForm.passport.trim() || undefined,
         pinfl: debouncedCitizenForm.pinfl.trim() || undefined,
@@ -749,9 +752,7 @@ export function ApplicationCreatePage() {
             parentApp.citizen.neighborhood_id || parentApp.citizen.neighborhood?.id || null,
           );
           setCitizenForm({
-            first_name: parentApp.citizen.first_name || '',
-            last_name: parentApp.citizen.last_name || '',
-            middle_name: parentApp.citizen.middle_name || '',
+            full_name: parentApp.citizen.full_name || '',
             passport: parentApp.citizen.passport || '',
             phone_number: parentApp.citizen.phone_number || '',
             pinfl: parentApp.citizen.pinfl || '',
@@ -843,9 +844,7 @@ export function ApplicationCreatePage() {
       if (initWp) setSelectedWorkplace(initWp);
       setWorkPosition(initialApp.work_position || initialApp.citizen.work_position || '');
       setCitizenForm({
-        first_name: initialApp.citizen.first_name || '',
-        last_name: initialApp.citizen.last_name || '',
-        middle_name: initialApp.citizen.middle_name || '',
+        full_name: initialApp.citizen.full_name || '',
         passport: initialApp.citizen.passport || '',
         phone_number: initialApp.citizen.phone_number || '',
         pinfl: initialApp.citizen.pinfl || '',
@@ -977,9 +976,7 @@ export function ApplicationCreatePage() {
             transfer_id: cf.transfer_id,
             inline_citizen: cf.citizen
               ? {
-                  first_name: cf.citizen.first_name || '',
-                  last_name: cf.citizen.last_name || '',
-                  middle_name: cf.citizen.middle_name || '',
+                  full_name: cf.citizen.full_name || '',
                   passport: cf.citizen.passport || '',
                   phone_number: cf.citizen.phone_number || '',
                   pinfl: cf.citizen.pinfl || '',
@@ -1058,8 +1055,7 @@ export function ApplicationCreatePage() {
     officerNotes.trim() ||
     suspectTree.length > 0 ||
     selectedCitizenId ||
-    citizenForm.first_name.trim() ||
-    citizenForm.last_name.trim() ||
+    citizenForm.full_name.trim() ||
     citizenForm.phone_number.trim() ||
     citizenForm.passport.trim() ||
     citizenForm.pinfl.trim() ||
@@ -1241,9 +1237,7 @@ export function ApplicationCreatePage() {
     setSelectedWorkplace(c.workplace || null);
     setWorkPosition(c.work_position || '');
     setCitizenForm({
-      first_name: c.first_name || '',
-      last_name: c.last_name || '',
-      middle_name: c.middle_name || '',
+      full_name: c.full_name || '',
       passport: c.passport || '',
       phone_number: c.phone_number || '',
       pinfl: c.pinfl || '',
@@ -1263,9 +1257,7 @@ export function ApplicationCreatePage() {
     setOccupationCategoryId(null);
     setOccupationId(null);
     setCitizenForm({
-      first_name: '',
-      last_name: '',
-      middle_name: '',
+      full_name: '',
       passport: '',
       phone_number: '',
       pinfl: '',
@@ -1320,9 +1312,7 @@ export function ApplicationCreatePage() {
       inline_citizen:
         type === 'CITIZEN'
           ? {
-              first_name: '',
-              last_name: '',
-              middle_name: '',
+              full_name: '',
               passport: '',
               phone_number: '',
               pinfl: '',
@@ -1392,9 +1382,7 @@ export function ApplicationCreatePage() {
 
       // 1. Fuqaro
       const citizenDataObj: Record<string, unknown> = {
-        first_name: citizenForm.first_name ? formatUzbekName(citizenForm.first_name) : undefined,
-        last_name: citizenForm.last_name ? formatUzbekName(citizenForm.last_name) : undefined,
-        middle_name: citizenForm.middle_name ? formatUzbekName(citizenForm.middle_name) : undefined,
+        full_name: citizenForm.full_name ? formatUzbekName(citizenForm.full_name) : undefined,
         passport:
           citizenForm.passport && citizenForm.passport.trim() !== ''
             ? citizenForm.passport.trim().toUpperCase()
@@ -1417,8 +1405,7 @@ export function ApplicationCreatePage() {
         payload.citizen_id = selectedCitizenId;
         payload.citizen_data = citizenDataObj;
       } else if (
-        citizenForm.first_name ||
-        citizenForm.last_name ||
+        citizenForm.full_name ||
         citizenForm.phone_number ||
         citizenForm.passport ||
         citizenForm.pinfl ||
@@ -1916,9 +1903,7 @@ export function ApplicationCreatePage() {
                     parentApp.citizen.neighborhood_id || parentApp.citizen.neighborhood?.id || null,
                   );
                   setCitizenForm({
-                    first_name: parentApp.citizen.first_name || '',
-                    last_name: parentApp.citizen.last_name || '',
-                    middle_name: parentApp.citizen.middle_name || '',
+                    full_name: parentApp.citizen.full_name || '',
                     passport: parentApp.citizen.passport || '',
                     phone_number: parentApp.citizen.phone_number || '',
                     pinfl: parentApp.citizen.pinfl || '',
@@ -2036,57 +2021,23 @@ export function ApplicationCreatePage() {
           </div>
 
           <div ref={citizenPopoverRef} className="relative space-y-4 pt-1">
-            {/* 1-Qator: Ism, Familiya, Sharif */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Ism *</label>
-                <Input
-                  placeholder="ISM"
-                  value={citizenForm.first_name}
-                  onFocus={() => {
-                    if (!selectedCitizenId) setShowCitizenPopover(true);
-                  }}
-                  onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, first_name: e.target.value });
-                    if (!selectedCitizenId) setShowCitizenPopover(true);
-                  }}
-                  className="h-10 text-xs uppercase font-medium"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Familiya *</label>
-                <Input
-                  placeholder="FAMILIYA"
-                  value={citizenForm.last_name}
-                  onFocus={() => {
-                    if (!selectedCitizenId) setShowCitizenPopover(true);
-                  }}
-                  onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, last_name: e.target.value });
-                    if (!selectedCitizenId) setShowCitizenPopover(true);
-                  }}
-                  className="h-10 text-xs uppercase font-medium"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Sharif (Otasining ismi)
-                </label>
-                <Input
-                  placeholder="SHARIF"
-                  value={citizenForm.middle_name}
-                  onFocus={() => {
-                    if (!selectedCitizenId) setShowCitizenPopover(true);
-                  }}
-                  onChange={(e) => {
-                    setCitizenForm({ ...citizenForm, middle_name: e.target.value });
-                    if (!selectedCitizenId) setShowCitizenPopover(true);
-                  }}
-                  className="h-10 text-xs uppercase font-medium"
-                />
-              </div>
+            {/* 1-Qator: To'liq F.I.SH. */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                To‘liq F.I.SH. (Familiya Ism Otasining ismi) *
+              </label>
+              <Input
+                placeholder="FAMILIYA ISM OTASINING ISMI (Masalan: ALIYEV VALIJON KARIMOVICH)"
+                value={citizenForm.full_name}
+                onFocus={() => {
+                  if (!selectedCitizenId) setShowCitizenPopover(true);
+                }}
+                onChange={(e) => {
+                  setCitizenForm({ ...citizenForm, full_name: e.target.value });
+                  if (!selectedCitizenId) setShowCitizenPopover(true);
+                }}
+                className="h-10 text-xs uppercase font-medium"
+              />
             </div>
 
             {/* 2-Qator: Tug‘ilgan sana, Jinsi, Telefon raqami */}
@@ -2340,7 +2291,7 @@ export function ApplicationCreatePage() {
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-foreground">
-                          {c.last_name} {c.first_name} {c.middle_name}
+                          {c.full_name?.trim() || 'Ismsiz fuqaro'}
                         </span>
                         {c.gender ? (
                           <span

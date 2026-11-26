@@ -43,9 +43,7 @@ export function DossierQuickDrawer({ target, onClose }: DossierQuickDrawerProps)
 
   const title =
     target.type === 'citizen'
-      ? [dossier?.citizen?.last_name, dossier?.citizen?.first_name, dossier?.citizen?.middle_name]
-          .filter(Boolean)
-          .join(' ') || 'Fuqaro'
+      ? dossier?.citizen?.full_name?.trim() || 'Fuqaro'
       : dossier?.card?.card_number || dossier?.card?.masked_number || 'Karta';
 
   return (

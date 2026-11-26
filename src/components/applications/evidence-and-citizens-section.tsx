@@ -528,88 +528,30 @@ export function EvidenceAndCitizensSection({
 
                   {/* FUQARO ANKETASI */}
                   <div className="space-y-3">
-                    {/* 1-Qator: Ism, Familiya, Sharif */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Ism *
-                        </label>
-                        <Input
-                          placeholder="ISM"
-                          value={cf.inline_citizen?.first_name || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            onUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_citizen: {
-                                ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
-                                  passport: '',
-                                  phone_number: '',
-                                }),
-                                first_name: val,
-                              },
-                            }));
-                          }}
-                          className="h-9 text-xs uppercase font-medium"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Familiya
-                        </label>
-                        <Input
-                          placeholder="FAMILIYA"
-                          value={cf.inline_citizen?.last_name || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            onUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_citizen: {
-                                ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
-                                  passport: '',
-                                  phone_number: '',
-                                }),
-                                last_name: val,
-                              },
-                            }));
-                          }}
-                          className="h-9 text-xs uppercase font-medium"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Sharif (Otasining ismi)
-                        </label>
-                        <Input
-                          placeholder="SHARIF"
-                          value={cf.inline_citizen?.middle_name || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            onUpdateCustomFieldItem(cf.clientId, (f) => ({
-                              ...f,
-                              inline_citizen: {
-                                ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
-                                  passport: '',
-                                  phone_number: '',
-                                }),
-                                middle_name: val,
-                              },
-                            }));
-                          }}
-                          className="h-9 text-xs uppercase font-medium"
-                        />
-                      </div>
+                    {/* 1-Qator: F.I.SH */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-muted-foreground">
+                        To‘liq F.I.SH. (Familiya Ism Otasining ismi) *
+                      </label>
+                      <Input
+                        placeholder="FAMILIYA ISM OTASINING ISMI"
+                        value={cf.inline_citizen?.full_name || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          onUpdateCustomFieldItem(cf.clientId, (f) => ({
+                            ...f,
+                            inline_citizen: {
+                              ...(f.inline_citizen || {
+                                full_name: '',
+                                passport: '',
+                                phone_number: '',
+                              }),
+                              full_name: val,
+                            },
+                          }));
+                        }}
+                        className="h-9 text-xs uppercase font-medium"
+                      />
                     </div>
 
                     {/* 2-Qator: Tug'ilgan sana, Jinsi */}
@@ -627,9 +569,7 @@ export function EvidenceAndCitizensSection({
                               ...f,
                               inline_citizen: {
                                 ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
+                                  full_name: '',
                                   passport: '',
                                   phone_number: '',
                                 }),
@@ -653,9 +593,7 @@ export function EvidenceAndCitizensSection({
                                 ...f,
                                 inline_citizen: {
                                   ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
+                                    full_name: '',
                                     passport: '',
                                     phone_number: '',
                                   }),
@@ -678,9 +616,7 @@ export function EvidenceAndCitizensSection({
                                 ...f,
                                 inline_citizen: {
                                   ...(f.inline_citizen || {
-                                    first_name: '',
-                                    last_name: '',
-                                    middle_name: '',
+                                    full_name: '',
                                     passport: '',
                                     phone_number: '',
                                   }),
@@ -713,9 +649,7 @@ export function EvidenceAndCitizensSection({
                               ...f,
                               inline_citizen: {
                                 ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
+                                  full_name: '',
                                   passport: '',
                                   phone_number: '',
                                 }),
@@ -743,9 +677,7 @@ export function EvidenceAndCitizensSection({
                               ...f,
                               inline_citizen: {
                                 ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
+                                  full_name: '',
                                   passport: '',
                                   phone_number: '',
                                 }),
@@ -770,9 +702,7 @@ export function EvidenceAndCitizensSection({
                               ...f,
                               inline_citizen: {
                                 ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
-                                  middle_name: '',
+                                  full_name: '',
                                   passport: '',
                                   phone_number: '',
                                 }),
@@ -809,8 +739,7 @@ export function EvidenceAndCitizensSection({
                               ...f,
                               inline_citizen: {
                                 ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
+                                  full_name: '',
                                   passport: '',
                                   phone_number: '',
                                 }),
@@ -880,8 +809,7 @@ export function EvidenceAndCitizensSection({
                               ...f,
                               inline_citizen: {
                                 ...(f.inline_citizen || {
-                                  first_name: '',
-                                  last_name: '',
+                                  full_name: '',
                                   passport: '',
                                   phone_number: '',
                                 }),
@@ -908,9 +836,7 @@ export function EvidenceAndCitizensSection({
                             ...f,
                             inline_citizen: {
                               ...(f.inline_citizen || {
-                                first_name: '',
-                                last_name: '',
-                                middle_name: '',
+                                full_name: '',
                                 passport: '',
                                 phone_number: '',
                               }),
@@ -952,8 +878,7 @@ export function EvidenceAndCitizensSection({
             ...f,
             inline_citizen: {
               ...(f.inline_citizen || {
-                first_name: '',
-                last_name: '',
+                full_name: '',
                 passport: '',
                 phone_number: '',
               }),

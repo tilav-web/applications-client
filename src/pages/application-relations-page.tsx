@@ -576,8 +576,7 @@ export function ApplicationRelationsPage() {
                         onClick={() => navigate(`/citizens/${citR.citizen.id}`)}
                         className="font-bold text-base text-foreground hover:text-primary hover:underline inline-flex items-center gap-1.5 cursor-pointer"
                       >
-                        {citR.citizen.last_name} {citR.citizen.first_name}{' '}
-                        {citR.citizen.middle_name || ''}
+                        {citR.citizen.full_name?.trim() || 'Fuqaro'}
                         <ExternalLink className="h-3.5 w-3.5 text-primary" />
                       </button>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">

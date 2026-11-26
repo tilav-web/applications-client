@@ -97,8 +97,7 @@ export function BindToCitizenDialog({
               <div className="p-6 text-center text-xs text-muted-foreground">Fuqaro topilmadi</div>
             ) : (
               data.items.map((c: Citizen) => {
-                const name =
-                  [c.last_name, c.first_name, c.middle_name].filter(Boolean).join(' ') || 'Ismsiz';
+                const name = c.full_name?.trim() || 'Ismsiz';
                 const active = selectedCitizenId === c.id;
                 return (
                   <div

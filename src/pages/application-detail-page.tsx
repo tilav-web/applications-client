@@ -952,8 +952,7 @@ export function ApplicationDetailPage() {
                       To‘liq F.I.SH:
                     </span>
                     <p className="font-bold text-base text-foreground group-hover:text-primary group-hover:underline break-words">
-                      {app.citizen.last_name} {app.citizen.first_name}{' '}
-                      {app.citizen.middle_name || ''}
+                      {app.citizen.full_name?.trim() || '—'}
                     </p>
                   </div>
                   <Badge

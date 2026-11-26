@@ -140,9 +140,7 @@ export function DetectedCrimeFormPage() {
   // Yangi fuqaro tezkor qo'shish (bazada yo'q bo'lsa)
   const [showNewCitizenForm, setShowNewCitizenForm] = useState(false);
   const [newCitizen, setNewCitizen] = useState({
-    last_name: '',
-    first_name: '',
-    middle_name: '',
+    full_name: '',
     passport: '',
     phone_number: '',
   });
@@ -231,9 +229,7 @@ export function DetectedCrimeFormPage() {
     setSuspects(
       (existing.suspects || []).map((s) => ({
         citizen_id: s.citizen_id,
-        citizen_name: s.citizen
-          ? `${s.citizen.last_name || ''} ${s.citizen.first_name || ''} ${s.citizen.middle_name || ''}`.trim()
-          : 'Fuqaro',
+        citizen_name: s.citizen?.full_name?.trim() || 'Fuqaro',
         citizen_passport: s.citizen?.passport,
         citizen_phone: s.citizen?.phone_number,
         role_in_crime: s.role_in_crime,
@@ -250,8 +246,7 @@ export function DetectedCrimeFormPage() {
       toast.info('Bu fuqaro allaqachon ro‘yxatga qo‘shilgan');
       return;
     }
-    const name =
-      `${c.last_name || ''} ${c.first_name || ''} ${c.middle_name || ''}`.trim() || 'Fuqaro';
+    const name = c.full_name?.trim() || 'Fuqaro';
     let isRepeat = false;
     let repeatInfo = '';
     try {
@@ -287,24 +282,20 @@ export function DetectedCrimeFormPage() {
   };
 
   const handleCreateAndAttachCitizen = async () => {
-    if (!newCitizen.first_name.trim() && !newCitizen.last_name.trim()) {
-      toast.error('Ism yoki familiyani kiriting');
+    if (!newCitizen.full_name.trim()) {
+      toast.error('Fuqaroning F.I.SH. ni kiriting');
       return;
     }
     setCreatingCitizen(true);
     try {
       const created = await citizensApi.create({
-        first_name: newCitizen.first_name.trim(),
-        last_name: newCitizen.last_name.trim(),
-        middle_name: newCitizen.middle_name.trim() || undefined,
+        full_name: newCitizen.full_name.trim(),
         passport: newCitizen.passport.trim().toUpperCase() || undefined,
         phone_number: newCitizen.phone_number.trim() || undefined,
       });
       await handleAddSuspect(created);
       setNewCitizen({
-        last_name: '',
-        first_name: '',
-        middle_name: '',
+        full_name: '',
         passport: '',
         phone_number: '',
       });
@@ -956,7 +947,7 @@ export function DetectedCrimeFormPage() {
                       >
                         <div>
                           <span className="font-semibold">
-                            {c.last_name} {c.first_name} {c.middle_name}
+                            {c.full_name?.trim() || 'Ismsiz fuqaro'}
                           </span>
                           {c.passport && (
                             <span className="ml-2 font-mono text-[11px] text-primary">
@@ -977,24 +968,12 @@ export function DetectedCrimeFormPage() {
                 <div className="text-xs font-bold text-foreground">
                   Yangi fuqaro profilini yaratish (bazaga qo‘shiladi va shu ishga biriktiriladi)
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
                   <Input
-                    placeholder="Familiya *"
-                    value={newCitizen.last_name}
-                    onChange={(e) => setNewCitizen((p) => ({ ...p, last_name: e.target.value }))}
-                    className="h-9 text-xs uppercase"
-                  />
-                  <Input
-                    placeholder="Ism *"
-                    value={newCitizen.first_name}
-                    onChange={(e) => setNewCitizen((p) => ({ ...p, first_name: e.target.value }))}
-                    className="h-9 text-xs uppercase"
-                  />
-                  <Input
-                    placeholder="Sharif"
-                    value={newCitizen.middle_name}
-                    onChange={(e) => setNewCitizen((p) => ({ ...p, middle_name: e.target.value }))}
-                    className="h-9 text-xs uppercase"
+                    placeholder="To‘liq F.I.SH. *"
+                    value={newCitizen.full_name}
+                    onChange={(e) => setNewCitizen((p) => ({ ...p, full_name: e.target.value }))}
+                    className="h-9 text-xs uppercase sm:col-span-2"
                   />
                   <Input
                     placeholder="Pasport (AA1234567)"

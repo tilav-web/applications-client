@@ -457,9 +457,7 @@ export interface UserViewItem {
 
 export interface Citizen {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
-  middle_name: string | null;
+  full_name: string | null;
   passport: string | null;
   pinfl: string | null;
   phone_number: string | null;
@@ -884,9 +882,7 @@ export interface CardRelationItem {
 export interface CitizenRelationItem {
   citizen: {
     id: string;
-    first_name: string | null;
-    last_name: string | null;
-    middle_name?: string | null;
+    full_name: string | null;
     phone_number?: string | null;
     passport?: string | null;
     pinfl?: string | null;

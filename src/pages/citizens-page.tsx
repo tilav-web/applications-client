@@ -248,9 +248,7 @@ export function CitizensPage() {
   // Mutations
   const preparePayload = (data: Partial<Citizen>) => ({
     ...data,
-    first_name: data.first_name ? formatUzbekName(data.first_name) : undefined,
-    last_name: data.last_name ? formatUzbekName(data.last_name) : undefined,
-    middle_name: data.middle_name ? formatUzbekName(data.middle_name) : undefined,
+    full_name: data.full_name ? formatUzbekName(data.full_name) : undefined,
     passport: data.passport ? data.passport.trim().toUpperCase() : undefined,
   });
 
@@ -357,9 +355,7 @@ export function CitizensPage() {
             }
             singleLabel={
               selection.singleSelected
-                ? [selection.singleSelected.last_name, selection.singleSelected.first_name]
-                    .filter(Boolean)
-                    .join(' ') || 'Fuqaro'
+                ? selection.singleSelected.full_name?.trim() || 'Fuqaro'
                 : null
             }
             onClear={selection.clearSelection}
@@ -536,10 +532,7 @@ export function CitizensPage() {
               <TableRowsSkeleton rows={8} columns={8} />
             ) : data?.items?.length ? (
               data.items.map((citizen: Citizen) => {
-                const fullName =
-                  [citizen.last_name, citizen.first_name, citizen.middle_name]
-                    .filter(Boolean)
-                    .join(' ') || '—';
+                const fullName = citizen.full_name?.trim() || '—';
                 const selected = selection.isSelected(citizen.id);
 
                 return (
@@ -718,43 +711,21 @@ export function CitizensPage() {
           </DialogHeader>
 
           <div className="space-y-5 py-2">
-            {/* 1-Qator: Ism, Familiya, Sharif */}
+            {/* 1-Qator: F.I.SH */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 1. Shaxsiy Rekvizitlar (F.I.SH)
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Ism *</label>
-                  <Input
-                    placeholder="ISM"
-                    value={formData.first_name || ''}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="h-10 text-xs sm:text-sm uppercase font-medium"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Familiya *</label>
-                  <Input
-                    placeholder="FAMILIYA"
-                    value={formData.last_name || ''}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="h-10 text-xs sm:text-sm uppercase font-medium"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    Sharif (Otasining ismi)
-                  </label>
-                  <Input
-                    placeholder="SHARIF"
-                    value={formData.middle_name || ''}
-                    onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
-                    className="h-10 text-xs sm:text-sm uppercase font-medium"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  F.I.SH (Familiya Ism Otasining ismi) *
+                </label>
+                <Input
+                  placeholder="Masalan: ALIYEV VALIJON KARIMOVICH"
+                  value={formData.full_name || ''}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  className="h-10 text-xs sm:text-sm uppercase font-medium"
+                />
               </div>
             </div>
 

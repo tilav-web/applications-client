@@ -134,9 +134,7 @@ export function ClueDossierPage() {
     : `Turi: ${dossier.identifier?.type_label || dossier.identifier?.type || 'Raqamli iz'}`;
 
   const owner = dossier.citizen;
-  const ownerName = owner
-    ? [owner.last_name, owner.first_name, owner.middle_name].filter(Boolean).join(' ')
-    : null;
+  const ownerName = owner?.full_name?.trim() || null;
   const stats = dossier.stats;
 
   return (

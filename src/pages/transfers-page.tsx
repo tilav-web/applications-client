@@ -830,7 +830,7 @@ export function TransfersPage() {
                   {cardsData?.items?.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.masked_number || c.card_number}{' '}
-                      {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
+                      {c.citizen?.full_name ? `(${c.citizen.full_name})` : ''}
                     </option>
                   ))}
                 </select>
@@ -852,7 +852,7 @@ export function TransfersPage() {
                     {cardsData?.items?.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.masked_number || c.card_number}{' '}
-                        {c.citizen ? `(${c.citizen.last_name || ''})` : ''}
+                        {c.citizen?.full_name ? `(${c.citizen.full_name})` : ''}
                       </option>
                     ))}
                   </select>

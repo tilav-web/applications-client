@@ -154,11 +154,7 @@ export function CardDossierPage() {
   const stats = dossier.stats;
   const displayNum = formatCard(card.card_number, card.masked_number);
   const ownerCitizen = dossier.citizen;
-  const ownerFullName = ownerCitizen
-    ? [ownerCitizen.last_name, ownerCitizen.first_name, ownerCitizen.middle_name]
-        .filter(Boolean)
-        .join(' ')
-    : card.full_name || null;
+  const ownerFullName = ownerCitizen?.full_name?.trim() || card.full_name || null;
 
   return (
     <div className="w-full space-y-6 pb-12">

@@ -18,9 +18,7 @@ export interface AppCustomFieldState {
   district_id?: string | null;
   transfer_id?: string | null;
   inline_citizen?: {
-    first_name: string;
-    last_name: string;
-    middle_name?: string;
+    full_name: string;
     passport: string;
     phone_number: string;
     pinfl?: string;

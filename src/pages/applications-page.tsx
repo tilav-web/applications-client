@@ -1378,7 +1378,7 @@ export function ApplicationsPage() {
                         <div className="flex items-center gap-1.5 text-xs">
                           <User className="h-3.5 w-3.5 text-primary shrink-0" />
                           <span className="font-medium truncate max-w-[200px]">
-                            {app.citizen.last_name} {app.citizen.first_name}
+                            {app.citizen.full_name?.trim() || '—'}
                           </span>
                         </div>
                       ) : (

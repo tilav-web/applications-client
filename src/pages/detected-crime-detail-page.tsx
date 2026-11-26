@@ -665,9 +665,7 @@ export function DetectedCrimeDetailPage() {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
                     <span className="group-hover:text-primary group-hover:underline">
-                      {s.citizen
-                        ? `${s.citizen.last_name || ''} ${s.citizen.first_name || ''} ${s.citizen.middle_name || ''}`.trim()
-                        : 'Fuqaro'}
+                      {s.citizen?.full_name?.trim() || 'Fuqaro'}
                     </span>
                     {s.is_repeat_offender && (
                       <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px] gap-1">

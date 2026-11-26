@@ -524,9 +524,7 @@ export function CardsPage() {
               <TableRowsSkeleton rows={8} columns={6} />
             ) : data?.items?.length ? (
               data.items.map((card: Card) => {
-                const ownerName = card.citizen
-                  ? [card.citizen.last_name, card.citizen.first_name].filter(Boolean).join(' ')
-                  : 'Biriktirilmagan';
+                const ownerName = card.citizen?.full_name?.trim() || 'Biriktirilmagan';
                 const selected = selection.isSelected(card.id);
 
                 return (
@@ -693,8 +691,7 @@ export function CardsPage() {
                   <option value="">Fuqaroni tanlang (ixtiyoriy)...</option>
                   {citizensData?.items?.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {[c.last_name, c.first_name].filter(Boolean).join(' ')} (
-                      {c.passport || 'Pasportsiz'})
+                      {c.full_name?.trim() || 'Fuqaro'} ({c.passport || 'Pasportsiz'})
                     </option>
                   ))}
                 </select>

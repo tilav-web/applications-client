@@ -368,9 +368,7 @@ export function DetectedCrimesPage() {
                               className="text-xs flex items-center gap-1"
                             >
                               <span className="font-medium">
-                                {s.citizen
-                                  ? `${s.citizen.last_name || ''} ${s.citizen.first_name || ''}`.trim()
-                                  : 'Shaxs'}
+                                {s.citizen?.full_name?.trim() || 'Shaxs'}
                               </span>
                               {s.is_repeat_offender && (
                                 <Badge

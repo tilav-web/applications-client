@@ -311,8 +311,7 @@ export function CitizenDossierPage() {
 
   const cit = dossier.citizen;
   const stats = dossier.stats;
-  const fullName =
-    [cit.last_name, cit.first_name, cit.middle_name].filter(Boolean).join(' ') || 'Ismsiz fuqaro';
+  const fullName = cit.full_name?.trim() || 'Ismsiz fuqaro';
 
   return (
     <div className="w-full space-y-6 pb-12">
@@ -1314,8 +1313,7 @@ export function CitizenDossierPage() {
                 <option value="">Arizani tanlang...</option>
                 {recentAppsData?.items?.map((a) => (
                   <option key={a.id} value={a.id}>
-                    № {a.application_number || 'Raqamsiz'} — {a.citizen?.last_name || ''}{' '}
-                    {a.citizen?.first_name || ''}
+                    № {a.application_number || 'Raqamsiz'} — {a.citizen?.full_name?.trim() || ''}
                   </option>
                 ))}
               </select>

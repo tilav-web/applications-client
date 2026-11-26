@@ -38,9 +38,10 @@ export interface ApplicationCreateDraft {
   terminationNote: string;
   selectedCitizenId: string | null;
   citizenForm: {
-    first_name: string;
-    last_name: string;
-    middle_name: string;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    middle_name?: string;
     passport: string;
     phone_number: string;
     pinfl: string;
