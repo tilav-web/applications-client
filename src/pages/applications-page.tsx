@@ -9,6 +9,7 @@ import {
   Hash,
   Link2,
   Loader2,
+  Palette,
   Phone,
   Plus,
   RefreshCw,
@@ -19,6 +20,15 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import {
+  formatRowColorTooltip,
+  getRowColorMeta,
+  ROW_COLOR_OPTIONS,
+} from '@/components/applications/row-color-config';
+import {
+  RowColorFloatingMenu,
+  RowColorSwatchRow,
+} from '@/components/applications/row-color-picker';
 import { SlaBadge } from '@/components/applications/sla-components';
 import { CreateWordDialog } from '@/components/documents/create-word-dialog';
 import { DocumentEditorModal } from '@/components/documents/document-editor-modal';
@@ -45,6 +55,7 @@ import {
   TableCheckbox,
   useTableSelection,
 } from '@/components/ui/table-selection-bar';
+import { useApplicationsRealtime } from '@/hooks/use-applications-realtime';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
@@ -58,13 +69,28 @@ import {
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { cn } from '@/lib/utils';
-import type { Application, ApplicationStatus, ApplicationStatusItem } from '@/types/models';
+import { useAuthStore } from '@/store';
+import type {
+  Application,
+  ApplicationRowColor,
+  ApplicationStatus,
+  ApplicationStatusItem,
+  PaginatedResponse,
+} from '@/types/models';
 
 export function ApplicationsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+  const currentUser = useAuthStore((s) => s.user);
+  const currentActorName =
+    [currentUser?.profile?.last_name, currentUser?.profile?.first_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    currentUser?.username ||
+    null;
 
   const [slaFilter, setSlaFilter] = useState<string>(() => searchParams.get('sla_filter') || '');
 
@@ -90,6 +116,7 @@ export function ApplicationsPage() {
   const [externalSystemStatusFilter, setExternalSystemStatusFilter] = useState<
     'not_entered' | 'entered'
   >('not_entered');
+  const [rowColorFilter, setRowColorFilter] = useState<string>('');
   const [dateFromFilter, setDateFromFilter] = useState<string>('');
   const [dateToFilter, setDateToFilter] = useState<string>('');
   const [minAmountFilter, setMinAmountFilter] = useState<string>('');
@@ -277,6 +304,7 @@ export function ApplicationsPage() {
         awareness_status_id: awarenessStatusFilter || undefined,
         external_system_id: externalSystemFilter || undefined,
         external_system_status: externalSystemFilter ? externalSystemStatusFilter : undefined,
+        row_color: rowColorFilter || undefined,
         date_from: dateFromFilter || undefined,
         date_to: dateToFilter || undefined,
         min_amount: parseAmountParam(debouncedMinAmount),
@@ -307,6 +335,15 @@ export function ApplicationsPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [colorMenu, setColorMenu] = useState<{
+    app: Application;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const { isConnected, onlineUsers, recentlyUpdatedIds } = useApplicationsRealtime({
+    activeRowColorFilter: rowColorFilter,
+  });
 
   // ONLYOFFICE modal boshqaruvi
   const [selectedAppForWord, setSelectedAppForWord] = useState<Application | null>(null);
@@ -384,6 +421,7 @@ export function ApplicationsPage() {
     Boolean(appealTypeFilter),
     Boolean(awarenessStatusFilter),
     Boolean(externalSystemFilter),
+    Boolean(rowColorFilter),
     Boolean(dateFromFilter),
     Boolean(dateToFilter),
     Boolean(minAmountFilter.trim()),
@@ -405,6 +443,7 @@ export function ApplicationsPage() {
     setAwarenessStatusFilter('');
     setExternalSystemFilter('');
     setExternalSystemStatusFilter('not_entered');
+    setRowColorFilter('');
     setDateFromFilter('');
     setDateToFilter('');
     setMinAmountFilter('');
@@ -438,6 +477,7 @@ export function ApplicationsPage() {
         awareness_status_id: awarenessStatusFilter,
         external_system_id: externalSystemFilter,
         external_system_status: externalSystemFilter ? externalSystemStatusFilter : '',
+        row_color: rowColorFilter,
       },
     ],
     queryFn: () =>
@@ -463,6 +503,7 @@ export function ApplicationsPage() {
         awareness_status_id: awarenessStatusFilter || undefined,
         external_system_id: externalSystemFilter || undefined,
         external_system_status: externalSystemFilter ? externalSystemStatusFilter : undefined,
+        row_color: rowColorFilter || undefined,
       }),
     placeholderData: (prev) => prev,
     staleTime: 0,
@@ -498,6 +539,7 @@ export function ApplicationsPage() {
             awareness_status_id: awarenessStatusFilter,
             external_system_id: externalSystemFilter,
             external_system_status: externalSystemFilter ? externalSystemStatusFilter : '',
+            row_color: rowColorFilter,
           },
         ],
         queryFn: () =>
@@ -523,6 +565,7 @@ export function ApplicationsPage() {
             awareness_status_id: awarenessStatusFilter || undefined,
             external_system_id: externalSystemFilter || undefined,
             external_system_status: externalSystemFilter ? externalSystemStatusFilter : undefined,
+            row_color: rowColorFilter || undefined,
           }),
       });
     }
@@ -549,6 +592,7 @@ export function ApplicationsPage() {
     awarenessStatusFilter,
     externalSystemFilter,
     externalSystemStatusFilter,
+    rowColorFilter,
     queryClient,
   ]);
 
@@ -631,6 +675,152 @@ export function ApplicationsPage() {
     },
   });
 
+  // Qator fon rangini tezkor o'zgartirish (optimistik + SSE sinxronlash)
+  const rowColorMutation = useMutation({
+    mutationFn: ({ id, row_color }: { id: string; row_color: ApplicationRowColor | null }) =>
+      applicationsApi.updateRowColor(id, row_color),
+    onMutate: async ({ id, row_color }) => {
+      await queryClient.cancelQueries({ queryKey: ['applications'] });
+      const previous = queryClient.getQueriesData<PaginatedResponse<Application>>({
+        queryKey: ['applications'],
+      });
+      const optimisticTime = row_color ? new Date().toISOString() : null;
+      const optimisticBy = row_color ? currentActorName : null;
+      queryClient.setQueriesData<PaginatedResponse<Application>>(
+        { queryKey: ['applications'] },
+        (old) => {
+          if (!old || !Array.isArray(old.items)) return old;
+          return {
+            ...old,
+            items: old.items.map((app) =>
+              app.id === id
+                ? {
+                    ...app,
+                    row_color,
+                    row_color_by: optimisticBy,
+                    row_color_updated_at: optimisticTime,
+                  }
+                : app,
+            ),
+          };
+        },
+      );
+      return { previous };
+    },
+    onError: (err, _vars, context) => {
+      if (context?.previous) {
+        for (const [key, value] of context.previous) {
+          queryClient.setQueryData(key, value);
+        }
+      }
+      toast.error('Qator rangini saqlashda xatolik', {
+        description: getErrorMessage(err),
+      });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueriesData<PaginatedResponse<Application>>(
+        { queryKey: ['applications'] },
+        (old) => {
+          if (!old || !Array.isArray(old.items)) return old;
+          return {
+            ...old,
+            items: old.items.map((app) =>
+              app.id === updated.id
+                ? {
+                    ...app,
+                    row_color: updated.row_color,
+                    row_color_by: updated.row_color_by,
+                    row_color_updated_at: updated.row_color_updated_at,
+                  }
+                : app,
+            ),
+          };
+        },
+      );
+      if (rowColorFilter) {
+        void queryClient.invalidateQueries({ queryKey: ['applications'] });
+      }
+    },
+  });
+
+  // Bir nechta tanlangan arizalarning rangini birdan o'zgartirish
+  const bulkRowColorMutation = useMutation({
+    mutationFn: ({ ids, row_color }: { ids: string[]; row_color: ApplicationRowColor | null }) =>
+      applicationsApi.bulkUpdateRowColor(ids, row_color),
+    onMutate: async ({ ids, row_color }) => {
+      await queryClient.cancelQueries({ queryKey: ['applications'] });
+      const previous = queryClient.getQueriesData<PaginatedResponse<Application>>({
+        queryKey: ['applications'],
+      });
+      const idSet = new Set(ids);
+      const optimisticTime = row_color ? new Date().toISOString() : null;
+      const optimisticBy = row_color ? currentActorName : null;
+      queryClient.setQueriesData<PaginatedResponse<Application>>(
+        { queryKey: ['applications'] },
+        (old) => {
+          if (!old || !Array.isArray(old.items)) return old;
+          return {
+            ...old,
+            items: old.items.map((app) =>
+              idSet.has(app.id)
+                ? {
+                    ...app,
+                    row_color,
+                    row_color_by: optimisticBy,
+                    row_color_updated_at: optimisticTime,
+                  }
+                : app,
+            ),
+          };
+        },
+      );
+      return { previous };
+    },
+    onError: (err, _vars, context) => {
+      if (context?.previous) {
+        for (const [key, value] of context.previous) {
+          queryClient.setQueryData(key, value);
+        }
+      }
+      toast.error('Tanlangan arizalar rangini saqlashda xatolik', {
+        description: getErrorMessage(err),
+      });
+    },
+    onSuccess: (res, vars) => {
+      const map = new Map(res.items.map((i) => [i.id, i]));
+      queryClient.setQueriesData<PaginatedResponse<Application>>(
+        { queryKey: ['applications'] },
+        (old) => {
+          if (!old || !Array.isArray(old.items)) return old;
+          return {
+            ...old,
+            items: old.items.map((app) => {
+              const patch = map.get(app.id);
+              return patch
+                ? {
+                    ...app,
+                    row_color: patch.row_color,
+                    row_color_by: patch.row_color_by,
+                    row_color_updated_at: patch.row_color_updated_at,
+                  }
+                : app;
+            }),
+          };
+        },
+      );
+      selection.clearSelection();
+      if (rowColorFilter) {
+        void queryClient.invalidateQueries({ queryKey: ['applications'] });
+      }
+      const meta = getRowColorMeta(vars.row_color);
+      toast.success(
+        meta
+          ? `${res.updatedCount} ta ariza "${meta.label}" rangga belgilandi`
+          : `${res.updatedCount} ta arizadan rang olib tashlandi`,
+      );
+    },
+  });
+
   const getStatusBadge = (
     status: ApplicationStatus | null,
     statusItem?: ApplicationStatusItem | null,
@@ -665,15 +855,40 @@ export function ApplicationsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1">
-            <FileText className="h-3.5 w-3.5" />
-            <span>Murojaatlar Boshqaruvi</span>
-            {isFetching && !isLoading && (
-              <span className="flex items-center gap-1 text-[10px] text-primary animate-pulse ml-1.5 font-normal">
-                <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-                Yangilanmoqda...
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary">
+              <FileText className="h-3.5 w-3.5" />
+              <span>Murojaatlar Boshqaruvi</span>
+              {isFetching && !isLoading && (
+                <span className="flex items-center gap-1 text-[10px] text-primary animate-pulse ml-1.5 font-normal">
+                  <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                  Yangilanmoqda...
+                </span>
+              )}
+            </div>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                isConnected
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+              )}
+              title={
+                isConnected
+                  ? 'Real-vaqt sinxronlash faol: qator ranglari barcha online hodimlarda bir zumda yangilanadi'
+                  : 'Real-vaqt ulanish qayta tiklanmoqda...'
+              }
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500',
+                )}
+              />
+              <span>
+                {isConnected ? `Jonli · ${Math.max(1, onlineUsers)} online` : 'Ulanmoqda...'}
               </span>
-            )}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Arizalar & Murojaatlar
@@ -858,6 +1073,27 @@ export function ApplicationsPage() {
 
                     <DropdownMenuSeparator />
 
+                    <div className="px-2 py-1.5 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                        <Palette className="h-3 w-3 text-primary" />
+                        <span>Qator rangi</span>
+                      </div>
+                      <RowColorSwatchRow
+                        size="sm"
+                        activeColor={selection.singleSelected.row_color}
+                        disabled={rowColorMutation.isPending}
+                        onSelect={(color) => {
+                          rowColorMutation.mutate({
+                            id: selection.singleSelected!.id,
+                            row_color: color,
+                          });
+                          selection.clearSelection();
+                        }}
+                      />
+                    </div>
+
+                    <DropdownMenuSeparator />
+
                     <DropdownMenuItem
                       onClick={() => setDeleteTargetId(selection.singleSelected!.id)}
                       className="gap-2 cursor-pointer text-xs py-2 text-destructive focus:text-destructive"
@@ -881,6 +1117,26 @@ export function ApplicationsPage() {
 
                 {canWrite && (
                   <>
+                    <DropdownMenuSeparator />
+
+                    <div className="px-2 py-1.5 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                        <Palette className="h-3 w-3 text-primary" />
+                        <span>Rang berish ({selection.selectedIds.length} ta)</span>
+                      </div>
+                      <RowColorSwatchRow
+                        size="sm"
+                        showClearWhenUnset
+                        disabled={bulkRowColorMutation.isPending}
+                        onSelect={(color) =>
+                          bulkRowColorMutation.mutate({
+                            ids: selection.selectedIds,
+                            row_color: color,
+                          })
+                        }
+                      />
+                    </div>
+
                     <DropdownMenuSeparator />
 
                     <DropdownMenuItem
@@ -1101,6 +1357,24 @@ export function ApplicationsPage() {
           </FilterSelect>
         )}
 
+        <FilterSelect
+          label="Qator rangi"
+          value={rowColorFilter}
+          onChange={(v) => {
+            setRowColorFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Barchasi</option>
+          <option value="any">Ranglanganlar (barcha ranglar)</option>
+          <option value="none">Rangsizlar</option>
+          {ROW_COLOR_OPTIONS.map((opt) => (
+            <option key={opt.key} value={opt.key}>
+              {opt.label}
+            </option>
+          ))}
+        </FilterSelect>
+
         <FilterInput
           label="Sanadan"
           type="date"
@@ -1149,44 +1423,57 @@ export function ApplicationsPage() {
       </TableFilterPanel>
 
       {/* 1.5. PROTSESSUAL MUDDAT (SLA) TEZKOR FILTRLARI */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {[
-          { key: '', label: 'Barchasi' },
-          { key: 'overdue', label: 'Muddati o‘tganlar', cls: 'text-rose-600 border-rose-500/30' },
-          {
-            key: 'due_24h',
-            label: '24 soat qolganlar',
-            cls: 'text-orange-600 border-orange-500/30',
-          },
-          { key: 'due_72h', label: '3 kun qolganlar', cls: 'text-amber-700 border-amber-500/30' },
-          { key: 'active', label: 'Tekshiruvda (10 kun)', cls: 'text-sky-600 border-sky-500/30' },
-          {
-            key: 'extended',
-            label: 'Uzaytirilgan (1 oy)',
-            cls: 'text-indigo-600 border-indigo-500/30',
-          },
-        ].map((f) => {
-          const active = slaFilter === f.key;
-          return (
-            <Button
-              key={f.key || 'all'}
-              type="button"
-              size="sm"
-              variant={active ? 'default' : 'outline'}
-              onClick={() => {
-                setSlaFilter(f.key);
-                setPage(1);
-                const next = new URLSearchParams(searchParams);
-                if (f.key) next.set('sla_filter', f.key);
-                else next.delete('sla_filter');
-                setSearchParams(next, { replace: true });
-              }}
-              className={cn('h-7 text-[11px] px-2.5 cursor-pointer', !active && f.cls)}
-            >
-              {f.label}
-            </Button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { key: '', label: 'Barchasi' },
+            { key: 'overdue', label: 'Muddati o‘tganlar', cls: 'text-rose-600 border-rose-500/30' },
+            {
+              key: 'due_24h',
+              label: '24 soat qolganlar',
+              cls: 'text-orange-600 border-orange-500/30',
+            },
+            {
+              key: 'due_72h',
+              label: '3 kun qolganlar',
+              cls: 'text-amber-700 border-amber-500/30',
+            },
+            { key: 'active', label: 'Tekshiruvda (10 kun)', cls: 'text-sky-600 border-sky-500/30' },
+            {
+              key: 'extended',
+              label: 'Uzaytirilgan (1 oy)',
+              cls: 'text-indigo-600 border-indigo-500/30',
+            },
+          ].map((f) => {
+            const active = slaFilter === f.key;
+            return (
+              <Button
+                key={f.key || 'all'}
+                type="button"
+                size="sm"
+                variant={active ? 'default' : 'outline'}
+                onClick={() => {
+                  setSlaFilter(f.key);
+                  setPage(1);
+                  const next = new URLSearchParams(searchParams);
+                  if (f.key) next.set('sla_filter', f.key);
+                  else next.delete('sla_filter');
+                  setSearchParams(next, { replace: true });
+                }}
+                className={cn('h-7 text-[11px] px-2.5 cursor-pointer', !active && f.cls)}
+              >
+                {f.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {canWrite && (
+          <span className="hidden lg:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Palette className="h-3.5 w-3.5 text-primary/80" />
+            <span>Qatorni ranglash: qatorga o‘ng tugma bosing yoki rang nuqtasini tanlang</span>
+          </span>
+        )}
       </div>
 
       {/* 2. ALOHIDA AJRATILGAN ARIZALAR JADVALI */}
@@ -1194,7 +1481,7 @@ export function ApplicationsPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-b border-border bg-muted/40">
-              <TableHead className="w-11 h-10 px-3 text-center sticky left-0 z-10 bg-muted/95 backdrop-blur-xs">
+              <TableHead className="w-[68px] h-10 px-2.5 text-center sticky left-0 z-10 bg-muted/95 backdrop-blur-xs">
                 <div className="flex items-center justify-center">
                   <TableCheckbox
                     checked={selection.allSelected}
@@ -1233,31 +1520,82 @@ export function ApplicationsPage() {
             ) : data?.items?.length ? (
               data.items.map((app: Application) => {
                 const selected = selection.isSelected(app.id);
+                const colorMeta = getRowColorMeta(app.row_color);
+                const isRemoteUpdated = recentlyUpdatedIds.has(app.id);
+                const colorTooltip = formatRowColorTooltip(app, canWrite);
                 return (
                   <TableRow
                     key={app.id}
                     className={cn(
-                      'cursor-pointer transition-colors border-b border-border',
-                      selected ? 'bg-primary/[0.08] hover:bg-primary/[0.12]' : 'hover:bg-muted/40',
+                      'group cursor-pointer transition-colors border-b border-border',
+                      selected
+                        ? 'bg-primary/[0.08] hover:bg-primary/[0.12]'
+                        : colorMeta
+                          ? colorMeta.rowClass
+                          : 'hover:bg-muted/40',
+                      isRemoteUpdated && 'ring-2 ring-inset ring-primary/50',
                     )}
                     onClick={() => navigate(`/applications/${app.id}`)}
+                    onContextMenu={(e) => {
+                      if (!canWrite) return;
+                      e.preventDefault();
+                      setColorMenu({ app, x: e.clientX, y: e.clientY });
+                    }}
                   >
                     <TableCell
                       className={cn(
-                        'w-11 text-center sticky left-0 z-10 backdrop-blur-xs',
-                        selected ? 'bg-primary/[0.08]' : 'bg-card/95',
+                        'w-[68px] px-2.5 text-center sticky left-0 z-10 backdrop-blur-xs transition-colors',
+                        selected
+                          ? 'bg-primary/[0.08]'
+                          : colorMeta
+                            ? colorMeta.stickyCellClass
+                            : 'bg-card/95 group-hover:bg-muted/40',
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
                         selection.toggleOne(app.id);
                       }}
                     >
-                      <div className="flex items-center justify-center">
+                      <div className="flex items-center justify-center gap-2">
                         <TableCheckbox
                           checked={selected}
                           onChange={() => selection.toggleOne(app.id)}
                           ariaLabel={`Ariza ${app.application_number || ''} ni tanlash`}
                         />
+                        {canWrite ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setColorMenu({
+                                app,
+                                x: rect.right + 8,
+                                y: rect.top - 4,
+                              });
+                            }}
+                            title={colorTooltip}
+                            aria-label={colorTooltip}
+                            className={cn(
+                              'h-3.5 w-3.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0',
+                              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                              colorMeta
+                                ? cn(
+                                    colorMeta.dotClass,
+                                    'ring-2 ring-offset-1 ring-offset-background shadow-2xs hover:scale-125',
+                                  )
+                                : 'border border-dashed border-muted-foreground/45 bg-transparent opacity-35 group-hover:opacity-100 hover:border-primary hover:bg-primary/10 hover:scale-110',
+                            )}
+                          />
+                        ) : colorMeta ? (
+                          <span
+                            title={colorTooltip}
+                            className={cn(
+                              'h-3 w-3 rounded-full ring-2 ring-offset-1 ring-offset-background shrink-0',
+                              colorMeta.dotClass,
+                            )}
+                          />
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1482,6 +1820,23 @@ export function ApplicationsPage() {
         onClose={() => setCreateWordForApp(null)}
         onSubmit={(title) => handleConfirmCreateWord(title)}
       />
+
+      {/* QATOR RANGINI TANLASH UCHUN SUZUVCHI PALITRA */}
+      {colorMenu && (
+        <RowColorFloatingMenu
+          app={colorMenu.app}
+          x={colorMenu.x}
+          y={colorMenu.y}
+          isUpdating={rowColorMutation.isPending}
+          onSelect={(color) =>
+            rowColorMutation.mutate({
+              id: colorMenu.app.id,
+              row_color: color,
+            })
+          }
+          onClose={() => setColorMenu(null)}
+        />
+      )}
 
       {/* ONLYOFFICE DOCUMENT EDITOR MODAL */}
       {selectedAppForWord && activeDocId && (

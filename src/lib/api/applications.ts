@@ -4,6 +4,7 @@ import type {
   ApplicationChainResponse,
   ApplicationRelationsData,
   ApplicationRepeatType,
+  ApplicationRowColor,
   Card,
   Citizen,
   CitizenPreviousApplication,
@@ -11,7 +12,7 @@ import type {
   Transfer,
 } from '@/types/models';
 
-import { apiClient } from '../axios';
+import { API_BASE_URL, apiClient } from '../axios';
 
 // 1. Applications API
 export const applicationsApi = {
@@ -43,6 +44,7 @@ export const applicationsApi = {
     external_system_id?: string;
     external_system_status?: 'not_entered' | 'entered';
     missing_external_system_id?: string;
+    row_color?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<Application>>('/applications', { params });
     return res.data;
@@ -100,6 +102,31 @@ export const applicationsApi = {
   ) => {
     const res = await apiClient.patch<Application>(`/applications/${id}/external-systems`, payload);
     return res.data;
+  },
+  updateRowColor: async (id: string, row_color: ApplicationRowColor | null) => {
+    const res = await apiClient.patch<{
+      id: string;
+      row_color: ApplicationRowColor | null;
+      row_color_by: string | null;
+      row_color_updated_at: string | null;
+    }>(`/applications/${id}/row-color`, { row_color });
+    return res.data;
+  },
+  bulkUpdateRowColor: async (ids: string[], row_color: ApplicationRowColor | null) => {
+    const res = await apiClient.patch<{
+      updatedCount: number;
+      items: Array<{
+        id: string;
+        row_color: ApplicationRowColor | null;
+        row_color_by: string | null;
+        row_color_updated_at: string | null;
+      }>;
+    }>('/applications/bulk/row-color', { ids, row_color });
+    return res.data;
+  },
+  getEventsStreamUrl: () => {
+    const base = API_BASE_URL.replace(/\/+$/, '');
+    return `${base}/applications/events/stream`;
   },
   delete: async (id: string) => {
     const res = await apiClient.delete<{ success: boolean; message: string }>(

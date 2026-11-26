@@ -691,6 +691,8 @@ export interface ApplicationDamage {
   order?: number;
 }
 
+export type ApplicationRowColor = 'yellow' | 'red' | 'green' | 'blue' | 'purple' | 'orange';
+
 export interface Application {
   id: string;
   application_number: string | null;
@@ -758,6 +760,9 @@ export interface Application {
   work_position?: string | null;
   created_by_id?: string | null;
   created_by?: UserViewItem | null;
+  row_color?: ApplicationRowColor | null;
+  row_color_by?: string | null;
+  row_color_updated_at?: string | null;
   is_deleted?: boolean;
   suspect_tree?: SuspectTreeNode[] | null;
   custom_fields?: ApplicationCustomField[];
