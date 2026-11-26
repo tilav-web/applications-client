@@ -88,7 +88,7 @@ import {
 } from '@/lib/api';
 import { formatLocalDateISO, toLocalDateInputValue } from '@/lib/date';
 import { getErrorMessage } from '@/lib/error';
-import { formatTitleCase, formatUzbekName } from '@/lib/formatters';
+import { formatAmountInput, formatTitleCase, formatUzbekName } from '@/lib/formatters';
 import { useAuthStore } from '@/store';
 import type {
   AppealType,
@@ -890,6 +890,13 @@ export function ApplicationCreatePage() {
 
     const loadedTransfers: FinancialTransferEntry[] = [];
 
+    const formatLoadedAmount = (val: number | string | null | undefined): string => {
+      if (val === null || val === undefined || val === '') return '';
+      const num = Number(val);
+      if (!Number.isFinite(num) || num <= 0) return '';
+      return formatAmountInput(num);
+    };
+
     if (hasPrimaryFinancial) {
       loadedTransfers.push({
         clientId: 'primary_ft',
@@ -898,7 +905,7 @@ export function ApplicationCreatePage() {
         victimCardFullName: initialApp.card?.full_name || '',
         victimBankName: initialApp.card?.bank?.name || '',
         transferId: initialApp.transfer?.id || initialApp.transfer_id || null,
-        amount: initialApp.transfer?.amount ? String(initialApp.transfer.amount) : '',
+        amount: formatLoadedAmount(initialApp.transfer?.amount),
         currency: initialApp.transfer?.currency || 'UZS',
         providerId: initialApp.transfer?.payment_provider?.id || null,
         providerName: initialApp.transfer?.payment_provider?.name || '',
@@ -914,8 +921,11 @@ export function ApplicationCreatePage() {
     if (initialApp.custom_fields) {
       const loadedEvidence: UploadedFile[] = [];
       const nonEvidenceFields: AppCustomFieldState[] = [];
+      const sortedCustomFields = [...initialApp.custom_fields].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0),
+      );
 
-      initialApp.custom_fields.forEach((cf, idx) => {
+      sortedCustomFields.forEach((cf, idx) => {
         if (
           cf.key === 'evidence_attachments' ||
           cf.label?.toLowerCase().includes('isbot') ||
@@ -950,7 +960,7 @@ export function ApplicationCreatePage() {
             victimCardFullName: sc?.full_name || '',
             victimBankName: sc?.bank?.name || '',
             transferId: t?.id || cf.transfer_id || null,
-            amount: t?.amount ? String(t.amount) : '',
+            amount: formatLoadedAmount(t?.amount),
             currency: t?.currency || 'UZS',
             providerId: t?.payment_provider?.id || null,
             providerName: t?.payment_provider?.name || '',
@@ -1474,8 +1484,19 @@ export function ApplicationCreatePage() {
         }
       }
 
+      const parseTransferNumericAmount = (raw?: string | number | null): number | null => {
+        if (raw === null || raw === undefined || raw === '') return null;
+        const cleaned = String(raw)
+          .replace(/[\s\u00A0\u202F,]/g, '')
+          .replace(/[^\d.]/g, '');
+        if (!cleaned) return null;
+        const num = Number(cleaned);
+        return Number.isFinite(num) && num > 0 ? num : null;
+      };
+
       if (hasFinancialLoss && financialTransfers.length > 0) {
         const primary = financialTransfers[0];
+        const primaryAmount = parseTransferNumericAmount(primary.amount);
 
         // Primary Karta
         if (primary.victimCardId) {
@@ -1491,26 +1512,30 @@ export function ApplicationCreatePage() {
           };
         }
 
-        // Primary O'tkazma
+        // Primary O'tkazma (yaratish va tahrirlashda ham to'liq yuboriladi)
         if (primary.transferId) {
           payload.transfer_id = primary.transferId;
         }
         if (
-          primary.amount ||
+          primary.transferId ||
+          primaryAmount !== null ||
+          primary.receiverCardId ||
           primary.receiverCardNumber ||
           primary.receiverCardFullName ||
+          primary.providerId ||
+          primary.providerName ||
           primary.transferDate
         ) {
           payload.transfer_data = {
-            amount: primary.amount ? Number(String(primary.amount).replace(/\s/g, '')) : undefined,
+            amount: primaryAmount,
             currency: primary.currency || 'UZS',
-            payment_provider_id: primary.providerId || undefined,
+            payment_provider_id: primary.providerId || null,
             payment_provider_name: primary.providerId
               ? undefined
               : primary.providerName
                 ? formatTitleCase(primary.providerName)
                 : undefined,
-            receiver_card_id: primary.receiverCardId || undefined,
+            receiver_card_id: primary.receiverCardId || null,
             receiver_card_number: primary.receiverCardId
               ? undefined
               : primary.receiverCardNumber.replace(/\D/g, ''),
@@ -1520,20 +1545,39 @@ export function ApplicationCreatePage() {
             receiver_bank_name: primary.receiverBankName
               ? formatTitleCase(primary.receiverBankName)
               : undefined,
-            transfer_date: primary.transferDate || undefined,
-            transfer_time: primary.transferTime || undefined,
+            transfer_date: primary.transferDate || null,
+            transfer_time: primary.transferTime || null,
           };
         }
 
-        // Qo'shimcha o'tkazmalar (1 dan boshlab)
-        financialTransfers.slice(1).forEach((entry, idx) => {
+        // Qo'shimcha o'tkazmalar (2 dan boshlab — bo'sh qoldirilgan bloklarni tashlab ketamiz)
+        let extraIndex = 0;
+        financialTransfers.slice(1).forEach((entry) => {
+          const entryAmount = parseTransferNumericAmount(entry.amount);
+          const hasAnyTransferContent = Boolean(
+            entry.transferId ||
+            entryAmount !== null ||
+            entry.victimCardId ||
+            entry.victimCardNumber.replace(/\D/g, '') ||
+            entry.receiverCardId ||
+            entry.receiverCardNumber.replace(/\D/g, '') ||
+            entry.providerId ||
+            entry.providerName.trim() ||
+            entry.transferDate,
+          );
+          if (!hasAnyTransferContent) return;
+
+          extraIndex++;
           allCustomFields.push({
             clientId: entry.clientId,
             type: 'TRANSFER',
-            label: `Qo‘shimcha o‘tkazma #${idx + 2}`,
+            label: `Qo‘shimcha o‘tkazma #${extraIndex + 1}`,
             key: `transfer_${entry.clientId}`,
-            value: entry.amount ? `${entry.amount} ${entry.currency}` : 'O‘tkazma',
-            order: allCustomFields.length + idx,
+            value:
+              entryAmount !== null
+                ? `${formatAmountInput(entryAmount)} ${entry.currency || 'UZS'}`
+                : 'O‘tkazma',
+            order: allCustomFields.length,
             card_id: entry.victimCardId || undefined,
             transfer_id: entry.transferId || undefined,
             inline_card: {
@@ -1544,7 +1588,7 @@ export function ApplicationCreatePage() {
               bank_name: entry.victimBankName ? formatTitleCase(entry.victimBankName) : undefined,
             },
             inline_transfer: {
-              amount: entry.amount ? Number(String(entry.amount).replace(/\s/g, '')) : '',
+              amount: entryAmount ?? '',
               currency: entry.currency || 'UZS',
               payment_provider_id: entry.providerId || undefined,
               payment_provider_name: entry.providerId
@@ -1677,6 +1721,10 @@ export function ApplicationCreatePage() {
         invalidations.push(
           queryClient.invalidateQueries({
             queryKey: ['application-draft', id],
+            refetchType: 'all',
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['application', id],
             refetchType: 'all',
           }),
         );

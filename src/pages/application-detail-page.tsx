@@ -413,7 +413,8 @@ export function ApplicationDetailPage() {
 
     if (app?.custom_fields) {
       let customIdx = 2;
-      app.custom_fields.forEach((cf) => {
+      const sortedFields = [...app.custom_fields].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      sortedFields.forEach((cf) => {
         if (cf.type === 'TRANSFER' || cf.transfer) {
           const t = cf.transfer;
           const sc = cf.card || t?.sender_card;
