@@ -140,16 +140,16 @@ export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="h-8 text-xs gap-1.5 font-medium border-border/80 hover:bg-muted/80 cursor-pointer"
+              className="h-8 w-8 p-0 border-border/80 hover:bg-muted/80 cursor-pointer shrink-0"
               title="Ma'lumotlarni yangilash"
+              aria-label="Ma'lumotlarni yangilash"
             >
               <RefreshCw
                 className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin text-primary')}
               />
-              <span className="hidden sm:inline">Yangilash</span>
             </Button>
           )}
 
