@@ -5,19 +5,29 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { GlobalSearchModal } from '@/components/intelligence/global-search-modal';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
-import { PageSkeleton } from '@/components/ui/page-skeletons';
+import { DashboardSkeleton, PageSkeleton } from '@/components/ui/page-skeletons';
 import { cn } from '@/lib/utils';
 import { syncThemeClass, useAppStore } from '@/store';
 
 export function AppLayout() {
   const theme = useAppStore((state) => state.theme);
   const location = useLocation();
+  const isDashboard = location.pathname === '/';
   const isFinancialFlow = location.pathname.startsWith('/financial-flow');
   const isReferences = location.pathname.startsWith('/references');
   const isSplitViewport = isFinancialFlow || isReferences;
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const isGlobalBusy = isFetching > 0 || isMutating > 0;
+  const dashboardStatsPanelPref = (() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = window.localStorage.getItem('uvd_dashboard_stats_panel_open');
+      return raw === '1' || raw === 'true';
+    } catch {
+      return false;
+    }
+  })();
 
   useEffect(() => {
     syncThemeClass(theme);
@@ -69,7 +79,15 @@ export function AppLayout() {
               isSplitViewport ? 'h-full flex-1 flex flex-col min-h-0' : '',
             )}
           >
-            <Suspense fallback={<PageSkeleton />}>
+            <Suspense
+              fallback={
+                isDashboard ? (
+                  <DashboardSkeleton includeToolbar showStatsPanel={dashboardStatsPanelPref} />
+                ) : (
+                  <PageSkeleton />
+                )
+              }
+            >
               <Outlet />
             </Suspense>
           </div>

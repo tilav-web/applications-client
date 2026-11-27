@@ -272,7 +272,7 @@ export function TableColumnsManager({
         size="sm"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          'h-7 px-2.5 text-[11px] font-semibold gap-1.5 cursor-pointer bg-background hover:bg-muted/70',
+          'h-8 px-2.5 text-xs font-semibold gap-1.5 cursor-pointer bg-background hover:bg-muted/70',
           (isOpen || isCustomized) && 'border-primary/50 text-foreground',
         )}
       >

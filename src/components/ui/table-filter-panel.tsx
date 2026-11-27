@@ -27,8 +27,10 @@ interface TableFilterPanelProps {
   exportLabel?: string;
   /** Tanlangan qatorlar uchun TableActionSelect yoki qo'shimcha element */
   selectionSlot?: React.ReactNode;
-  /** O'ng tomonda qo'shimcha ma'lumot yoki tugma */
+  /** O'ng tomonda qo'shimcha ma'lumot yoki tugma (Tozalash / Yangilash oldidan) */
   rightExtraSlot?: React.ReactNode;
+  /** O'ng chekkada eng oxirida chiqadigan asosiy amallar (masalan, Shablon / Import / Yaratish) */
+  rightAfterSlot?: React.ReactNode;
   /** Grid ustunlar klassi (default: 4 ustunli moslashuvchan setka) */
   gridClassName?: string;
   defaultOpen?: boolean;
@@ -62,6 +64,7 @@ export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
   exportLabel = 'Excel yuklab olish',
   selectionSlot,
   rightExtraSlot,
+  rightAfterSlot,
   gridClassName = 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
   defaultOpen = false,
   storageKey,
@@ -88,7 +91,7 @@ export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
   };
 
   return (
-    <Card className="py-0 gap-0 border-border/80 bg-card/75 backdrop-blur-sm shadow-2xs overflow-hidden min-w-0">
+    <Card className="py-0 gap-0 border-border/80 bg-card/75 backdrop-blur-sm shadow-2xs overflow-visible min-w-0">
       {/* Yuqori Boshqaruv Qatori */}
       <div
         className={cn(
@@ -170,6 +173,8 @@ export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
               <span className="hidden sm:inline">{exportLabel}</span>
             </Button>
           )}
+
+          {rightAfterSlot}
         </div>
       </div>
 

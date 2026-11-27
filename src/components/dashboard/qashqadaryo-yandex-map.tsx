@@ -1381,7 +1381,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       {/* 4. YUKLANISH HOLATI SKELETONI */}
       {(!isYmapsReady || isLoading) && (
         <div className="absolute inset-0 z-20">
-          <MapCanvasSkeleton showControls={false} statusText="Yandex xarita yuklanmoqda..." />
+          <MapCanvasSkeleton showControls={false} statusText="Xarita yuklanmoqda..." />
         </div>
       )}
 

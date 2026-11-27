@@ -263,52 +263,34 @@ const CHART_BAR_HEIGHTS = [
   'h-36',
 ];
 
-export function DashboardSkeleton({ showStatsPanel = false }: { showStatsPanel?: boolean }) {
+export function DashboardStatsCardsSkeleton() {
   return (
-    <div className="w-full space-y-4 animate-in fade-in duration-150">
-      {/* 1. Asosiy 640px Xarita (+ ochiq bo'lsa o'ng statistika paneli) */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
-        <div className="relative flex-1 min-w-0 h-[580px] md:h-[640px] border border-border/80 bg-card shadow-sm overflow-hidden">
-          <MapCanvasSkeleton statusText="Boshqaruv markazi yuklanmoqda..." />
-        </div>
-
-        {showStatsPanel && (
-          <aside className="w-full lg:w-[315px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col gap-3 lg:h-[640px]">
-            <div className="flex items-center justify-between px-3.5 py-2.5 border border-border/80 bg-card/80 shrink-0">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-3.5 w-28" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 flex-1">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card
+          key={i}
+          className="border-border/80 bg-card/75 shadow-sm flex flex-col justify-center"
+        >
+          <CardContent className="p-4 flex items-center justify-between gap-3">
+            <div className="space-y-2 flex-1 min-w-0">
+              <Skeleton className="h-3 w-28" />
+              <div className="flex items-baseline gap-2">
+                <Skeleton className="h-7 w-24" />
+                <Skeleton className="h-4 w-12" />
               </div>
-              <Skeleton className="h-6 w-14" />
+              <Skeleton className="h-3 w-36" />
             </div>
+            <Skeleton className="h-11 w-11 shrink-0" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 flex-1">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card
-                  key={i}
-                  className="border-border/80 bg-card/75 shadow-sm flex flex-col justify-center"
-                >
-                  <CardContent className="p-4 flex items-center justify-between gap-3">
-                    <div className="space-y-2 flex-1 min-w-0">
-                      <Skeleton className="h-3 w-28" />
-                      <div className="flex items-baseline gap-2">
-                        <Skeleton className="h-7 w-24" />
-                        <Skeleton className="h-4 w-12" />
-                      </div>
-                      <Skeleton className="h-3 w-36" />
-                    </div>
-                    <Skeleton className="h-11 w-11 shrink-0" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </aside>
-        )}
-      </div>
-
-      {/* 2. SLA Nazorati skeleti */}
-      <SlaWidgetSkeleton />
-
+export function DashboardAnalyticsSkeleton() {
+  return (
+    <div className="w-full space-y-4">
       {/* 3. Dinamika grafigi (2 ustun) + Holatlar taqsimoti (1 ustun) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-border/80 bg-card/60 shadow-sm">
@@ -445,6 +427,66 @@ export function DashboardSkeleton({ showStatsPanel = false }: { showStatsPanel?:
           ))}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+export function DashboardSkeleton({
+  showStatsPanel = false,
+  includeToolbar = false,
+}: {
+  showStatsPanel?: boolean;
+  includeToolbar?: boolean;
+}) {
+  return (
+    <div className="w-full space-y-3 animate-in fade-in duration-150">
+      {/* Yuqori boshqaruv qatori skeleti (Route Suspense paytida 1:1 mos kelishi uchun) */}
+      {includeToolbar && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="inline-flex items-center border border-border/80 bg-card/80 p-1 gap-1">
+            <Skeleton className="h-7 w-36" />
+            <Skeleton className="h-7 w-48" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center border border-border/80 bg-card/80 p-1 gap-1">
+              <Skeleton className="h-7 w-14" />
+              <Skeleton className="h-7 w-16" />
+              <Skeleton className="h-7 w-14" />
+              <Skeleton className="h-7 w-14" />
+              <Skeleton className="h-7 w-16" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+            <Skeleton className="h-9 w-9" />
+          </div>
+        </div>
+      )}
+
+      {/* 1. Asosiy 640px Xarita (+ ochiq bo'lsa o'ng statistika paneli) */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
+        <div className="relative flex-1 min-w-0 h-[580px] md:h-[640px] border border-border/80 bg-card shadow-sm overflow-hidden">
+          <MapCanvasSkeleton statusText="Xarita yuklanmoqda..." />
+        </div>
+
+        {showStatsPanel && (
+          <aside className="w-full lg:w-[315px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col gap-3 lg:h-[640px]">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border border-border/80 bg-card/80 shrink-0">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-3.5 w-28" />
+              </div>
+              <Skeleton className="h-6 w-14" />
+            </div>
+
+            <DashboardStatsCardsSkeleton />
+          </aside>
+        )}
+      </div>
+
+      {/* 2. SLA Nazorati skeleti */}
+      <SlaWidgetSkeleton />
+
+      {/* 3-5. Grafiklar, tahlillar va so'nggi arizalar skeleti */}
+      <DashboardAnalyticsSkeleton />
     </div>
   );
 }

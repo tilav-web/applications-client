@@ -446,6 +446,7 @@ export function ApplicationsPage() {
     Boolean(phoneNumberFilter.trim()),
     Boolean(descFilter.trim()),
     Boolean(statusFilter),
+    Boolean(slaFilter),
     Boolean(relationsFilter),
     Boolean(repeatTypeFilter),
     Boolean(appealTypeFilter),
@@ -467,6 +468,7 @@ export function ApplicationsPage() {
     setPhoneNumberFilter('');
     setDescFilter('');
     setStatusFilter('');
+    setSlaFilter('');
     setRelationsFilter('');
     setRepeatTypeFilter('');
     setAppealTypeFilter('');
@@ -478,6 +480,11 @@ export function ApplicationsPage() {
     setDateToFilter('');
     setMinAmountFilter('');
     setMaxAmountFilter('');
+    if (searchParams.has('sla_filter')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('sla_filter');
+      setSearchParams(next, { replace: true });
+    }
     setPage(1);
   };
 
@@ -881,65 +888,19 @@ export function ApplicationsPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-          Arizalar & Murojaatlar
-        </h1>
+    <div className="w-full space-y-3">
+      {/* YASHIRIN EXCEL IMPORT INPUTI */}
+      {canWrite && (
+        <input
+          ref={excelImportInputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={(e) => void handleImportExcelFile(e.target.files?.[0] || null)}
+        />
+      )}
 
-        {/* SHABLON, IMPORT VA ARIZA YARATISH TUGMALARI */}
-        {canWrite && (
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <input
-              ref={excelImportInputRef}
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="hidden"
-              onChange={(e) => void handleImportExcelFile(e.target.files?.[0] || null)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isDownloadingTemplate}
-              onClick={handleDownloadImportTemplate}
-              className="gap-2 border-blue-500/40 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 cursor-pointer font-medium"
-              title="Dropdownlar va enum yo'riqnomasi bilan tayyor Excel shablonini yuklab olish"
-            >
-              {isDownloadingTemplate ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              <span>Shablon</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isImportingExcel}
-              onClick={() => excelImportInputRef.current?.click()}
-              className="gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer font-medium"
-              title="To'ldirilgan Excel (.xlsx) faylini bazaga yuklash"
-            >
-              {isImportingExcel ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
-              <span>Import</span>
-            </Button>
-            <Button
-              onClick={() => navigate('/applications/create')}
-              className="gap-2 shadow-md shadow-primary/25 cursor-pointer font-medium min-w-[145px]"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Ariza Yaratish</span>
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* 1. ALOHIDA YUQORI FILTR VA AMALLAR PANELI */}
+      {/* 1. YAGONA YUQORI FILTR, USTUNLAR VA AMALLAR PANELI */}
       <TableFilterPanel
         title="Arizalarni aniq filtrlash"
         activeFiltersCount={activeFiltersCount}
@@ -948,7 +909,66 @@ export function ApplicationsPage() {
         isRefreshing={isFetching}
         onExportExcel={handleExportExcel}
         isExporting={isExporting}
+        exportLabel="Excel"
         gridClassName="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+        rightExtraSlot={
+          <TableColumnsManager
+            orderedColumns={tableColumns.orderedColumns}
+            visibleSet={tableColumns.visibleSet}
+            isCustomized={tableColumns.isCustomized}
+            onToggle={tableColumns.toggleColumn}
+            onMove={tableColumns.moveColumn}
+            onShowAll={tableColumns.showAll}
+            onReset={tableColumns.resetDefaults}
+          />
+        }
+        rightAfterSlot={
+          canWrite ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isDownloadingTemplate}
+                onClick={handleDownloadImportTemplate}
+                className="h-8 px-2.5 text-xs gap-1.5 border-blue-500/40 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 cursor-pointer font-medium"
+                title="Dropdownlar va enum yo'riqnomasi bilan tayyor Excel shablonini yuklab olish"
+              >
+                {isDownloadingTemplate ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden md:inline">Shablon</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isImportingExcel}
+                onClick={() => excelImportInputRef.current?.click()}
+                className="h-8 px-2.5 text-xs gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer font-medium"
+                title="To'ldirilgan Excel (.xlsx) faylini bazaga yuklash"
+              >
+                {isImportingExcel ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden md:inline">Import</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => navigate('/applications/create')}
+                className="h-8 px-3 text-xs gap-1.5 shadow-sm shadow-primary/25 cursor-pointer font-semibold"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Ariza Yaratish</span>
+              </Button>
+            </>
+          ) : null
+        }
         selectionSlot={
           <TableActionSelect
             selectedCount={selection.selectedIds.length}
@@ -1364,6 +1384,26 @@ export function ApplicationsPage() {
           mono
         />
 
+        <FilterSelect
+          label="Protsessual muddat (SLA)"
+          value={slaFilter}
+          onChange={(v) => {
+            setSlaFilter(v);
+            setPage(1);
+            const next = new URLSearchParams(searchParams);
+            if (v) next.set('sla_filter', v);
+            else next.delete('sla_filter');
+            setSearchParams(next, { replace: true });
+          }}
+        >
+          <option value="">Barchasi</option>
+          <option value="overdue">Muddati o‘tganlar</option>
+          <option value="due_24h">24 soat qolganlar</option>
+          <option value="due_72h">3 kun qolganlar</option>
+          <option value="active">Tekshiruvda (10 kun)</option>
+          <option value="extended">Uzaytirilgan (1 oy)</option>
+        </FilterSelect>
+
         <FilterInput
           label="Zarar (dan, UZS)"
           type="number"
@@ -1388,63 +1428,6 @@ export function ApplicationsPage() {
           mono
         />
       </TableFilterPanel>
-
-      {/* 1.5. PROTSESSUAL MUDDAT (SLA) TEZKOR FILTRLARI */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { key: '', label: 'Barchasi' },
-            { key: 'overdue', label: 'Muddati o‘tganlar', cls: 'text-rose-600 border-rose-500/30' },
-            {
-              key: 'due_24h',
-              label: '24 soat qolganlar',
-              cls: 'text-orange-600 border-orange-500/30',
-            },
-            {
-              key: 'due_72h',
-              label: '3 kun qolganlar',
-              cls: 'text-amber-700 border-amber-500/30',
-            },
-            { key: 'active', label: 'Tekshiruvda (10 kun)', cls: 'text-sky-600 border-sky-500/30' },
-            {
-              key: 'extended',
-              label: 'Uzaytirilgan (1 oy)',
-              cls: 'text-indigo-600 border-indigo-500/30',
-            },
-          ].map((f) => {
-            const active = slaFilter === f.key;
-            return (
-              <Button
-                key={f.key || 'all'}
-                type="button"
-                size="sm"
-                variant={active ? 'default' : 'outline'}
-                onClick={() => {
-                  setSlaFilter(f.key);
-                  setPage(1);
-                  const next = new URLSearchParams(searchParams);
-                  if (f.key) next.set('sla_filter', f.key);
-                  else next.delete('sla_filter');
-                  setSearchParams(next, { replace: true });
-                }}
-                className={cn('h-7 text-[11px] px-2.5 cursor-pointer', !active && f.cls)}
-              >
-                {f.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        <TableColumnsManager
-          orderedColumns={tableColumns.orderedColumns}
-          visibleSet={tableColumns.visibleSet}
-          isCustomized={tableColumns.isCustomized}
-          onToggle={tableColumns.toggleColumn}
-          onMove={tableColumns.moveColumn}
-          onShowAll={tableColumns.showAll}
-          onReset={tableColumns.resetDefaults}
-        />
-      </div>
 
       {/* 2. ALOHIDA AJRATILGAN ARIZALAR JADVALI */}
       <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xs">
