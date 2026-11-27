@@ -2,9 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ArrowDownRight,
   ArrowUpRight,
+  BarChart3,
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   CreditCard,
@@ -108,6 +110,26 @@ export function DashboardPage() {
 
   // Tab view states (list vs table) for breakdown cards & map layer
   const [mapTab, setMapTab] = useState<'applications' | 'detected_crimes'>('applications');
+  const [isStatsPanelOpen, setIsStatsPanelOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = window.localStorage.getItem('uvd_dashboard_stats_panel_open');
+      return raw === '1' || raw === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const handleToggleStatsPanel = () => {
+    setIsStatsPanelOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('uvd_dashboard_stats_panel_open', next ? '1' : '0');
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  };
   const [districtView, setDistrictView] = useState<'list' | 'table'>('list');
   const [crimeView, setCrimeView] = useState<'list' | 'table'>('list');
   const [providerView, setProviderView] = useState<'list' | 'table'>('list');
@@ -317,147 +339,12 @@ export function DashboardPage() {
       )}
 
       {/* ===================================================================== */}
-      {/* 1. TOP STATS KPI CARDS (Skeleton while loading) */}
+      {/* 1. ASOSIY QASHQADARYO XARITASI + O'NG YIG'ILUVCHAN STATISTIKA PANELI  */}
       {/* ===================================================================== */}
       {isLoading && !data ? (
         <DashboardSkeleton />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Jami arizalar */}
-            <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm hover:border-primary/40 transition">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Jami Arizalar
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground font-mono">
-                      {isLoading ? '...' : summary.totalApplications}
-                    </h3>
-                    {summary.comparison.totalPercentChange !== 0 && (
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] py-0 px-1.5 font-mono ${
-                          summary.comparison.totalPercentChange > 0
-                            ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
-                            : 'border-rose-500/30 text-rose-400 bg-rose-500/10'
-                        }`}
-                      >
-                        {summary.comparison.totalPercentChange > 0 ? (
-                          <ArrowUpRight className="h-3 w-3 inline mr-0.5" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3 inline mr-0.5" />
-                        )}
-                        {Math.abs(summary.comparison.totalPercentChange)}%
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">O‘tgan davrga nisbatan</p>
-                  {data?.byRepeatType &&
-                    (data.byRepeatType.repeat > 0 ||
-                      data.byRepeatType.duplicate > 0 ||
-                      data.byRepeatType.supplemental > 0) && (
-                      <div className="flex flex-wrap items-center gap-1 pt-1">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
-                          Birlamchi: {data.byRepeatType.primary}
-                        </span>
-                        {data.byRepeatType.repeat > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
-                            Takroriy: {data.byRepeatType.repeat}
-                          </span>
-                        )}
-                        {data.byRepeatType.duplicate > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 font-semibold">
-                            Dublikat: {data.byRepeatType.duplicate}
-                          </span>
-                        )}
-                        {data.byRepeatType.supplemental > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold">
-                            Qo‘shimcha: {data.byRepeatType.supplemental}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                  <FileText className="h-6 w-6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card 2: Hal qilinganlar (Fosh etish) */}
-            <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm hover:border-emerald-500/40 transition">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Hal Qilingan (Fosh etilgan)
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-emerald-400 font-mono">
-                      {isLoading ? '...' : summary.resolvedApplications}
-                    </h3>
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] font-mono">
-                      {summary.resolutionRate}% samaradorlik
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Tergov yakunlangan ishlar</p>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card 3: Jarayonda & Yangi */}
-            <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm hover:border-amber-500/40 transition">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Jarayonda (Tergovda)
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-amber-400 font-mono">
-                      {isLoading ? '...' : summary.inProgressApplications}
-                    </h3>
-                    <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-[10px] font-mono">
-                      +{summary.newApplications} yangi
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Ko‘rib chiqilayotgan holatlar</p>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                  <Clock className="h-6 w-6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card 4: Jami Moliyaviy Zarar */}
-            <Card className="border-border/80 bg-card/60 backdrop-blur-sm shadow-sm hover:border-rose-500/40 transition">
-              <CardContent className="p-5 flex items-center justify-between gap-2">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Yetkazilgan Zarar
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-rose-400 font-mono whitespace-nowrap">
-                      {isLoading ? '...' : formatCurrency(summary.totalLoss)}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground whitespace-nowrap">
-                    O‘rtacha: {formatCurrency(summary.avgLoss)}
-                  </p>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
-                  <Wallet className="h-6 w-6" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ===================================================================== */}
-          {/* 2. QASHQADARYO VILOYATI INTERAKTIV YANDEX XARITASI (2 TAB)            */}
-          {/* ===================================================================== */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="inline-flex items-center rounded-xl border border-border/80 bg-card/70 p-1 shadow-2xs gap-1">
@@ -506,37 +393,250 @@ export function DashboardPage() {
                 </button>
               </div>
 
-              <span className="text-[11px] text-muted-foreground">
-                {mapTab === 'applications'
-                  ? 'Tumanlar va jabrlanuvchilar yashash mahallalari bo‘yicha'
-                  : 'Fosh etilgan jinoyatlar hududi va huquqbuzarlar mahallalari bo‘yicha'}
-              </span>
+              <div className="flex items-center gap-2.5 ml-auto">
+                <span className="hidden md:inline text-[11px] text-muted-foreground">
+                  {mapTab === 'applications'
+                    ? 'Tumanlar va jabrlanuvchilar yashash mahallalari bo‘yicha'
+                    : 'Fosh etilgan jinoyatlar hududi va huquqbuzarlar mahallalari bo‘yicha'}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleToggleStatsPanel}
+                  aria-expanded={isStatsPanelOpen}
+                  title={
+                    isStatsPanelOpen ? 'Statistika panelini yopish' : 'Statistika panelini ochish'
+                  }
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0 ${
+                    isStatsPanelOpen
+                      ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+                      : 'bg-card/90 text-foreground border-border/80 hover:border-primary/50 hover:bg-muted/70'
+                  }`}
+                >
+                  {isStatsPanelOpen ? (
+                    <>
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      <span>Statistika</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      <ChevronLeft className="h-4 w-4 text-primary" />
+                      <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                      <span>Statistika</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            <QashqadaryoYandexMap
-              districtsData={
-                mapTab === 'applications' ? districtData : dcMapStats?.byDistrict || []
-              }
-              neighborhoodsData={
-                mapTab === 'applications' ? mahallaData : dcMapStats?.byNeighborhood || []
-              }
-              allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
-              isLoading={mapTab === 'applications' ? isLoading : isDcMapLoading}
-              entityLabel={mapTab === 'applications' ? 'Arizalar' : 'Aniqlangan jinoyatlar'}
-              periodLabel={
-                period === 'today'
-                  ? 'Bugun'
-                  : period === 'week'
-                    ? 'Haftalik'
-                    : period === 'month'
-                      ? 'Oylik'
-                      : period === 'year'
-                        ? 'Yillik'
-                        : period === 'custom'
-                          ? `${startDate} — ${endDate}`
-                          : 'Barcha davr'
-              }
-            />
+            <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
+              {/* ASOSIY XARITA + O'NG CHEKKADAGI OCHISH/YOPISH TUGMASI */}
+              <div className="relative flex-1 min-w-0">
+                <QashqadaryoYandexMap
+                  districtsData={
+                    mapTab === 'applications' ? districtData : dcMapStats?.byDistrict || []
+                  }
+                  neighborhoodsData={
+                    mapTab === 'applications' ? mahallaData : dcMapStats?.byNeighborhood || []
+                  }
+                  allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
+                  isLoading={mapTab === 'applications' ? isLoading : isDcMapLoading}
+                  entityLabel={mapTab === 'applications' ? 'Arizalar' : 'Aniqlangan jinoyatlar'}
+                  periodLabel={
+                    period === 'today'
+                      ? 'Bugun'
+                      : period === 'week'
+                        ? 'Haftalik'
+                        : period === 'month'
+                          ? 'Oylik'
+                          : period === 'year'
+                            ? 'Yillik'
+                            : period === 'custom'
+                              ? `${startDate} — ${endDate}`
+                              : 'Barcha davr'
+                  }
+                />
+
+                {/* O'ng tomonga biriktirilgan < / > ochish-yopish tugmasi */}
+                <button
+                  type="button"
+                  onClick={handleToggleStatsPanel}
+                  aria-label={
+                    isStatsPanelOpen ? 'Statistika panelini yopish' : 'Statistika panelini ochish'
+                  }
+                  title={
+                    isStatsPanelOpen ? 'Statistikani yopish' : 'O‘ng tomonda statistikani ochish'
+                  }
+                  className="hidden lg:flex items-center justify-center absolute top-1/2 -translate-y-1/2 right-0 z-30 h-20 w-7 rounded-l-xl border border-r-0 border-border/90 bg-card/95 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground shadow-xl backdrop-blur-md transition-all cursor-pointer group"
+                >
+                  {isStatsPanelOpen ? (
+                    <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                  ) : (
+                    <ChevronLeft className="h-5 w-5 text-primary group-hover:text-primary-foreground transition-transform group-hover:-translate-x-0.5" />
+                  )}
+                </button>
+              </div>
+
+              {/* O'NG TOMONDAGI STATISTIKA PANELI (Faqat ochilganda ko'rinadi) */}
+              {isStatsPanelOpen && (
+                <aside className="w-full lg:w-[315px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col gap-3 lg:h-[640px] animate-in fade-in slide-in-from-right-4 duration-200">
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-border/80 bg-card/80 backdrop-blur-sm shadow-2xs shrink-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <BarChart3 className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-foreground truncate">
+                        Asosiy Statistika
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleStatsPanel}
+                      title="Panelni yopish"
+                      className="inline-flex items-center gap-1 h-7 px-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
+                    >
+                      <span>Yopish</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 flex-1 lg:overflow-y-auto lg:pr-0.5">
+                    {/* Card 1: Jami arizalar */}
+                    <Card className="border-border/80 bg-card/75 backdrop-blur-sm shadow-sm hover:border-primary/40 transition flex flex-col justify-center">
+                      <CardContent className="p-4 flex items-center justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Jami Arizalar
+                          </p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-2xl font-black tracking-tight text-foreground font-mono">
+                              {isLoading ? '...' : summary.totalApplications}
+                            </h3>
+                            {summary.comparison.totalPercentChange !== 0 && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] py-0 px-1.5 font-mono ${
+                                  summary.comparison.totalPercentChange > 0
+                                    ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10'
+                                    : 'border-rose-500/30 text-rose-500 bg-rose-500/10'
+                                }`}
+                              >
+                                {summary.comparison.totalPercentChange > 0 ? (
+                                  <ArrowUpRight className="h-3 w-3 inline mr-0.5" />
+                                ) : (
+                                  <ArrowDownRight className="h-3 w-3 inline mr-0.5" />
+                                )}
+                                {Math.abs(summary.comparison.totalPercentChange)}%
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            O‘tgan davrga nisbatan
+                          </p>
+                          {data?.byRepeatType &&
+                            (data.byRepeatType.repeat > 0 ||
+                              data.byRepeatType.duplicate > 0 ||
+                              data.byRepeatType.supplemental > 0) && (
+                              <div className="flex flex-wrap items-center gap-1 pt-1">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  Birlamchi: {data.byRepeatType.primary}
+                                </span>
+                                {data.byRepeatType.repeat > 0 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+                                    Takroriy: {data.byRepeatType.repeat}
+                                  </span>
+                                )}
+                                {data.byRepeatType.duplicate > 0 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 font-semibold">
+                                    Dublikat: {data.byRepeatType.duplicate}
+                                  </span>
+                                )}
+                                {data.byRepeatType.supplemental > 0 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold">
+                                    Qo‘shimcha: {data.byRepeatType.supplemental}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                        </div>
+                        <div className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Card 2: Hal qilinganlar (Fosh etish) */}
+                    <Card className="border-border/80 bg-card/75 backdrop-blur-sm shadow-sm hover:border-emerald-500/40 transition flex flex-col justify-center">
+                      <CardContent className="p-4 flex items-center justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Hal Qilingan (Fosh etilgan)
+                          </p>
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <h3 className="text-2xl font-black tracking-tight text-emerald-500 font-mono">
+                              {isLoading ? '...' : summary.resolvedApplications}
+                            </h3>
+                            <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-mono">
+                              {summary.resolutionRate}% samaradorlik
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Tergov yakunlangan ishlar
+                          </p>
+                        </div>
+                        <div className="h-11 w-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Card 3: Jarayonda & Yangi */}
+                    <Card className="border-border/80 bg-card/75 backdrop-blur-sm shadow-sm hover:border-amber-500/40 transition flex flex-col justify-center">
+                      <CardContent className="p-4 flex items-center justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Jarayonda (Tergovda)
+                          </p>
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <h3 className="text-2xl font-black tracking-tight text-amber-500 font-mono">
+                              {isLoading ? '...' : summary.inProgressApplications}
+                            </h3>
+                            <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-mono">
+                              +{summary.newApplications} yangi
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Ko‘rib chiqilayotgan holatlar
+                          </p>
+                        </div>
+                        <div className="h-11 w-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                          <Clock className="h-5 w-5" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Card 4: Jami Moliyaviy Zarar */}
+                    <Card className="border-border/80 bg-card/75 backdrop-blur-sm shadow-sm hover:border-rose-500/40 transition flex flex-col justify-center">
+                      <CardContent className="p-4 flex items-center justify-between gap-2">
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Yetkazilgan Zarar
+                          </p>
+                          <h3 className="text-lg sm:text-xl font-black tracking-tight text-rose-500 font-mono break-words">
+                            {isLoading ? '...' : formatCurrency(summary.totalLoss)}
+                          </h3>
+                          <p className="text-[11px] text-muted-foreground">
+                            O‘rtacha: {formatCurrency(summary.avgLoss)}
+                          </p>
+                        </div>
+                        <div className="h-11 w-11 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0">
+                          <Wallet className="h-5 w-5" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </aside>
+              )}
+            </div>
           </div>
 
           {/* 2.5. PROTSESSUAL MUDDAT NAZORATI (JPK 329-MODDA SLA) */}

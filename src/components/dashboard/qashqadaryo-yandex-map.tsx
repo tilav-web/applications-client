@@ -535,6 +535,24 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     };
   }, []);
 
+  // 1.1. Konteyner o'lchami o'zgarganda (masalan o'ng statistika paneli ochilib-yopilganda) xaritani moslashtirish
+  useEffect(() => {
+    const el = outerWrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new ResizeObserver(() => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        mapInstanceRef.current?.container?.fitToViewport();
+      }, 90);
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
+    };
+  }, []);
+
   const toggleFullscreen = async () => {
     if (!outerWrapperRef.current) return;
     if (!document.fullscreenElement) {
