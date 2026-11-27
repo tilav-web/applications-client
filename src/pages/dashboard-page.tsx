@@ -20,7 +20,6 @@ import {
   RefreshCw,
   Scale,
   ShieldAlert,
-  ShieldCheck,
   Table as TableIcon,
   TrendingUp,
   Wallet,
@@ -194,24 +193,14 @@ export function DashboardPage() {
   const recentApps = data?.recentApplications || [];
 
   return (
-    <div className="w-full space-y-6 pb-12 animate-in fade-in-50 duration-300">
+    <div className="w-full space-y-4 pb-12 animate-in fade-in-50 duration-300">
       {/* ===================================================================== */}
       {/* HEADER & TIME CONTROLS */}
       {/* ===================================================================== */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border/40 pb-5">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary mb-1.5">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span>Kiberxavfsizlik & Monitoring Markazi</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-            Boshqaruv Markazi & Analitika
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Fuqarolar murojaatlari, jinoyat turlari va moliyaviy zararlar bo‘yicha tahliliy
-            statistika
-          </p>
-        </div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/40 pb-3">
+        <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+          Boshqaruv Markazi & Analitika
+        </h1>
 
         {/* PERIOD SELECTOR */}
         <div className="flex flex-wrap items-center gap-2">
@@ -392,42 +381,6 @@ export function DashboardPage() {
                   </Badge>
                 </button>
               </div>
-
-              <div className="flex items-center gap-2.5 ml-auto">
-                <span className="hidden md:inline text-[11px] text-muted-foreground">
-                  {mapTab === 'applications'
-                    ? 'Tumanlar va jabrlanuvchilar yashash mahallalari bo‘yicha'
-                    : 'Fosh etilgan jinoyatlar hududi va huquqbuzarlar mahallalari bo‘yicha'}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleToggleStatsPanel}
-                  aria-expanded={isStatsPanelOpen}
-                  title={
-                    isStatsPanelOpen ? 'Statistika panelini yopish' : 'Statistika panelini ochish'
-                  }
-                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0 ${
-                    isStatsPanelOpen
-                      ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
-                      : 'bg-card/90 text-foreground border-border/80 hover:border-primary/50 hover:bg-muted/70'
-                  }`}
-                >
-                  {isStatsPanelOpen ? (
-                    <>
-                      <BarChart3 className="h-3.5 w-3.5" />
-                      <span>Statistika</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </>
-                  ) : (
-                    <>
-                      <ChevronLeft className="h-4 w-4 text-primary" />
-                      <BarChart3 className="h-3.5 w-3.5 text-primary" />
-                      <span>Statistika</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
@@ -468,7 +421,7 @@ export function DashboardPage() {
                   title={
                     isStatsPanelOpen ? 'Statistikani yopish' : 'O‘ng tomonda statistikani ochish'
                   }
-                  className="hidden lg:flex items-center justify-center absolute top-1/2 -translate-y-1/2 right-0 z-30 h-20 w-7 rounded-l-xl border border-r-0 border-border/90 bg-card/95 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground shadow-xl backdrop-blur-md transition-all cursor-pointer group"
+                  className="flex items-center justify-center absolute top-1/2 -translate-y-1/2 right-0 z-30 h-20 w-7 rounded-l-xl border border-r-0 border-border/90 bg-card/95 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground shadow-xl backdrop-blur-md transition-all cursor-pointer group"
                 >
                   {isStatsPanelOpen ? (
                     <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
