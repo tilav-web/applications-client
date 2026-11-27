@@ -1,4 +1,4 @@
-import { BarChart3, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -63,11 +63,7 @@ export function PageStatsSheet({
   onOpen,
   onClose,
   title,
-  subtitle,
-  badgeText,
-  icon,
   isFetching = false,
-  onRefresh,
   headerExtra,
   children,
 }: PageStatsSheetProps) {
@@ -106,68 +102,18 @@ export function PageStatsSheet({
       <aside
         role="complementary"
         aria-label={title}
-        className="fixed top-16 bottom-0 right-0 z-40 w-[390px] sm:w-[420px] max-w-[94vw] bg-card border-l border-border shadow-[-12px_0_36px_rgba(15,23,42,0.14)] dark:shadow-[-12px_0_36px_rgba(0,0,0,0.5)] flex flex-col animate-in fade-in slide-in-from-right duration-200"
+        className="fixed top-16 bottom-0 right-0 z-40 w-[390px] sm:w-[420px] max-w-[92vw] bg-card border-l border-border shadow-[-12px_0_36px_rgba(15,23,42,0.14)] dark:shadow-[-12px_0_36px_rgba(0,0,0,0.5)] flex flex-col animate-in fade-in slide-in-from-right duration-200"
       >
-        {/* Sheet chap chekkasiga yopishgan yig'ish tutqichi (>) */}
+        {/* Sheet chap chekkasiga yopishgan yig'ish tugmasi (>) */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Statistika panelini yopish"
           title="Panelni yopish (Esc)"
-          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -left-7 h-20 w-7 items-center justify-center border border-r-0 border-border bg-card hover:bg-primary hover:text-primary-foreground hover:border-primary text-muted-foreground shadow-[-6px_2px_16px_rgba(15,23,42,0.1)] transition-all cursor-pointer group"
+          className="flex absolute top-1/2 -translate-y-1/2 -left-7 h-20 w-7 items-center justify-center border border-r-0 border-border border-l-2 border-l-primary/70 bg-card hover:bg-primary hover:text-primary-foreground hover:border-primary text-muted-foreground shadow-[-6px_2px_16px_rgba(15,23,42,0.12)] transition-all cursor-pointer group"
         >
           <ChevronRight className="h-5 w-5 text-primary group-hover:text-primary-foreground transition-transform group-hover:translate-x-0.5" />
         </button>
-
-        {/* Yuqori sarlavha */}
-        <div className="shrink-0 border-b border-border bg-muted/25 px-4 py-3 flex items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 bg-primary/10 border border-primary/25 text-primary flex items-center justify-center shrink-0">
-              {icon || <BarChart3 className="h-4 w-4" />}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <h2 className="text-[13px] font-bold tracking-tight text-foreground truncate">
-                  {title}
-                </h2>
-                {badgeText && (
-                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-primary/12 text-primary border border-primary/25 shrink-0">
-                    {badgeText}
-                  </span>
-                )}
-              </div>
-              {subtitle && (
-                <p className="text-[11px] text-muted-foreground truncate mt-0.5">{subtitle}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                disabled={isFetching}
-                title="Statistikani yangilash"
-                aria-label="Statistikani yangilash"
-                className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={cn('h-3.5 w-3.5', isFetching && 'animate-spin text-primary')}
-                />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              title="Yopish (Esc)"
-              aria-label="Yopish"
-              className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
 
         {/* Qo'shimcha boshqaruv qatori (masalan, davr tanlagich) */}
         {headerExtra && (
