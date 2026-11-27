@@ -91,7 +91,7 @@ export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
   };
 
   return (
-    <Card className="py-0 gap-0 border-border/80 bg-card/75 backdrop-blur-sm shadow-2xs overflow-visible min-w-0">
+    <Card className="relative z-30 py-0 gap-0 border-border/80 bg-card/75 backdrop-blur-sm shadow-2xs overflow-visible min-w-0">
       {/* Yuqori Boshqaruv Qatori */}
       <div
         className={cn(
