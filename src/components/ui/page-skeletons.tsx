@@ -266,51 +266,44 @@ const CHART_BAR_HEIGHTS = [
 export function DashboardSkeleton({ showStatsPanel = false }: { showStatsPanel?: boolean }) {
   return (
     <div className="w-full space-y-4 animate-in fade-in duration-150">
-      {/* 1. Xarita tab tugmalari + Asosiy 640px Xarita (+ ochiq bo'lsa o'ng statistika paneli) */}
-      <div className="space-y-3">
-        <div className="inline-flex items-center border border-border/80 bg-card/70 p-1 gap-1">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-8 w-52" />
+      {/* 1. Asosiy 640px Xarita (+ ochiq bo'lsa o'ng statistika paneli) */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
+        <div className="relative flex-1 min-w-0 h-[580px] md:h-[640px] border border-border/80 bg-card shadow-sm overflow-hidden">
+          <MapCanvasSkeleton statusText="Boshqaruv markazi yuklanmoqda..." />
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
-          <div className="relative flex-1 min-w-0 h-[580px] md:h-[640px] border border-border/80 bg-card shadow-sm overflow-hidden">
-            <MapCanvasSkeleton statusText="Boshqaruv markazi yuklanmoqda..." />
-          </div>
-
-          {showStatsPanel && (
-            <aside className="w-full lg:w-[315px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col gap-3 lg:h-[640px]">
-              <div className="flex items-center justify-between px-3.5 py-2.5 border border-border/80 bg-card/80 shrink-0">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4" />
-                  <Skeleton className="h-3.5 w-28" />
-                </div>
-                <Skeleton className="h-6 w-14" />
+        {showStatsPanel && (
+          <aside className="w-full lg:w-[315px] xl:w-[350px] 2xl:w-[380px] shrink-0 flex flex-col gap-3 lg:h-[640px]">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border border-border/80 bg-card/80 shrink-0">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-3.5 w-28" />
               </div>
+              <Skeleton className="h-6 w-14" />
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 flex-1">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Card
-                    key={i}
-                    className="border-border/80 bg-card/75 shadow-sm flex flex-col justify-center"
-                  >
-                    <CardContent className="p-4 flex items-center justify-between gap-3">
-                      <div className="space-y-2 flex-1 min-w-0">
-                        <Skeleton className="h-3 w-28" />
-                        <div className="flex items-baseline gap-2">
-                          <Skeleton className="h-7 w-24" />
-                          <Skeleton className="h-4 w-12" />
-                        </div>
-                        <Skeleton className="h-3 w-36" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 flex-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card
+                  key={i}
+                  className="border-border/80 bg-card/75 shadow-sm flex flex-col justify-center"
+                >
+                  <CardContent className="p-4 flex items-center justify-between gap-3">
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <Skeleton className="h-3 w-28" />
+                      <div className="flex items-baseline gap-2">
+                        <Skeleton className="h-7 w-24" />
+                        <Skeleton className="h-4 w-12" />
                       </div>
-                      <Skeleton className="h-11 w-11 shrink-0" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </aside>
-          )}
-        </div>
+                      <Skeleton className="h-3 w-36" />
+                    </div>
+                    <Skeleton className="h-11 w-11 shrink-0" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* 2. SLA Nazorati skeleti */}

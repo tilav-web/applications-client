@@ -199,14 +199,54 @@ export function DashboardPage() {
   const recentApps = data?.recentApplications || [];
 
   return (
-    <div className="w-full space-y-4 pb-12 animate-in fade-in-50 duration-300">
+    <div className="w-full space-y-3 pb-12 animate-in fade-in-50 duration-300">
       {/* ===================================================================== */}
-      {/* HEADER & TIME CONTROLS */}
+      {/* YAGONA BOSHQARUV QATORI: XARITA TABLARI (CHAP) + DAVR FILTRI (O'NG)   */}
       {/* ===================================================================== */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/40 pb-3">
-        <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-          Boshqaruv Markazi & Analitika
-        </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="inline-flex items-center rounded-xl border border-border/80 bg-card/80 p-1 shadow-sm gap-1">
+          <button
+            type="button"
+            onClick={() => setMapTab('applications')}
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+              mapTab === 'applications'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>Arizalar xaritasi</span>
+            <Badge
+              variant="secondary"
+              className={`text-[10px] px-1.5 py-0 font-mono ${
+                mapTab === 'applications' ? 'bg-primary-foreground/20 text-primary-foreground' : ''
+              }`}
+            >
+              {isLoading && !data ? '…' : summary.totalApplications}
+            </Badge>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMapTab('detected_crimes')}
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+              mapTab === 'detected_crimes'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+            }`}
+          >
+            <Radar className="h-3.5 w-3.5" />
+            <span>Aniqlangan jinoyatlar xaritasi</span>
+            <Badge
+              variant="secondary"
+              className={`text-[10px] px-1.5 py-0 font-mono ${
+                mapTab === 'detected_crimes' ? 'bg-white/20 text-white' : ''
+              }`}
+            >
+              {isDcMapLoading && !dcMapStats ? '…' : (dcMapStats?.total ?? 0)}
+            </Badge>
+          </button>
+        </div>
 
         {/* PERIOD SELECTOR */}
         <div className="flex flex-wrap items-center gap-2">
@@ -348,54 +388,6 @@ export function DashboardPage() {
       ) : (
         <>
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center rounded-xl border border-border/80 bg-card/70 p-1 shadow-2xs gap-1">
-                <button
-                  type="button"
-                  onClick={() => setMapTab('applications')}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                    mapTab === 'applications'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                  }`}
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  <span>Arizalar xaritasi</span>
-                  <Badge
-                    variant="secondary"
-                    className={`text-[10px] px-1.5 py-0 font-mono ${
-                      mapTab === 'applications'
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : ''
-                    }`}
-                  >
-                    {summary.totalApplications}
-                  </Badge>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMapTab('detected_crimes')}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                    mapTab === 'detected_crimes'
-                      ? 'bg-rose-600 text-white shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                  }`}
-                >
-                  <Radar className="h-3.5 w-3.5" />
-                  <span>Aniqlangan jinoyatlar xaritasi</span>
-                  <Badge
-                    variant="secondary"
-                    className={`text-[10px] px-1.5 py-0 font-mono ${
-                      mapTab === 'detected_crimes' ? 'bg-white/20 text-white' : ''
-                    }`}
-                  >
-                    {dcMapStats?.total ?? 0}
-                  </Badge>
-                </button>
-              </div>
-            </div>
-
             <div className="flex flex-col lg:flex-row gap-4 items-stretch min-w-0">
               {/* ASOSIY XARITA + O'NG CHEKKADAGI OCHISH/YOPISH TUGMASI */}
               <div className="relative flex-1 min-w-0">
