@@ -1283,7 +1283,7 @@ export function ApplicationsPage() {
           }}
         >
           <option value="">Barchasi</option>
-          <option value="with_relations">Firibgar bog‘liqligi bor (1+)</option>
+          <option value="with_relations">Firibgar bog‘liqligi borlar</option>
           <option value="fraud_card">Dropper / Firibgar kartasi takrorlangan</option>
           <option value="fraud_clue">Telefon / Telegram / Kripto izi takrorlangan</option>
           <option value="cross_role">Rol to‘qnashuvi (Jabrlanuvchi ↔ Firibgar)</option>

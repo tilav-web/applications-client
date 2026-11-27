@@ -32,7 +32,23 @@ interface TableFilterPanelProps {
   /** Grid ustunlar klassi (default: 4 ustunli moslashuvchan setka) */
   gridClassName?: string;
   defaultOpen?: boolean;
+  /** localStorage kaliti (berilmasa sahifa yo'li + sarlavha bo'yicha avtomatik saqlanadi) */
+  storageKey?: string;
   children: React.ReactNode;
+}
+
+const FILTER_PANEL_STORAGE_PREFIX = 'uvd_filter_panel_open:';
+
+function readPersistedFilterOpen(key: string, fallback: boolean): boolean {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw === 'true' || raw === '1') return true;
+    if (raw === 'false' || raw === '0') return false;
+  } catch {
+    // localStorage mavjud bo'lmasa fallback ishlatiladi
+  }
+  return fallback;
 }
 
 export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
@@ -47,19 +63,43 @@ export const TableFilterPanel: React.FC<TableFilterPanelProps> = ({
   selectionSlot,
   rightExtraSlot,
   gridClassName = 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
-  defaultOpen = true,
+  defaultOpen = false,
+  storageKey,
   children,
 }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const resolvedStorageKey =
+    storageKey ||
+    `${FILTER_PANEL_STORAGE_PREFIX}${typeof window !== 'undefined' ? window.location.pathname : ''}:${title}`;
+
+  const [isOpen, setIsOpen] = useState<boolean>(() =>
+    readPersistedFilterOpen(resolvedStorageKey, defaultOpen),
+  );
+
+  const handleToggleOpen = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(resolvedStorageKey, next ? '1' : '0');
+      } catch {
+        // ignore storage quota / privacy mode errors
+      }
+      return next;
+    });
+  };
 
   return (
     <Card className="py-0 gap-0 border-border/80 bg-card/75 backdrop-blur-sm shadow-2xs overflow-hidden min-w-0">
       {/* Yuqori Boshqaruv Qatori */}
-      <div className="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5 bg-muted/25 border-b border-border/60">
+      <div
+        className={cn(
+          'px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5 bg-muted/25',
+          isOpen && 'border-b border-border/60',
+        )}
+      >
         <div className="flex flex-wrap items-center gap-2.5 min-w-0">
           <button
             type="button"
-            onClick={() => setIsOpen((prev) => !prev)}
+            onClick={handleToggleOpen}
             className="inline-flex items-center gap-2 h-8 px-2.5 rounded-lg border border-border/80 bg-background/80 hover:bg-muted/70 text-xs font-semibold text-foreground transition-colors cursor-pointer shrink-0"
           >
             <Filter className="h-3.5 w-3.5 text-primary shrink-0" />
