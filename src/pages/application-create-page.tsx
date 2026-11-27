@@ -58,6 +58,7 @@ import {
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
+import { MahallaSearchSelect } from '@/components/ui/mahalla-search-select';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { QuickLocationDialog } from '@/components/ui/quick-location-dialog';
 import { toast } from '@/components/ui/sonner';
@@ -178,6 +179,7 @@ export function ApplicationCreatePage() {
     initialRegionId?: string | null;
     initialDistrictId?: string | null;
     initialDistrictQuery?: string;
+    initialNeighborhoodQuery?: string;
   }>({ open: false });
 
   const [canLeave, setCanLeave] = useState(false);
@@ -589,7 +591,7 @@ export function ApplicationCreatePage() {
   });
   const allDistricts = districtsData?.items || [];
 
-  const { data: citizenMahallasData } = useQuery({
+  const { data: citizenMahallasData, isLoading: isLoadingCitizenMahallas } = useQuery({
     queryKey: ['citizen-neighborhoods', citizenDistrictId],
     queryFn: () => neighborhoodsApi.getAll({ district_id: citizenDistrictId!, limit: 200 }),
     enabled: Boolean(citizenDistrictId),
@@ -2436,28 +2438,31 @@ export function ApplicationCreatePage() {
                     )}
                   </div>
                 </div>
-                <select
-                  value={citizenMahallaId || ''}
+                <MahallaSearchSelect
+                  mahallas={allCitizenMahallas}
+                  value={citizenMahallaId}
                   disabled={!citizenDistrictId}
-                  onChange={(e) => {
-                    const mId = e.target.value;
-                    setCitizenMahallaId(mId || null);
+                  isLoading={isLoadingCitizenMahallas}
+                  onChange={(mId) => {
+                    setCitizenMahallaId(mId);
                   }}
-                  className={`h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
-                    !citizenDistrictId
-                      ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground'
-                      : ''
-                  }`}
-                >
-                  <option value="">
-                    {citizenDistrictId ? '-- MAHALLANI TANLANG --' : 'AVVAL TUMANNI TANLANG...'}
-                  </option>
-                  {allCitizenMahallas.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+                  onQuickAdd={
+                    canWrite
+                      ? (q) => {
+                          const currentDist = allDistricts.find((d) => d.id === citizenDistrictId);
+                          setQuickLocationState({
+                            open: true,
+                            initialRegionId: currentDist?.region_id || null,
+                            initialDistrictId: citizenDistrictId || null,
+                            initialNeighborhoodQuery: q,
+                          });
+                        }
+                      : undefined
+                  }
+                  placeholder="-- MAHALLANI TANLANG --"
+                  disabledPlaceholder="AVVAL TUMANNI TANLANG..."
+                  searchPlaceholder="Mahalla nomini qidiring..."
+                />
               </div>
             </div>
 
@@ -3494,6 +3499,7 @@ export function ApplicationCreatePage() {
         initialRegionId={quickLocationState.initialRegionId}
         initialDistrictId={quickLocationState.initialDistrictId}
         initialDistrictQuery={quickLocationState.initialDistrictQuery}
+        initialNeighborhoodQuery={quickLocationState.initialNeighborhoodQuery}
         onCreated={({ district, neighborhood }) => {
           setCitizenDistrictId(district.id);
           if (neighborhood) {

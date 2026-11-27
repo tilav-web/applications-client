@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
+import { MahallaSearchSelect } from '@/components/ui/mahalla-search-select';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { QuickLocationDialog } from '@/components/ui/quick-location-dialog';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -172,12 +173,14 @@ function CustomCitizenMahallaSelect({
   districtId,
   mahallaId,
   onSelect,
+  onQuickAdd,
 }: {
   districtId: string | null;
   mahallaId: string | null;
   onSelect: (id: string | null, name: string) => void;
+  onQuickAdd?: (searchQuery: string) => void;
 }) {
-  const { data: mahallasData } = useQuery({
+  const { data: mahallasData, isLoading } = useQuery({
     queryKey: ['custom-citizen-neighborhoods-select', districtId],
     queryFn: () => neighborhoodsApi.getAll({ district_id: districtId!, limit: 200 }),
     enabled: Boolean(districtId),
@@ -186,27 +189,20 @@ function CustomCitizenMahallaSelect({
   const items = mahallasData?.items || [];
 
   return (
-    <select
-      value={mahallaId || ''}
+    <MahallaSearchSelect
+      mahallas={items}
+      value={mahallaId}
       disabled={!districtId}
-      onChange={(e) => {
-        const val = e.target.value;
-        const found = items.find((m) => m.id === val);
-        onSelect(val || null, found?.name || '');
+      isLoading={isLoading}
+      size="sm"
+      onChange={(mId, mahalla) => {
+        onSelect(mId, mahalla?.name || '');
       }}
-      className={`h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
-        !districtId ? 'bg-muted/50 cursor-not-allowed opacity-60 text-muted-foreground' : ''
-      }`}
-    >
-      <option value="">
-        {districtId ? '-- MAHALLANI TANLANG --' : 'AVVAL TUMANNI TANLANG...'}
-      </option>
-      {items.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-        </option>
-      ))}
-    </select>
+      onQuickAdd={onQuickAdd}
+      placeholder="-- MAHALLANI TANLANG --"
+      disabledPlaceholder="AVVAL TUMANNI TANLANG..."
+      searchPlaceholder="Mahalla nomini qidiring..."
+    />
   );
 }
 
@@ -275,6 +271,7 @@ export function EvidenceAndCitizensSection({
     initialRegionId?: string | null;
     initialDistrictId?: string | null;
     initialDistrictQuery?: string;
+    initialNeighborhoodQuery?: string;
   }>({ open: false, clientId: '' });
   const citizenFields = customFields.filter((cf) => cf.type === 'CITIZEN');
 
@@ -1030,6 +1027,20 @@ export function EvidenceAndCitizensSection({
                               },
                             }));
                           }}
+                          onQuickAdd={
+                            canWrite
+                              ? (q) => {
+                                  const currentDist = allDistricts.find((d) => d.id === citDistId);
+                                  setQuickLocTarget({
+                                    open: true,
+                                    clientId: cf.clientId,
+                                    initialRegionId: currentDist?.region_id || null,
+                                    initialDistrictId: citDistId || null,
+                                    initialNeighborhoodQuery: q,
+                                  });
+                                }
+                              : undefined
+                          }
                         />
                       </div>
                     </div>
@@ -1084,6 +1095,7 @@ export function EvidenceAndCitizensSection({
         initialRegionId={quickLocTarget.initialRegionId}
         initialDistrictId={quickLocTarget.initialDistrictId}
         initialDistrictQuery={quickLocTarget.initialDistrictQuery}
+        initialNeighborhoodQuery={quickLocTarget.initialNeighborhoodQuery}
         onCreated={({ district, neighborhood }) => {
           if (!quickLocTarget.clientId) return;
           onUpdateCustomFieldItem(quickLocTarget.clientId, (f) => ({

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
+import { MahallaSearchSelect } from '@/components/ui/mahalla-search-select';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -350,19 +351,16 @@ export function WorkplacesReferenceTab() {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold">Mahallasi (ixtiyoriy)</label>
-                <select
-                  value={mahallaId}
+                <MahallaSearchSelect
+                  mahallas={mahallas}
+                  value={mahallaId || null}
                   disabled={!districtId}
-                  onChange={(e) => setMahallaId(e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs disabled:opacity-50"
-                >
-                  <option value="">-- Mahallani tanlang --</option>
-                  {mahallas.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setMahallaId(v || '')}
+                  placeholder="-- Mahallani tanlang --"
+                  disabledPlaceholder="Avval tumanni tanlang..."
+                  searchPlaceholder="Mahalla nomini qidiring..."
+                  size="sm"
+                />
               </div>
             </div>
 
