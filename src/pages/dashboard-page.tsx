@@ -322,14 +322,14 @@ export function DashboardPage() {
 
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="h-9 px-3 gap-1.5 text-xs shadow-sm shrink-0"
+            className="h-9 w-9 p-0 shadow-sm shrink-0"
             title="Ma‘lumotlarni yangilash"
+            aria-label="Ma‘lumotlarni yangilash"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin text-primary' : ''}`} />
-            <span className="hidden sm:inline">Yangilash</span>
           </Button>
         </div>
       </div>
