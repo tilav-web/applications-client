@@ -15,9 +15,11 @@ import {
   Trash2,
   UploadCloud,
   UserPlus,
+  X,
 } from 'lucide-react';
 import { type RefObject, useState } from 'react';
 
+import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
@@ -25,17 +27,139 @@ import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { QuickLocationDialog } from '@/components/ui/quick-location-dialog';
+import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
+  citizensApi,
   documentsApi,
   getFileDownloadUrl,
   getFileViewUrl,
   neighborhoodsApi,
   type UploadedFile,
 } from '@/lib/api';
-import type { CustomFieldType, District } from '@/types/models';
+import type { Citizen, CustomFieldType, District, EntityLinkRole } from '@/types/models';
 
 import type { AppCustomFieldState } from './application-form.types';
+
+const EXTRA_CITIZEN_ROLE_OPTIONS: Array<{
+  value: EntityLinkRole;
+  label: string;
+  defaultText: string;
+  danger?: boolean;
+}> = [
+  {
+    value: 'SUSPECT',
+    label: 'Gumonlanuvchi / Firibgar / Sherik',
+    defaultText: 'Gumonlanuvchi',
+    danger: true,
+  },
+  { value: 'DROPPER', label: 'Dropper (Karta egasi)', defaultText: 'Dropper', danger: true },
+  {
+    value: 'TRANSIT',
+    label: 'Tranzit / Vositachi',
+    defaultText: 'Tranzit / Vositachi',
+    danger: true,
+  },
+  { value: 'WITNESS', label: 'Guvoh', defaultText: 'Guvoh' },
+  { value: 'VICTIM', label: 'Qo‘shimcha jabrlanuvchi', defaultText: 'Qo‘shimcha jabrlanuvchi' },
+  { value: 'RELATED', label: 'Boshqa aloqador shaxs', defaultText: 'Aloqador shaxs' },
+];
+
+function inferUiExtraCitizenRole(cf: AppCustomFieldState): EntityLinkRole {
+  if (cf.entity_role) return cf.entity_role;
+  const l = (cf.label || '').toLowerCase();
+  if (l.includes('dropper') || l.includes('karta egasi')) return 'DROPPER';
+  if (l.includes('tranzit') || l.includes('vositachi')) return 'TRANSIT';
+  if (l.includes('guvoh')) return 'WITNESS';
+  if (l.includes('jabrlanuvchi')) return 'VICTIM';
+  if (l.includes('gumon') || l.includes('firibgar') || l.includes('sherik')) return 'SUSPECT';
+  return 'SUSPECT';
+}
+
+function ExtraCitizenAutocompleteInput({
+  value,
+  citizenId,
+  onChangeName,
+  onPickCitizen,
+  onClearCitizenId,
+}: {
+  value: string;
+  citizenId?: string | null;
+  onChangeName: (name: string) => void;
+  onPickCitizen: (c: Citizen) => void;
+  onClearCitizenId: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const debounced = useDebounce(value.trim(), 300);
+  const { data } = useQuery({
+    queryKey: ['extra-citizen-autocomplete', debounced],
+    queryFn: () => citizensApi.getAll({ search: debounced, limit: 8 }),
+    enabled: open && !citizenId && debounced.length >= 3,
+    staleTime: 20_000,
+  });
+  const matches = data?.items || [];
+
+  return (
+    <div className="space-y-1 relative">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-[11px] font-semibold text-muted-foreground">
+          To‘liq F.I.SH. (Familiya Ism Otasining ismi) *
+        </label>
+        {citizenId && (
+          <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 text-[10px] py-0">
+            <CheckCircle2 className="h-2.5 w-2.5" />
+            Bazadagi fuqaro
+            <button
+              type="button"
+              onClick={onClearCitizenId}
+              className="ml-0.5 hover:text-foreground cursor-pointer"
+              title="Profil bogʻlanishini bekor qilish"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          </Badge>
+        )}
+      </div>
+      <Input
+        placeholder="FAMILIYA ISM OTASINING ISMI (yoki bazadan qidiring)"
+        value={value}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        onChange={(e) => {
+          onChangeName(e.target.value.toUpperCase());
+          setOpen(true);
+        }}
+        className="h-9 text-xs uppercase font-medium"
+      />
+      {open && !citizenId && matches.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-1.5 max-h-48 overflow-y-auto">
+          <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 border-b border-border/50 mb-1">
+            Bazada mavjud fuqarolar (dublikatsiz biriktirish):
+          </div>
+          {matches.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onPickCitizen(c);
+                setOpen(false);
+              }}
+              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-muted text-xs flex items-center justify-between gap-2 cursor-pointer"
+            >
+              <span className="font-semibold text-foreground truncate">
+                {c.full_name || 'Ism kiritilmagan'}
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                {[c.phone_number, c.passport].filter(Boolean).join(' · ')}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const formatFileSize = (bytes?: number) => {
   if (!bytes) return '—';
@@ -96,6 +220,7 @@ interface ApplicationDocSummary {
 
 interface EvidenceAndCitizensSectionProps {
   applicationId?: string;
+  excludeAppId?: string;
   evidenceFiles: UploadedFile[];
   isUploadingEvidence: boolean;
   isDraggingEvidence: boolean;
@@ -122,6 +247,7 @@ interface EvidenceAndCitizensSectionProps {
 
 export function EvidenceAndCitizensSection({
   applicationId,
+  excludeAppId,
   evidenceFiles,
   isUploadingEvidence,
   isDraggingEvidence,
@@ -489,28 +615,67 @@ export function EvidenceAndCitizensSection({
             {citizenFields.map((cf) => {
               const citDistId = cf.inline_citizen?.district_id || null;
               const citMahId = cf.inline_citizen?.neighborhood_id || null;
+              const currentRole = inferUiExtraCitizenRole(cf);
+              const isFraudRole =
+                currentRole === 'SUSPECT' || currentRole === 'DROPPER' || currentRole === 'TRANSIT';
 
               return (
                 <div
                   key={cf.clientId}
-                  className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3.5"
+                  className={`p-4 rounded-xl border bg-card shadow-sm space-y-3.5 ${
+                    isFraudRole ? 'border-rose-500/35' : 'border-border'
+                  }`}
                 >
-                  {/* Karta sarlavhasi: Icon + Fuqaro Roli Inputi + O'chirish tugmasi */}
-                  <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2.5">
-                    <div className="flex items-center gap-2.5 flex-1">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  {/* Karta sarlavhasi: Aniq Protsessual Rol + Izoh + O'chirish */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/40 pb-2.5">
+                    <div className="flex flex-wrap items-center gap-2 flex-1">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
+                          isFraudRole
+                            ? 'bg-rose-500/10 text-rose-600 border-rose-500/25'
+                            : 'bg-primary/10 text-primary border-primary/20'
+                        }`}
+                      >
                         <UserPlus className="h-4 w-4" />
                       </div>
+                      <select
+                        value={currentRole}
+                        onChange={(e) => {
+                          const nextRole = e.target.value as EntityLinkRole;
+                          const opt = EXTRA_CITIZEN_ROLE_OPTIONS.find((o) => o.value === nextRole);
+                          onUpdateCustomFieldItem(cf.clientId, (f) => ({
+                            ...f,
+                            entity_role: nextRole,
+                            label: opt?.defaultText || f.label || nextRole,
+                          }));
+                        }}
+                        className={`h-9 rounded-md border px-2.5 text-xs font-bold shadow-xs focus:outline-none focus:ring-1 cursor-pointer ${
+                          isFraudRole
+                            ? 'border-rose-500/40 bg-rose-500/8 text-rose-700 dark:text-rose-300 focus:ring-rose-500'
+                            : 'border-input bg-background text-foreground focus:ring-primary'
+                        }`}
+                      >
+                        {EXTRA_CITIZEN_ROLE_OPTIONS.map((opt) => (
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            className="bg-popover text-popover-foreground"
+                          >
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                       <Input
-                        placeholder="Fuqaro maqomi / Roli (Masalan: Gumonlanuvchi, Guvoh, Sherik...)"
+                        placeholder="Qo‘shimcha rol izohi (ixtiyoriy, masalan: Karta egasi)"
                         value={cf.label}
                         onChange={(e) =>
                           onUpdateCustomFieldItem(cf.clientId, (f) => ({
                             ...f,
-                            label: e.target.value.toUpperCase(),
+                            entity_role: f.entity_role || currentRole,
+                            label: e.target.value,
                           }))
                         }
-                        className="h-9 text-xs font-bold w-full max-w-md uppercase text-primary placeholder:text-muted-foreground/60 placeholder:normal-case placeholder:font-normal"
+                        className="h-9 text-xs flex-1 min-w-[180px]"
                       />
                     </div>
 
@@ -519,7 +684,7 @@ export function EvidenceAndCitizensSection({
                       variant="ghost"
                       size="sm"
                       onClick={() => onRemoveCustomFieldItem(cf.clientId)}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0 self-end sm:self-center"
                       title="Fuqaroni ro‘yxatdan o‘chirish"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -528,31 +693,51 @@ export function EvidenceAndCitizensSection({
 
                   {/* FUQARO ANKETASI */}
                   <div className="space-y-3">
-                    {/* 1-Qator: F.I.SH */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-muted-foreground">
-                        To‘liq F.I.SH. (Familiya Ism Otasining ismi) *
-                      </label>
-                      <Input
-                        placeholder="FAMILIYA ISM OTASINING ISMI"
-                        value={cf.inline_citizen?.full_name || ''}
-                        onChange={(e) => {
-                          const val = e.target.value.toUpperCase();
-                          onUpdateCustomFieldItem(cf.clientId, (f) => ({
-                            ...f,
-                            inline_citizen: {
-                              ...(f.inline_citizen || {
-                                full_name: '',
-                                passport: '',
-                                phone_number: '',
-                              }),
-                              full_name: val,
-                            },
-                          }));
-                        }}
-                        className="h-9 text-xs uppercase font-medium"
-                      />
-                    </div>
+                    {/* 1-Qator: F.I.SH + Bazadan avto-qidiruv */}
+                    <ExtraCitizenAutocompleteInput
+                      value={cf.inline_citizen?.full_name || ''}
+                      citizenId={cf.citizen_id}
+                      onChangeName={(val) =>
+                        onUpdateCustomFieldItem(cf.clientId, (f) => ({
+                          ...f,
+                          entity_role: f.entity_role || currentRole,
+                          inline_citizen: {
+                            ...(f.inline_citizen || {
+                              full_name: '',
+                              passport: '',
+                              phone_number: '',
+                            }),
+                            full_name: val,
+                          },
+                        }))
+                      }
+                      onPickCitizen={(c) =>
+                        onUpdateCustomFieldItem(cf.clientId, (f) => ({
+                          ...f,
+                          entity_role: f.entity_role || currentRole,
+                          citizen_id: c.id,
+                          inline_citizen: {
+                            full_name: c.full_name || '',
+                            passport: c.passport || '',
+                            phone_number: c.phone_number || '',
+                            pinfl: c.pinfl || '',
+                            birth_date: c.birth_date ? String(c.birth_date).slice(0, 10) : '',
+                            gender: (c.gender as 'male' | 'female') || '',
+                            address: c.address || '',
+                            district_id: c.district_id || c.district?.id || null,
+                            district_name: c.district?.name || '',
+                            neighborhood_id: c.neighborhood_id || c.neighborhood?.id || null,
+                            neighborhood_name: c.neighborhood?.name || '',
+                          },
+                        }))
+                      }
+                      onClearCitizenId={() =>
+                        onUpdateCustomFieldItem(cf.clientId, (f) => ({
+                          ...f,
+                          citizen_id: null,
+                        }))
+                      }
+                    />
 
                     {/* 2-Qator: Tug'ilgan sana, Jinsi */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -636,12 +821,21 @@ export function EvidenceAndCitizensSection({
                       </div>
                     </div>
 
-                    {/* 3-Qator: Telefon, Pasport, JSHSHIR */}
+                    {/* 3-Qator: Telefon, Pasport, JSHSHIR (+ Jonli Radar) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Telefon raqami
-                        </label>
+                        <div className="flex items-center justify-between gap-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">
+                            Telefon raqami
+                          </label>
+                          {cf.inline_citizen?.phone_number && (
+                            <LiveRadarBadge
+                              type="phone_number"
+                              value={cf.inline_citizen.phone_number}
+                              excludeAppId={excludeAppId}
+                            />
+                          )}
+                        </div>
                         <PhoneInput
                           value={cf.inline_citizen?.phone_number}
                           onChange={(val) => {
@@ -662,9 +856,18 @@ export function EvidenceAndCitizensSection({
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          Pasport seriya & raqam
-                        </label>
+                        <div className="flex items-center justify-between gap-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">
+                            Pasport seriya & raqam
+                          </label>
+                          {cf.inline_citizen?.passport && (
+                            <LiveRadarBadge
+                              type="passport"
+                              value={cf.inline_citizen.passport}
+                              excludeAppId={excludeAppId}
+                            />
+                          )}
+                        </div>
                         <Input
                           placeholder="AA1234567"
                           value={cf.inline_citizen?.passport || ''}
@@ -690,9 +893,18 @@ export function EvidenceAndCitizensSection({
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-muted-foreground">
-                          JSHSHIR (PINFL - 14 ta raqam)
-                        </label>
+                        <div className="flex items-center justify-between gap-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">
+                            JSHSHIR (PINFL - 14 ta raqam)
+                          </label>
+                          {cf.inline_citizen?.pinfl && (
+                            <LiveRadarBadge
+                              type="pinfl"
+                              value={cf.inline_citizen.pinfl}
+                              excludeAppId={excludeAppId}
+                            />
+                          )}
+                        </div>
                         <Input
                           placeholder="14 TALIK RAQAM"
                           value={cf.inline_citizen?.pinfl || ''}

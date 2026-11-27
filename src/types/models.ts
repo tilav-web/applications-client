@@ -625,6 +625,7 @@ export interface SuspectFieldConfig {
   sample_value?: string | null;
   sort_order?: number;
   is_active?: boolean;
+  is_linkable?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -641,6 +642,7 @@ export interface ApplicationCustomField {
   application_id?: string | null;
   label: string | null;
   key: string | null;
+  entity_role?: EntityLinkRole | null;
   type: CustomFieldType | null;
   value: unknown;
   citizen_id?: string | null;
@@ -688,6 +690,7 @@ export interface ApplicationDamage {
   contract_number?: string | null;
   damage_date?: string | null;
   description?: string | null;
+  recipient_info?: string | null;
   order?: number;
 }
 
@@ -789,6 +792,8 @@ export interface Application {
     citizens: number;
     suspects?: number;
     has_fraud_card_link: boolean;
+    has_cross_role_collision?: boolean;
+    detected_crimes_count?: number;
   };
 }
 
@@ -853,7 +858,10 @@ export interface ApplicationRelationsSummary {
   total: number;
   cards: number;
   citizens: number;
+  suspects?: number;
   has_fraud_card_link: boolean;
+  has_cross_role_collision?: boolean;
+  detected_crimes_count?: number;
 }
 
 export interface LinkedApplicationInfo {
@@ -863,13 +871,51 @@ export interface LinkedApplicationInfo {
   status_label: string;
   status_color: string;
   date: string | null;
+  district_name?: string | null;
+  crime_article?: string | null;
+  repeat_type?: ApplicationRepeatType;
   citizen_name: string;
   citizen_phone?: string | null;
-  role_in_that_app?: 'RECEIVER' | 'SENDER' | 'RELATED';
+  role_in_that_app?: string;
+  is_cross_role?: boolean;
   transfer_amount?: number | null;
   currency?: string;
   payment_provider?: string | null;
   description?: string | null;
+}
+
+export interface UnifiedMatchReason {
+  kind: 'CARD' | 'PHONE' | 'IDENTIFIER' | 'CITIZEN' | 'CROSS_ROLE' | 'MULTI_HOP';
+  label: string;
+  value: string;
+  danger: boolean;
+  is_cross_role?: boolean;
+}
+
+export interface UnifiedLinkedApplication extends LinkedApplicationInfo {
+  district_name?: string | null;
+  crime_article?: string | null;
+  match_reasons: UnifiedMatchReason[];
+  is_cross_role: boolean;
+  has_fraud_match: boolean;
+}
+
+export interface ApplicantRepeatApplicationItem extends LinkedApplicationInfo {
+  repeat_type?: ApplicationRepeatType;
+  district_name?: string | null;
+  crime_article?: string | null;
+}
+
+export interface DetectedCrimeLinkItem {
+  id: string;
+  case_number: string | null;
+  title: string;
+  detected_at: string | null;
+  district_name: string | null;
+  crime_article: string | null;
+  status_label: string | null;
+  matched_by: string[];
+  target_route: string;
 }
 
 export interface CardRelationItem {
@@ -882,7 +928,7 @@ export interface CardRelationItem {
     citizen_id?: string | null;
     citizen_name?: string | null;
   };
-  role_in_current_app: 'RECEIVER' | 'SENDER' | 'RELATED';
+  role_in_current_app: 'RECEIVER' | 'SUSPECT' | 'TRANSIT' | 'SENDER' | 'RELATED';
   linked_applications: LinkedApplicationInfo[];
 }
 
@@ -894,6 +940,8 @@ export interface CitizenRelationItem {
     passport?: string | null;
     pinfl?: string | null;
   };
+  role_in_current_app?: EntityLinkRole;
+  is_cross_role?: boolean;
   match_reasons: string[];
   linked_applications: LinkedApplicationInfo[];
 }
@@ -920,8 +968,15 @@ export interface ApplicationRelationsData {
     total_citizens_count: number;
     total_suspects_count?: number;
     total_multi_hop_count?: number;
+    detected_crimes_count?: number;
+    total_detected_crimes_count?: number;
+    total_probable_matches_count?: number;
+    applicant_repeats_count?: number;
     has_fraud_card_link: boolean;
+    has_cross_role_collision?: boolean;
   };
+  linked_applications?: UnifiedLinkedApplication[];
+  applicant_repeat_applications?: ApplicantRepeatApplicationItem[];
   card_relations: CardRelationItem[];
   citizen_relations: CitizenRelationItem[];
   suspect_relations?: {
@@ -945,6 +1000,8 @@ export interface ApplicationRelationsData {
     linked_applications: DossierApplicationItem[];
   }[];
   multi_hop_chains?: MultiHopChainItem[];
+  probable_matches?: ProbableMatchItem[];
+  detected_crime_relations?: DetectedCrimeLinkItem[];
   network_graph?: INetworkGraph;
   graph?: IGraphData;
 }
@@ -1125,6 +1182,13 @@ export interface LiveRadarResponse {
   appsCount: number;
   suspectCount: number;
   victimCount: number;
+  detectedCrimesCount?: number;
+  detectedCrimes?: {
+    id: string;
+    case_number: string | null;
+    title: string;
+    matched_by: string;
+  }[];
   totalLoss: number;
   riskLevel: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   recentApplications: {

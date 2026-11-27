@@ -913,6 +913,24 @@ export function ReferenceDialogs({
                     className="h-9 text-xs"
                   />
                 </div>
+
+                <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-border bg-muted/30 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_linkable !== false}
+                    onChange={(e) => setFormData({ ...formData, is_linkable: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  />
+                  <span className="space-y-0.5">
+                    <span className="text-xs font-semibold text-foreground block">
+                      Firibgar bog‘liqlik qidiruvida ishtirok etadi
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block">
+                      Yoqilgan bo‘lsa, qiymati boshqa arizalar va Jonli Radar bilan avtomatik
+                      solishtiriladi. Erkin izoh / bio maydonlari uchun o‘chirib qo‘ying.
+                    </span>
+                  </span>
+                </label>
               </>
             )}
 

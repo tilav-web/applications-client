@@ -1017,9 +1017,14 @@ export function ApplicationsPage() {
                 >
                   <Link2 className="h-3.5 w-3.5 text-amber-500" />
                   <span>
-                    Bog‘liqliklar
-                    {selection.singleSelected.relations_summary?.total
-                      ? ` (${selection.singleSelected.relations_summary.total})`
+                    Firibgar bog‘liqliklari
+                    {(selection.singleSelected.relations_summary?.total || 0) +
+                      (selection.singleSelected.relations_summary?.detected_crimes_count || 0) >
+                    0
+                      ? ` (${
+                          (selection.singleSelected.relations_summary?.total || 0) +
+                          (selection.singleSelected.relations_summary?.detected_crimes_count || 0)
+                        })`
                       : ''}
                   </span>
                 </DropdownMenuItem>
@@ -1270,7 +1275,7 @@ export function ApplicationsPage() {
         </FilterSelect>
 
         <FilterSelect
-          label="Bog‘liqliklar"
+          label="Bog‘liqliklar (Firibgar)"
           value={relationsFilter}
           onChange={(v) => {
             setRelationsFilter(v);
@@ -1278,8 +1283,10 @@ export function ApplicationsPage() {
           }}
         >
           <option value="">Barchasi</option>
-          <option value="with_relations">Bog‘liqligi bor (1+)</option>
-          <option value="fraud_card">Firibgar kartasi takrorlangan</option>
+          <option value="with_relations">Firibgar bog‘liqligi bor (1+)</option>
+          <option value="fraud_card">Dropper / Firibgar kartasi takrorlangan</option>
+          <option value="fraud_clue">Telefon / Telegram / Kripto izi takrorlangan</option>
+          <option value="cross_role">Rol to‘qnashuvi (Jabrlanuvchi ↔ Firibgar)</option>
         </FilterSelect>
 
         <FilterSelect
@@ -1724,27 +1731,47 @@ export function ApplicationsPage() {
                       )}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      {app.relations_summary && app.relations_summary.total > 0 ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/applications/${app.id}/relations`)}
-                          className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
-                            app.relations_summary.has_fraud_card_link
-                              ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
-                              : app.relations_summary.cards > 0
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
-                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 shadow-2xs'
-                          }`}
-                          title={`Bog'liqliklarni ko'rish: ${app.relations_summary.cards} ta karta, ${app.relations_summary.citizens} ta fuqaro`}
-                        >
-                          <Link2 className="h-3 w-3 shrink-0" />
-                          <span>{app.relations_summary.total} ta bog‘liqlik</span>
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs pl-2">—</span>
-                      )}
+                      {(() => {
+                        const rs = app.relations_summary;
+                        const appLinks = rs?.total || 0;
+                        const crimeLinks = rs?.detected_crimes_count || 0;
+                        const totalAlerts = appLinks + crimeLinks;
+                        if (!rs || totalAlerts <= 0) {
+                          return <span className="text-muted-foreground text-xs pl-2">—</span>;
+                        }
+                        const isCritical =
+                          rs.has_fraud_card_link || rs.has_cross_role_collision || crimeLinks > 0;
+                        const tooltipParts = [
+                          rs.cards > 0 ? `${rs.cards} ta karta` : null,
+                          (rs.suspects || 0) > 0 ? `${rs.suspects} ta raqamli/tel iz` : null,
+                          rs.citizens > 0 ? `${rs.citizens} ta gumonlanuvchi shaxs` : null,
+                          rs.has_cross_role_collision ? 'Rol to‘qnashuvi!' : null,
+                          crimeLinks > 0 ? `${crimeLinks} ta aniqlangan jinoyat` : null,
+                        ].filter(Boolean);
+                        return (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/applications/${app.id}/relations`)}
+                            className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
+                              isCritical
+                                ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
+                            }`}
+                            title={`Firibgar bog‘liqliklari: ${tooltipParts.join(', ')}`}
+                          >
+                            <Link2 className="h-3 w-3 shrink-0" />
+                            <span>
+                              {rs.has_cross_role_collision
+                                ? `Rol to‘qnashuvi (${totalAlerts})`
+                                : crimeLinks > 0 && appLinks === 0
+                                  ? `${crimeLinks} ta jinoyat`
+                                  : `${totalAlerts} ta bog‘liqlik`}
+                            </span>
+                          </Button>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {app.date ? new Date(app.date).toLocaleDateString() : '—'}

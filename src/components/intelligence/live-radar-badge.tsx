@@ -39,8 +39,19 @@ export function LiveRadarBadge({ type, value, excludeAppId, className }: LiveRad
 
   if (!data?.found) return null;
 
-  const isDangerous = data.suspectCount > 0;
+  const detectedCrimesCount = data.detectedCrimesCount || 0;
+  const isDangerous = data.suspectCount > 0 || detectedCrimesCount > 0;
   const hasApps = data.appsCount > 0;
+  const triggerLabel =
+    detectedCrimesCount > 0
+      ? `${detectedCrimesCount} jinoyat${data.suspectCount > 0 ? ` · ${data.suspectCount} ariza` : ''}`
+      : data.suspectCount > 0
+        ? `Firibgar: ${data.suspectCount} ta ariza`
+        : hasApps
+          ? `Jabrlanuvchi: ${data.appsCount} ta`
+          : data.ownerCitizen
+            ? 'Bazada bor'
+            : 'Topildi';
 
   return (
     <Popover>
@@ -52,11 +63,11 @@ export function LiveRadarBadge({ type, value, excludeAppId, className }: LiveRad
             isDangerous
               ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 hover:bg-rose-500/25 animate-pulse'
               : hasApps
-                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/25'
+                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/20'
                 : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25',
             className,
           )}
-          title="Bazadagi bog'liqliklarni ko'rish uchun bosing"
+          title="Bazadagi firibgar / tergov kesishmalarini ko'rish uchun bosing"
         >
           {isDangerous ? (
             <ShieldAlert className="h-3 w-3 shrink-0" />
@@ -65,9 +76,7 @@ export function LiveRadarBadge({ type, value, excludeAppId, className }: LiveRad
           ) : (
             <CheckCircle2 className="h-3 w-3 shrink-0" />
           )}
-          <span>
-            {hasApps ? `${data.appsCount} ta ariza` : data.ownerCitizen ? 'Bazada bor' : 'Topildi'}
-          </span>
+          <span>{triggerLabel}</span>
         </button>
       </PopoverTrigger>
 
@@ -93,7 +102,7 @@ export function LiveRadarBadge({ type, value, excludeAppId, className }: LiveRad
 
           {isDangerous ? (
             <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px]">
-              Xavfli ({data.suspectCount})
+              Xavfli ({data.suspectCount + detectedCrimesCount})
             </Badge>
           ) : (
             <Badge variant="outline" className="text-[10px]">
@@ -115,6 +124,31 @@ export function LiveRadarBadge({ type, value, excludeAppId, className }: LiveRad
             >
               Profil ➔
             </button>
+          </div>
+        )}
+
+        {data.detectedCrimes && data.detectedCrimes.length > 0 && (
+          <div className="space-y-1.5 pt-1 border-t border-rose-500/30">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+              Aniqlangan jinoyatlar ({detectedCrimesCount}):
+            </span>
+            <div className="space-y-1 max-h-28 overflow-y-auto">
+              {data.detectedCrimes.map((dc) => (
+                <div
+                  key={dc.id}
+                  onClick={() => navigate(`/detected-crimes/${dc.id}`)}
+                  className="flex flex-col text-xs p-1.5 rounded-md bg-rose-500/8 border border-rose-500/20 hover:bg-rose-500/15 cursor-pointer"
+                >
+                  <span className="font-bold text-rose-700 dark:text-rose-300 truncate">
+                    {dc.case_number ? `№ ${dc.case_number} · ` : ''}
+                    {dc.title}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    {dc.matched_by}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

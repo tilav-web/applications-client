@@ -2,7 +2,9 @@ import type {
   ApplicationDamageType,
   CrimeGravity,
   CustomFieldType,
+  EntityLinkRole,
   TransferCustomField,
+  TransferDestinationType,
 } from '@/types/models';
 
 export interface AppCustomFieldState {
@@ -10,6 +12,7 @@ export interface AppCustomFieldState {
   type: CustomFieldType;
   label: string;
   key: string;
+  entity_role?: EntityLinkRole | null;
   value: unknown;
   order: number;
   citizen_id?: string | null;
@@ -50,12 +53,17 @@ export interface AppCustomFieldState {
   inline_transfer?: {
     amount: string | number;
     currency: string;
+    transaction_id?: string;
     payment_provider_id?: string;
     payment_provider_name?: string;
     receiver_card_id?: string;
     receiver_card_number?: string;
     receiver_card_full_name?: string;
     receiver_bank_name?: string;
+    destination_type?: TransferDestinationType;
+    destination_platform?: string;
+    destination_value?: string;
+    destination_label?: string;
     transfer_date?: string;
     transfer_time?: string;
     transfer_custom_fields?: TransferCustomField[];
@@ -70,12 +78,17 @@ export interface FinancialTransferEntry {
   victimCardFullName: string;
   victimBankName: string;
   transferId: string | null;
+  transactionId?: string;
   amount: string;
   currency: string;
   providerId: string | null;
   providerName: string;
   transferDate: string; // YYYY-MM-DD
   transferTime: string; // HH:MM
+  destinationType?: TransferDestinationType;
+  destinationPlatform?: string;
+  destinationValue?: string;
+  destinationLabel?: string;
   receiverCardId: string | null;
   receiverCardNumber: string;
   receiverCardFullName: string;
@@ -91,4 +104,5 @@ export interface NonCardDamageEntry {
   contractNumber: string;
   damageDate: string;
   description: string;
+  recipientInfo?: string;
 }

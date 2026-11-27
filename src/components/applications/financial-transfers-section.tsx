@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  Hash,
   Plus,
   ShieldAlert,
   Trash2,
@@ -13,13 +14,76 @@ import {
 } from 'lucide-react';
 import type { RefObject } from 'react';
 
+import { LiveRadarBadge } from '@/components/intelligence/live-radar-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatAmountInput, formatAmountWords, formatCardNumberDisplay } from '@/lib/formatters';
-import type { Bank, Card, PaymentProvider } from '@/types/models';
+import type { Bank, Card, PaymentProvider, TransferDestinationType } from '@/types/models';
 
 import type { FinancialTransferEntry } from './application-form.types';
+
+const DESTINATION_CHANNEL_OPTIONS: Array<{
+  type: TransferDestinationType;
+  label: string;
+  platformLabel: string;
+  platformPlaceholder: string;
+  valueLabel: string;
+  valuePlaceholder: string;
+  radarType: string;
+  presets: string[];
+}> = [
+  {
+    type: 'CARD',
+    label: 'Plastik karta',
+    platformLabel: '',
+    platformPlaceholder: '',
+    valueLabel: 'Karta raqami (16 talik) *',
+    valuePlaceholder: '9860 0000 0000 0000',
+    radarType: 'card_number',
+    presets: [],
+  },
+  {
+    type: 'CRYPTO',
+    label: 'Kripto / Birja',
+    platformLabel: 'Birja / Tarmoq',
+    platformPlaceholder: 'Binance, Bybit, OKX, USDT TRC-20...',
+    valueLabel: 'Birja UID yoki Kripto-hamyon *',
+    valuePlaceholder: 'UID 48291034 yoki TR7NHq...',
+    radarType: 'crypto_wallet',
+    presets: ['Binance', 'Bybit', 'OKX', 'USDT TRC-20', 'TON'],
+  },
+  {
+    type: 'PLATFORM',
+    label: 'Onlayn Servis',
+    platformLabel: 'Platforma / Servis',
+    platformPlaceholder: 'TikTok, Telegram, 1xBet, Steam...',
+    valueLabel: 'Profil / Akkaunt ID yoki @username *',
+    valuePlaceholder: '@user_profile yoki ID 9912045',
+    radarType: 'online_platform',
+    presets: ['1xBet', 'TikTok', 'Telegram', 'Steam', 'OLX'],
+  },
+  {
+    type: 'BANK_ACCOUNT',
+    label: 'Hisob raqam',
+    platformLabel: 'Bank nomi / MFO',
+    platformPlaceholder: 'Kapitalbank, Ipak Yo‘li, NBU...',
+    valueLabel: '20 xonali bank hisob raqami *',
+    valuePlaceholder: '20208000...',
+    radarType: 'bank_account',
+    presets: ['Kapitalbank', 'Ipak Yo‘li', 'Hamkorbank', 'NBU'],
+  },
+  {
+    type: 'CASH',
+    label: 'Naqd / ATM',
+    platformLabel: 'Naqdlashtirish joyi',
+    platformPlaceholder: 'Bankomat (ATM), Bank kassasi...',
+    valueLabel: 'ATM ID yoki manzil',
+    valuePlaceholder: 'ATM #402, Qarshi sh...',
+    radarType: 'other_info',
+    presets: ['Bankomat (ATM)', 'Bank kassasi', 'Valyuta ayirboshlash'],
+  },
+];
 
 export type ActiveTransferPopover = {
   index: number;
@@ -27,6 +91,7 @@ export type ActiveTransferPopover = {
 } | null;
 
 interface FinancialTransfersSectionProps {
+  excludeAppId?: string;
   hasFinancialLoss: boolean;
   setHasFinancialLoss: (val: boolean) => void;
   transferContainerRef: RefObject<HTMLDivElement | null>;
@@ -44,6 +109,7 @@ interface FinancialTransfersSectionProps {
 }
 
 export function FinancialTransfersSection({
+  excludeAppId,
   hasFinancialLoss,
   setHasFinancialLoss,
   transferContainerRef,
@@ -417,135 +483,273 @@ export function FinancialTransfersSection({
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                      <Hash className="h-3 w-3 text-primary" /> Chek / Tranzaksiya ID (ixtiyoriy)
+                    </label>
+                    <Input
+                      placeholder="Masalan: 184920194812"
+                      value={entry.transactionId || ''}
+                      onChange={(e) =>
+                        onUpdateTransferEntry(index, { transactionId: e.target.value })
+                      }
+                      className="h-9 text-xs font-mono bg-background"
+                    />
+                  </div>
                 </div>
 
-                {/* 3. FIRIBGAR (QABUL QILUVCHI) KARTASI */}
-                <div className="p-4 rounded-xl border border-red-500/30 bg-muted/10 shadow-sm space-y-3 relative">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <ShieldAlert className="h-4 w-4 text-red-400" />
-                      Qabul Qiluvchi (Firibgar) Kartasi
-                    </span>
-                    {entry.receiverCardId ? (
-                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Bazadagi karta
-                        <button
-                          type="button"
-                          onClick={() => onUpdateTransferEntry(index, { receiverCardId: null })}
-                          className="ml-1 hover:text-foreground"
-                          title="Bog‘lanishni bekor qilish"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : entry.receiverCardNumber ? (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                        Yangi karta
-                      </Badge>
-                    ) : null}
-                  </div>
-
-                  <div className="relative space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground">
-                      Karta raqami (16 talik) *
-                    </label>
-                    <Input
-                      placeholder="9860 0000 0000 0000"
-                      value={formatCardNumberDisplay(entry.receiverCardNumber)}
-                      onFocus={() => setActiveTransferPopover({ index, type: 'receiverCard' })}
-                      onChange={(e) => {
-                        const val = formatCardNumberDisplay(e.target.value);
-                        onUpdateTransferEntry(index, {
-                          receiverCardNumber: val,
-                          receiverCardId: null,
-                        });
-                        setActiveTransferPopover({ index, type: 'receiverCard' });
-                      }}
-                      className="h-9 text-xs font-mono font-bold tracking-wider"
-                      maxLength={19}
-                    />
-                    {activeTransferPopover?.index === index &&
-                      activeTransferPopover.type === 'receiverCard' &&
-                      filteredReceiverCards.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
-                          <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
-                            Bazada mavjud kartalar:
-                          </div>
-                          {filteredReceiverCards.map((c) => (
-                            <div
-                              key={c.id}
-                              onClick={() => {
-                                onUpdateTransferEntry(index, {
-                                  receiverCardId: c.id,
-                                  receiverCardNumber: formatCardNumberDisplay(c.card_number || ''),
-                                  receiverCardFullName: c.full_name || '',
-                                  receiverBankName: c.bank?.name || '',
-                                });
-                                setActiveTransferPopover(null);
-                              }}
-                              className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
-                            >
-                              <span className="font-bold text-foreground">
-                                {formatCardNumberDisplay(c.card_number)}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {c.bank?.name || 'Bank'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground">
-                      Karta egasining F.I.SH.
-                    </label>
-                    <Input
-                      placeholder="FIRIBGAR / NOMA‘LUM SHAXS F.I.SH."
-                      value={entry.receiverCardFullName}
-                      onChange={(e) =>
-                        onUpdateTransferEntry(index, {
-                          receiverCardFullName: e.target.value.toUpperCase(),
-                        })
-                      }
-                      className="h-9 text-xs uppercase"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground">
-                      Firibgar kartasi banki
-                    </label>
-                    <select
-                      value={entry.receiverBankName || ''}
-                      onChange={(e) =>
-                        onUpdateTransferEntry(index, {
-                          receiverBankName: e.target.value,
-                        })
-                      }
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                    >
-                      <option value="">-- BANKNI TANLANG --</option>
-                      {allBanks.map((b) => (
-                        <option key={b.id} value={b.name || ''}>
-                          {b.name?.toUpperCase()}
-                        </option>
-                      ))}
-                      {entry.receiverBankName &&
-                        !allBanks.some(
-                          (b) =>
-                            b.name?.trim().toUpperCase() ===
-                            entry.receiverBankName?.trim().toUpperCase(),
-                        ) && (
-                          <option value={entry.receiverBankName}>
-                            {entry.receiverBankName.toUpperCase()}
-                          </option>
+                {/* 3. FIRIBGAR (QABUL QILUVCHI) KARTASI YOKI CHIQISH KANALI */}
+                {(() => {
+                  const activeDestType: TransferDestinationType = entry.destinationType || 'CARD';
+                  const activeChannel =
+                    DESTINATION_CHANNEL_OPTIONS.find((c) => c.type === activeDestType) ||
+                    DESTINATION_CHANNEL_OPTIONS[0];
+                  return (
+                    <div className="p-4 rounded-xl border border-red-500/30 bg-muted/10 shadow-sm space-y-3 relative">
+                      <div className="flex items-center justify-between border-b border-border/40 pb-2 gap-1.5">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <ShieldAlert className="h-4 w-4 text-red-400 shrink-0" />
+                          Qabul Qiluvchi (Firibgar)
+                        </span>
+                        {activeDestType === 'CARD' ? (
+                          entry.receiverCardId ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Bazadagi karta
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onUpdateTransferEntry(index, { receiverCardId: null })
+                                }
+                                className="ml-1 hover:text-foreground"
+                                title="Bog‘lanishni bekor qilish"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ) : entry.receiverCardNumber ? (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                              Yangi karta
+                            </Badge>
+                          ) : null
+                        ) : (
+                          <Badge className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 text-[10px]">
+                            {activeChannel.label}
+                          </Badge>
                         )}
-                    </select>
-                  </div>
-                </div>
+                      </div>
+
+                      {/* Chiqish kanali tanlovi */}
+                      <div className="flex flex-wrap gap-1">
+                        {DESTINATION_CHANNEL_OPTIONS.map((ch) => (
+                          <button
+                            key={ch.type}
+                            type="button"
+                            onClick={() =>
+                              onUpdateTransferEntry(index, {
+                                destinationType: ch.type,
+                                ...(ch.type !== 'CARD'
+                                  ? {
+                                      receiverCardId: null,
+                                      receiverCardNumber: '',
+                                      receiverCardFullName: '',
+                                      receiverBankName: '',
+                                    }
+                                  : {
+                                      destinationPlatform: '',
+                                      destinationValue: '',
+                                      destinationLabel: '',
+                                    }),
+                              })
+                            }
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
+                              activeDestType === ch.type
+                                ? 'bg-rose-600 text-white border-rose-600'
+                                : 'bg-background text-muted-foreground border-border hover:border-rose-400 hover:text-foreground'
+                            }`}
+                          >
+                            {ch.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {activeDestType === 'CARD' ? (
+                        <>
+                          <div className="relative space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                Karta raqami (16 talik) *
+                              </label>
+                              {entry.receiverCardNumber && (
+                                <LiveRadarBadge
+                                  type="card_number"
+                                  value={entry.receiverCardNumber}
+                                  excludeAppId={excludeAppId}
+                                />
+                              )}
+                            </div>
+                            <Input
+                              placeholder="9860 0000 0000 0000"
+                              value={formatCardNumberDisplay(entry.receiverCardNumber)}
+                              onFocus={() =>
+                                setActiveTransferPopover({ index, type: 'receiverCard' })
+                              }
+                              onChange={(e) => {
+                                const val = formatCardNumberDisplay(e.target.value);
+                                onUpdateTransferEntry(index, {
+                                  receiverCardNumber: val,
+                                  receiverCardId: null,
+                                });
+                                setActiveTransferPopover({ index, type: 'receiverCard' });
+                              }}
+                              className="h-9 text-xs font-mono font-bold tracking-wider"
+                              maxLength={19}
+                            />
+                            {activeTransferPopover?.index === index &&
+                              activeTransferPopover.type === 'receiverCard' &&
+                              filteredReceiverCards.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border shadow-xl rounded-xl p-2 max-h-40 overflow-y-auto">
+                                  <div className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 border-b border-border/50 mb-1">
+                                    Bazada mavjud kartalar:
+                                  </div>
+                                  {filteredReceiverCards.map((c) => (
+                                    <div
+                                      key={c.id}
+                                      onClick={() => {
+                                        onUpdateTransferEntry(index, {
+                                          receiverCardId: c.id,
+                                          receiverCardNumber: formatCardNumberDisplay(
+                                            c.card_number || '',
+                                          ),
+                                          receiverCardFullName: c.full_name || '',
+                                          receiverBankName: c.bank?.name || '',
+                                        });
+                                        setActiveTransferPopover(null);
+                                      }}
+                                      className="p-1.5 rounded hover:bg-muted cursor-pointer flex justify-between font-mono text-xs"
+                                    >
+                                      <span className="font-bold text-foreground">
+                                        {formatCardNumberDisplay(c.card_number)}
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                        {c.bank?.name || 'Bank'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Karta egasining F.I.SH.
+                            </label>
+                            <Input
+                              placeholder="FIRIBGAR / NOMA‘LUM SHAXS F.I.SH."
+                              value={entry.receiverCardFullName}
+                              onChange={(e) =>
+                                onUpdateTransferEntry(index, {
+                                  receiverCardFullName: e.target.value.toUpperCase(),
+                                })
+                              }
+                              className="h-9 text-xs uppercase"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              Firibgar kartasi banki
+                            </label>
+                            <select
+                              value={entry.receiverBankName || ''}
+                              onChange={(e) =>
+                                onUpdateTransferEntry(index, {
+                                  receiverBankName: e.target.value,
+                                })
+                              }
+                              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold uppercase shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                            >
+                              <option value="">-- BANKNI TANLANG --</option>
+                              {allBanks.map((b) => (
+                                <option key={b.id} value={b.name || ''}>
+                                  {b.name?.toUpperCase()}
+                                </option>
+                              ))}
+                              {entry.receiverBankName &&
+                                !allBanks.some(
+                                  (b) =>
+                                    b.name?.trim().toUpperCase() ===
+                                    entry.receiverBankName?.trim().toUpperCase(),
+                                ) && (
+                                  <option value={entry.receiverBankName}>
+                                    {entry.receiverBankName.toUpperCase()}
+                                  </option>
+                                )}
+                            </select>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground">
+                              {activeChannel.platformLabel}
+                            </label>
+                            <Input
+                              placeholder={activeChannel.platformPlaceholder}
+                              value={entry.destinationPlatform || ''}
+                              onChange={(e) =>
+                                onUpdateTransferEntry(index, {
+                                  destinationPlatform: e.target.value,
+                                })
+                              }
+                              className="h-9 text-xs"
+                            />
+                            {activeChannel.presets.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {activeChannel.presets.map((p) => (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() =>
+                                      onUpdateTransferEntry(index, { destinationPlatform: p })
+                                    }
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-rose-500/15 hover:text-rose-600 text-muted-foreground cursor-pointer"
+                                  >
+                                    {p}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                {activeChannel.valueLabel}
+                              </label>
+                              {entry.destinationValue && activeDestType !== 'CASH' && (
+                                <LiveRadarBadge
+                                  type={activeChannel.radarType}
+                                  value={entry.destinationValue}
+                                  excludeAppId={excludeAppId}
+                                />
+                              )}
+                            </div>
+                            <Input
+                              placeholder={activeChannel.valuePlaceholder}
+                              value={entry.destinationValue || ''}
+                              onChange={(e) =>
+                                onUpdateTransferEntry(index, { destinationValue: e.target.value })
+                              }
+                              className="h-9 text-xs font-mono"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))}

@@ -115,12 +115,17 @@ const createDefaultTransferEntry = (): FinancialTransferEntry => ({
   victimCardFullName: '',
   victimBankName: '',
   transferId: null,
+  transactionId: '',
   amount: '',
   currency: 'UZS',
   providerId: null,
   providerName: '',
   transferDate: '',
   transferTime: '',
+  destinationType: 'CARD',
+  destinationPlatform: '',
+  destinationValue: '',
+  destinationLabel: '',
   receiverCardId: null,
   receiverCardNumber: '',
   receiverCardFullName: '',
@@ -137,6 +142,7 @@ const createDefaultNonCardDamageEntry = (): NonCardDamageEntry => ({
   contractNumber: '',
   damageDate: '',
   description: '',
+  recipientInfo: '',
 });
 
 export function ApplicationCreatePage() {
@@ -390,6 +396,47 @@ export function ApplicationCreatePage() {
 
   const handleRemoveDamageEntry = (index: number) => {
     setNonCardDamages((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleAddSuspectClueFromDamage = (rawValue: string, note: string) => {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return;
+    const digits = trimmed.replace(/\D/g, '');
+    let fieldKey = 'other_info';
+    let fieldLabel = 'Boshqa maʼlumot (Izoh)';
+    if (digits.length === 16 && /^(8600|9860|5614|4|5|62)/.test(digits)) {
+      fieldKey = 'card_number';
+      fieldLabel = 'Bank plastik karta';
+    } else if (digits.length === 20) {
+      fieldKey = 'bank_account';
+      fieldLabel = 'Bank hisob raqami';
+    } else if (/^\+?998\d{9}$/.test(trimmed.replace(/[\s\-()]/g, '')) || /^9\d{8}$/.test(digits)) {
+      fieldKey = 'phone_number';
+      fieldLabel = 'Telefon raqami';
+    } else if (trimmed.startsWith('@') || /t\.me\//i.test(trimmed)) {
+      fieldKey = 'telegram_username';
+      fieldLabel = 'Telegram Username';
+    } else if (/^(T[1-9A-HJ-NP-Za-km-z]{33}|0x[a-fA-F0-9]{40})$/.test(trimmed)) {
+      fieldKey = 'crypto_wallet';
+      fieldLabel = 'Kripto-hamyon';
+    } else if (/^(https?:\/\/|www\.)/i.test(trimmed)) {
+      fieldKey = 'website_domain';
+      fieldLabel = 'Phishing sayt / Havola';
+    }
+
+    setSuspectTree((prev) => [
+      ...prev,
+      {
+        id: `damage-clue-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        field_key: fieldKey,
+        field_label: fieldLabel,
+        value: trimmed,
+        note,
+      },
+    ]);
+    toast.success('Gumonlanuvchi belgilariga (2.1-bo‘lim) qo‘shildi', {
+      description: `${fieldLabel}: ${trimmed}`,
+    });
   };
 
   // ==========================================================================
@@ -898,7 +945,24 @@ export function ApplicationCreatePage() {
       return formatAmountInput(num);
     };
 
+    const readDestDetails = (
+      t?: {
+        destination_details?: Record<string, unknown> | null;
+        receiver_identifier?: { raw_value?: string | null } | null;
+      } | null,
+    ) => {
+      const details = (t?.destination_details || {}) as Record<string, unknown>;
+      return {
+        platform: typeof details.platform === 'string' ? details.platform : '',
+        value:
+          typeof details.value === 'string' && details.value.trim()
+            ? details.value
+            : t?.receiver_identifier?.raw_value || '',
+      };
+    };
+
     if (hasPrimaryFinancial) {
+      const primaryDest = readDestDetails(initialApp.transfer);
       loadedTransfers.push({
         clientId: 'primary_ft',
         victimCardId: initialApp.card?.id || initialApp.card_id || null,
@@ -906,12 +970,17 @@ export function ApplicationCreatePage() {
         victimCardFullName: initialApp.card?.full_name || '',
         victimBankName: initialApp.card?.bank?.name || '',
         transferId: initialApp.transfer?.id || initialApp.transfer_id || null,
+        transactionId: initialApp.transfer?.transaction_id || '',
         amount: formatLoadedAmount(initialApp.transfer?.amount),
         currency: initialApp.transfer?.currency || 'UZS',
         providerId: initialApp.transfer?.payment_provider?.id || null,
         providerName: initialApp.transfer?.payment_provider?.name || '',
         transferDate: initialApp.transfer?.transfer_date || '',
         transferTime: initialApp.transfer?.transfer_time || '',
+        destinationType: initialApp.transfer?.destination_type || 'CARD',
+        destinationPlatform: primaryDest.platform,
+        destinationValue: primaryDest.value,
+        destinationLabel: initialApp.transfer?.destination_label || '',
         receiverCardId: initialApp.transfer?.receiver_card?.id || null,
         receiverCardNumber: initialApp.transfer?.receiver_card?.card_number || '',
         receiverCardFullName: initialApp.transfer?.receiver_card?.full_name || '',
@@ -954,6 +1023,7 @@ export function ApplicationCreatePage() {
           const t = cf.transfer;
           const sc = cf.card || t?.sender_card;
           const rc = t?.receiver_card;
+          const extraDest = readDestDetails(t);
           loadedTransfers.push({
             clientId: cf.id || `custom_ft_${idx}`,
             victimCardId: sc?.id || cf.card_id || null,
@@ -961,12 +1031,17 @@ export function ApplicationCreatePage() {
             victimCardFullName: sc?.full_name || '',
             victimBankName: sc?.bank?.name || '',
             transferId: t?.id || cf.transfer_id || null,
+            transactionId: t?.transaction_id || '',
             amount: formatLoadedAmount(t?.amount),
             currency: t?.currency || 'UZS',
             providerId: t?.payment_provider?.id || null,
             providerName: t?.payment_provider?.name || '',
             transferDate: t?.transfer_date || '',
             transferTime: t?.transfer_time || '',
+            destinationType: t?.destination_type || 'CARD',
+            destinationPlatform: extraDest.platform,
+            destinationValue: extraDest.value,
+            destinationLabel: t?.destination_label || '',
             receiverCardId: rc?.id || null,
             receiverCardNumber: rc?.card_number || '',
             receiverCardFullName: rc?.full_name || '',
@@ -978,6 +1053,7 @@ export function ApplicationCreatePage() {
             type: cf.type || 'TEXT',
             label: cf.label || '',
             key: cf.key || '',
+            entity_role: cf.entity_role || null,
             value: cf.value,
             order: cf.order ?? idx,
             citizen_id: cf.citizen_id,
@@ -1052,6 +1128,7 @@ export function ApplicationCreatePage() {
           contractNumber: d.contract_number || '',
           damageDate: d.damage_date ? String(d.damage_date).slice(0, 10) : '',
           description: d.description || '',
+          recipientInfo: d.recipient_info || '',
         })),
       );
     } else {
@@ -1313,11 +1390,13 @@ export function ApplicationCreatePage() {
   // ==========================================================================
   const handleAddCustomFieldItem = (type: CustomFieldType, defaultLabel = '') => {
     const clientId = `cf_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const resolvedLabel = type === 'CITIZEN' && !defaultLabel ? 'Gumonlanuvchi' : defaultLabel;
     const newItem: AppCustomFieldState = {
       clientId,
       type,
-      label: defaultLabel,
+      label: resolvedLabel,
       key: `${type.toLowerCase()}_${Date.now()}`,
+      entity_role: type === 'CITIZEN' ? 'SUSPECT' : null,
       value: type === 'TEXT' ? '' : null,
       order: customFields.length,
       inline_citizen:
@@ -1539,17 +1618,24 @@ export function ApplicationCreatePage() {
         if (primary.transferId) {
           payload.transfer_id = primary.transferId;
         }
+        const primaryDestType = primary.destinationType || 'CARD';
+        const isPrimaryNonCardDest = primaryDestType !== 'CARD';
         if (
           primary.transferId ||
           primaryAmount !== null ||
+          primary.transactionId?.trim() ||
           primary.receiverCardId ||
           primary.receiverCardNumber ||
           primary.receiverCardFullName ||
           primary.providerId ||
           primary.providerName ||
-          primary.transferDate
+          primary.transferDate ||
+          primary.destinationValue?.trim() ||
+          primary.destinationPlatform?.trim() ||
+          isPrimaryNonCardDest
         ) {
           payload.transfer_data = {
+            transaction_id: primary.transactionId?.trim() || undefined,
             amount: primaryAmount,
             currency: primary.currency || 'UZS',
             payment_provider_id: primary.providerId || null,
@@ -1558,16 +1644,36 @@ export function ApplicationCreatePage() {
               : primary.providerName
                 ? formatTitleCase(primary.providerName)
                 : undefined,
-            receiver_card_id: primary.receiverCardId || null,
-            receiver_card_number: primary.receiverCardId
+            destination_type: primaryDestType,
+            destination_platform: isPrimaryNonCardDest
+              ? primary.destinationPlatform?.trim() || undefined
+              : undefined,
+            destination_value: isPrimaryNonCardDest
+              ? primary.destinationValue?.trim() || undefined
+              : undefined,
+            destination_label: isPrimaryNonCardDest
+              ? primary.destinationLabel?.trim() ||
+                [primary.destinationPlatform?.trim(), primary.destinationValue?.trim()]
+                  .filter(Boolean)
+                  .join(' · ') ||
+                undefined
+              : undefined,
+            receiver_card_id: isPrimaryNonCardDest ? null : primary.receiverCardId || null,
+            receiver_card_number: isPrimaryNonCardDest
               ? undefined
-              : primary.receiverCardNumber.replace(/\D/g, ''),
-            receiver_card_full_name: primary.receiverCardFullName
-              ? formatUzbekName(primary.receiverCardFullName)
-              : undefined,
-            receiver_bank_name: primary.receiverBankName
-              ? formatTitleCase(primary.receiverBankName)
-              : undefined,
+              : primary.receiverCardId
+                ? undefined
+                : primary.receiverCardNumber.replace(/\D/g, ''),
+            receiver_card_full_name: isPrimaryNonCardDest
+              ? undefined
+              : primary.receiverCardFullName
+                ? formatUzbekName(primary.receiverCardFullName)
+                : undefined,
+            receiver_bank_name: isPrimaryNonCardDest
+              ? undefined
+              : primary.receiverBankName
+                ? formatTitleCase(primary.receiverBankName)
+                : undefined,
             transfer_date: primary.transferDate || null,
             transfer_time: primary.transferTime || null,
           };
@@ -1577,16 +1683,22 @@ export function ApplicationCreatePage() {
         let extraIndex = 0;
         financialTransfers.slice(1).forEach((entry) => {
           const entryAmount = parseTransferNumericAmount(entry.amount);
+          const entryDestType = entry.destinationType || 'CARD';
+          const isEntryNonCardDest = entryDestType !== 'CARD';
           const hasAnyTransferContent = Boolean(
             entry.transferId ||
             entryAmount !== null ||
+            entry.transactionId?.trim() ||
             entry.victimCardId ||
             entry.victimCardNumber.replace(/\D/g, '') ||
             entry.receiverCardId ||
             entry.receiverCardNumber.replace(/\D/g, '') ||
             entry.providerId ||
             entry.providerName.trim() ||
-            entry.transferDate,
+            entry.transferDate ||
+            entry.destinationValue?.trim() ||
+            entry.destinationPlatform?.trim() ||
+            isEntryNonCardDest,
           );
           if (!hasAnyTransferContent) return;
 
@@ -1611,6 +1723,7 @@ export function ApplicationCreatePage() {
               bank_name: entry.victimBankName ? formatTitleCase(entry.victimBankName) : undefined,
             },
             inline_transfer: {
+              transaction_id: entry.transactionId?.trim() || undefined,
               amount: entryAmount ?? '',
               currency: entry.currency || 'UZS',
               payment_provider_id: entry.providerId || undefined,
@@ -1619,16 +1732,36 @@ export function ApplicationCreatePage() {
                 : entry.providerName
                   ? formatTitleCase(entry.providerName)
                   : undefined,
-              receiver_card_id: entry.receiverCardId || undefined,
-              receiver_card_number: entry.receiverCardId
+              destination_type: entryDestType,
+              destination_platform: isEntryNonCardDest
+                ? entry.destinationPlatform?.trim() || undefined
+                : undefined,
+              destination_value: isEntryNonCardDest
+                ? entry.destinationValue?.trim() || undefined
+                : undefined,
+              destination_label: isEntryNonCardDest
+                ? entry.destinationLabel?.trim() ||
+                  [entry.destinationPlatform?.trim(), entry.destinationValue?.trim()]
+                    .filter(Boolean)
+                    .join(' · ') ||
+                  undefined
+                : undefined,
+              receiver_card_id: isEntryNonCardDest ? undefined : entry.receiverCardId || undefined,
+              receiver_card_number: isEntryNonCardDest
                 ? undefined
-                : entry.receiverCardNumber.replace(/\D/g, ''),
-              receiver_card_full_name: entry.receiverCardFullName
-                ? formatUzbekName(entry.receiverCardFullName)
-                : undefined,
-              receiver_bank_name: entry.receiverBankName
-                ? formatTitleCase(entry.receiverBankName)
-                : undefined,
+                : entry.receiverCardId
+                  ? undefined
+                  : entry.receiverCardNumber.replace(/\D/g, ''),
+              receiver_card_full_name: isEntryNonCardDest
+                ? undefined
+                : entry.receiverCardFullName
+                  ? formatUzbekName(entry.receiverCardFullName)
+                  : undefined,
+              receiver_bank_name: isEntryNonCardDest
+                ? undefined
+                : entry.receiverBankName
+                  ? formatTitleCase(entry.receiverBankName)
+                  : undefined,
               transfer_date: entry.transferDate || undefined,
               transfer_time: entry.transferTime || undefined,
             },
@@ -1649,6 +1782,7 @@ export function ApplicationCreatePage() {
           contract_number?: string;
           damage_date?: string;
           description?: string;
+          recipient_info?: string;
           order: number;
         }> = [];
         for (let idx = 0; idx < nonCardDamages.length; idx++) {
@@ -1658,7 +1792,8 @@ export function ApplicationCreatePage() {
             entry.organizationName.trim() ||
             entry.contractNumber.trim() ||
             entry.damageDate ||
-            entry.description.trim(),
+            entry.description.trim() ||
+            entry.recipientInfo?.trim(),
           );
           if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
             if (hasAnyDetail) {
@@ -1676,6 +1811,7 @@ export function ApplicationCreatePage() {
             contract_number: entry.contractNumber.trim() || undefined,
             damage_date: entry.damageDate || undefined,
             description: entry.description.trim() || undefined,
+            recipient_info: entry.recipientInfo?.trim() || undefined,
             order: validDamages.length,
           });
         }
@@ -1707,6 +1843,7 @@ export function ApplicationCreatePage() {
       payload.custom_fields = allCustomFields.map((cf, idx) => ({
         label: cf.label.trim() || undefined,
         key: cf.key || `field_${idx}`,
+        entity_role: cf.entity_role || undefined,
         type: cf.type,
         value: cf.value,
         order: idx,
@@ -3040,6 +3177,7 @@ export function ApplicationCreatePage() {
           filteredReceiverCards={filteredReceiverCards}
           allBanks={allBanks}
           allProviders={allProviders}
+          excludeAppId={location.pathname.includes('/edit/') ? id : undefined}
           onUpdateTransferEntry={handleUpdateTransferEntry}
           onAddTransferEntry={handleAddTransferEntry}
           onRemoveTransferEntry={handleRemoveTransferEntry}
@@ -3055,10 +3193,12 @@ export function ApplicationCreatePage() {
           onUpdateDamageEntry={handleUpdateDamageEntry}
           onAddDamageEntry={handleAddDamageEntry}
           onRemoveDamageEntry={handleRemoveDamageEntry}
+          onAddSuspectClue={handleAddSuspectClueFromDamage}
         />
 
         <EvidenceAndCitizensSection
           applicationId={id}
+          excludeAppId={location.pathname.includes('/edit/') ? id : undefined}
           evidenceFiles={evidenceFiles}
           isUploadingEvidence={isUploadingEvidence}
           isDraggingEvidence={isDraggingEvidence}

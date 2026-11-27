@@ -48,34 +48,176 @@ const FALLBACK_CONFIGS: SuspectFieldConfig[] = [
     label: 'Telegram Username',
     category: 'Telegram',
     icon: 'Send',
+    is_linkable: true,
   },
-  { id: 'f-2', key: 'telegram_id', label: 'Telegram ID', category: 'Telegram', icon: 'Send' },
+  {
+    id: 'f-2',
+    key: 'telegram_id',
+    label: 'Telegram ID',
+    category: 'Telegram',
+    icon: 'Send',
+    is_linkable: true,
+  },
   {
     id: 'f-3',
+    key: 'telegram_bot',
+    label: 'Telegram Bot',
+    category: 'Telegram',
+    icon: 'Send',
+    is_linkable: true,
+  },
+  {
+    id: 'f-4',
+    key: 'telegram_channel',
+    label: 'Telegram Kanal / Guruh',
+    category: 'Telegram',
+    icon: 'Send',
+    is_linkable: true,
+  },
+  {
+    id: 'f-5',
     key: 'telegram_bio',
     label: 'Telegram Bio / Izoh',
     category: 'Telegram',
     icon: 'Send',
+    is_linkable: false,
   },
   {
-    id: 'f-4',
+    id: 'f-6',
+    key: 'phone_number',
+    label: 'Telefon raqami',
+    category: 'Aloqa',
+    icon: 'Phone',
+    is_linkable: true,
+  },
+  {
+    id: 'f-7',
+    key: 'whatsapp_number',
+    label: 'WhatsApp raqami',
+    category: 'Aloqa',
+    icon: 'Phone',
+    is_linkable: true,
+  },
+  {
+    id: 'f-8',
     key: 'instagram_username',
     label: 'Instagram Username',
     category: 'Instagram',
     icon: 'Camera',
+    is_linkable: true,
   },
-  { id: 'f-5', key: 'phone_number', label: 'Telefon raqami', category: 'Aloqa', icon: 'Phone' },
   {
-    id: 'f-6',
+    id: 'f-9',
+    key: 'tiktok_username',
+    label: 'TikTok Username',
+    category: 'Ijtimoiy tarmoq',
+    icon: 'Hash',
+    is_linkable: true,
+  },
+  {
+    id: 'f-10',
+    key: 'olx_account',
+    label: 'OLX / Savdo akkaunti',
+    category: 'Savdo platforma',
+    icon: 'Globe',
+    is_linkable: true,
+  },
+  {
+    id: 'f-11',
     key: 'card_number',
     label: 'Bank plastik karta',
     category: 'Moliya',
     icon: 'CreditCard',
+    is_linkable: true,
   },
-  { id: 'f-7', key: 'crypto_wallet', label: 'Kripto-hamyon', category: 'Moliya', icon: 'Coins' },
-  { id: 'f-8', key: 'ip_address', label: 'IP Manzil', category: 'Tarmoq', icon: 'Globe' },
-  { id: 'f-9', key: 'other_info', label: 'Boshqa maʼlumot', category: 'Boshqa', icon: 'Hash' },
+  {
+    id: 'f-12',
+    key: 'bank_account',
+    label: 'Bank hisob raqami',
+    category: 'Moliya',
+    icon: 'CreditCard',
+    is_linkable: true,
+  },
+  {
+    id: 'f-13',
+    key: 'crypto_wallet',
+    label: 'Kripto-hamyon',
+    category: 'Moliya',
+    icon: 'Coins',
+    is_linkable: true,
+  },
+  {
+    id: 'f-14',
+    key: 'exchange_uid',
+    label: 'Kripto-birja UID',
+    category: 'Moliya',
+    icon: 'Coins',
+    is_linkable: true,
+  },
+  {
+    id: 'f-15',
+    key: 'website_domain',
+    label: 'Phishing sayt / Havola',
+    category: 'Tarmoq',
+    icon: 'Globe',
+    is_linkable: true,
+  },
+  {
+    id: 'f-16',
+    key: 'apk_file',
+    label: 'Zararli APK / Ilova',
+    category: 'Tarmoq',
+    icon: 'Globe',
+    is_linkable: true,
+  },
+  {
+    id: 'f-17',
+    key: 'ip_address',
+    label: 'IP Manzil',
+    category: 'Tarmoq',
+    icon: 'Globe',
+    is_linkable: true,
+  },
+  {
+    id: 'f-18',
+    key: 'imei',
+    label: 'IMEI Kod',
+    category: 'Qurilma',
+    icon: 'Hash',
+    is_linkable: true,
+  },
+  {
+    id: 'f-19',
+    key: 'email',
+    label: 'Email manzil',
+    category: 'Aloqa',
+    icon: 'Globe',
+    is_linkable: true,
+  },
+  {
+    id: 'f-20',
+    key: 'car_plate',
+    label: 'Avtoraqam',
+    category: 'Boshqa',
+    icon: 'Hash',
+    is_linkable: true,
+  },
+  {
+    id: 'f-21',
+    key: 'other_info',
+    label: 'Boshqa maʼlumot (Izoh)',
+    category: 'Boshqa',
+    icon: 'Hash',
+    is_linkable: false,
+  },
 ];
+
+const NON_LINKABLE_KEYS = new Set(['telegram_bio', 'other_info']);
+
+function isFieldLinkable(key: string, cfg?: SuspectFieldConfig): boolean {
+  if (cfg && typeof cfg.is_linkable === 'boolean') return cfg.is_linkable;
+  return !NON_LINKABLE_KEYS.has((key || '').toLowerCase());
+}
 
 function getCategoryIcon(key: string, category?: string | null, className = 'w-3.5 h-3.5') {
   const k = (key || '').toLowerCase();
@@ -86,16 +228,33 @@ function getCategoryIcon(key: string, category?: string | null, className = 'w-3
   if (k.includes('instagram') || k.includes('insta') || c.includes('instagram')) {
     return <Camera className={cn('text-pink-500', className)} />;
   }
-  if (k.includes('phone') || k.includes('telefon') || c.includes('aloqa')) {
+  if (
+    k.includes('phone') ||
+    k.includes('telefon') ||
+    k.includes('whatsapp') ||
+    c.includes('aloqa')
+  ) {
     return <Phone className={cn('text-emerald-500', className)} />;
   }
-  if (k.includes('card') || k.includes('karta') || c.includes('moliya')) {
+  if (k.includes('card') || k.includes('karta') || k.includes('bank_account')) {
     return <CreditCard className={cn('text-amber-500', className)} />;
   }
-  if (k.includes('crypto') || k.includes('wallet') || k.includes('kripto')) {
+  if (
+    k.includes('crypto') ||
+    k.includes('wallet') ||
+    k.includes('kripto') ||
+    k.includes('exchange')
+  ) {
     return <Coins className={cn('text-yellow-500', className)} />;
   }
-  if (k.includes('ip') || k.includes('server') || c.includes('tarmoq')) {
+  if (
+    k.includes('ip') ||
+    k.includes('server') ||
+    k.includes('website') ||
+    k.includes('apk') ||
+    k.includes('olx') ||
+    c.includes('tarmoq')
+  ) {
     return <Globe className={cn('text-indigo-500', className)} />;
   }
   return <Hash className={cn('text-muted-foreground', className)} />;
@@ -301,13 +460,24 @@ export function SuspectTreeBuilder({
                     {it.field_label || it.field_key}
                   </span>
                 </div>
-                {it.value && (
+                {it.value &&
+                isFieldLinkable(
+                  it.field_key,
+                  availableConfigs.find((c) => c.key === it.field_key),
+                ) ? (
                   <LiveRadarBadge
                     type={it.field_key}
                     value={it.value}
                     excludeAppId={excludeAppId}
                   />
-                )}
+                ) : !isFieldLinkable(
+                    it.field_key,
+                    availableConfigs.find((c) => c.key === it.field_key),
+                  ) ? (
+                  <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                    Faqat izoh
+                  </Badge>
+                ) : null}
               </div>
 
               <div className="font-bold text-foreground font-mono text-xs sm:text-sm break-all pl-0.5">
@@ -447,16 +617,23 @@ export function SuspectTreeBuilder({
                       type="text"
                       value={row.value}
                       onChange={(e) => handleValueChange(row.id, e.target.value)}
-                      placeholder="Qiymat (@nik, +998...)"
+                      placeholder={currentCfg?.sample_value || 'Qiymat (@nik, +998..., havola)'}
                       className="w-full bg-transparent text-xs font-medium text-foreground placeholder:text-muted-foreground/45 focus:outline-none min-w-0"
                     />
-                    {row.value && (
+                    {row.value && isFieldLinkable(row.field_key, currentCfg) ? (
                       <LiveRadarBadge
                         type={row.field_key}
                         value={row.value}
                         excludeAppId={excludeAppId}
                       />
-                    )}
+                    ) : !isFieldLinkable(row.field_key, currentCfg) ? (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0"
+                        title="Erkin matn: bog'liqlik sifatida avtomatik solishtirilmaydi"
+                      >
+                        Izoh
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* CHIZIQLI BOG'LANMA: 2-ustundan 3-ustunga */}

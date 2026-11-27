@@ -51,6 +51,7 @@ interface NonCardDamagesSectionProps {
   onUpdateDamageEntry: (index: number, patch: Partial<NonCardDamageEntry>) => void;
   onAddDamageEntry: () => void;
   onRemoveDamageEntry: (index: number) => void;
+  onAddSuspectClue?: (value: string, note: string) => void;
 }
 
 export function NonCardDamagesSection({
@@ -62,6 +63,7 @@ export function NonCardDamagesSection({
   onUpdateDamageEntry,
   onAddDamageEntry,
   onRemoveDamageEntry,
+  onAddSuspectClue,
 }: NonCardDamagesSectionProps) {
   const [openOrgDropdownIdx, setOpenOrgDropdownIdx] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -423,6 +425,35 @@ export function NonCardDamagesSection({
                       className="h-9 text-xs"
                     />
                   </div>
+                </div>
+
+                {/* 7. Oluvchi / Do'kon / Firibgar rekviziti */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[11px] font-semibold text-muted-foreground">
+                      Oluvchi / Do‘kon / Merchant yoki firibgar rekviziti (ixtiyoriy)
+                    </label>
+                    {onAddSuspectClue && entry.recipientInfo?.trim() && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onAddSuspectClue(
+                            entry.recipientInfo!.trim(),
+                            `${entry.organizationName || 'Kartasiz zarar'} oluvchisi`,
+                          )
+                        }
+                        className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                      >
+                        + Gumonlanuvchi belgisiga o‘tkazish
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    value={entry.recipientInfo || ''}
+                    onChange={(e) => onUpdateDamageEntry(idx, { recipientInfo: e.target.value })}
+                    placeholder="Masalan: +998901234567, @savdo_bot, do‘kon nomi yoki hisob raqami"
+                    className="h-9 text-xs"
+                  />
                 </div>
               </div>
             );

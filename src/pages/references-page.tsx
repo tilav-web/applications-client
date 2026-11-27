@@ -434,6 +434,7 @@ export function ReferencesPage() {
           sample_value: (formData.sample_value as string) || undefined,
           description: (formData.description as string) || undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : 0,
+          is_linkable: formData.is_linkable !== undefined ? Boolean(formData.is_linkable) : true,
         });
       if (activeTab === 'occupations') {
         if (occupationMode === 'categories') {
@@ -606,6 +607,8 @@ export function ReferencesPage() {
           description:
             formData.description !== undefined ? (formData.description as string) : undefined,
           sort_order: formData.sort_order !== undefined ? Number(formData.sort_order) : undefined,
+          is_linkable:
+            formData.is_linkable !== undefined ? Boolean(formData.is_linkable) : undefined,
         });
       if (activeTab === 'occupations') {
         if (occupationMode === 'categories') {
@@ -1589,9 +1592,23 @@ export function ReferencesPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="text-[11px]">
-                              {field.category || 'Umumiy'}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Badge variant="secondary" className="text-[11px]">
+                                {field.category || 'Umumiy'}
+                              </Badge>
+                              {field.is_linkable === false ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] text-muted-foreground"
+                                >
+                                  Faqat izoh
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 text-[10px]">
+                                  Bog‘lanadi
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">
                             {field.sample_value || '—'}

@@ -66,6 +66,7 @@ export interface ReferenceFormData {
   description?: string | null;
   is_default?: boolean | null;
   is_active?: boolean | null;
+  is_linkable?: boolean | null;
   sort_order?: number | null;
   article?: string | null;
   mfo?: string | null;
