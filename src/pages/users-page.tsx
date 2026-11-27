@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Activity,
   AtSign,
   Crown,
   Edit2,
@@ -348,19 +347,10 @@ export function UsersPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1">
-            <Activity className="h-3.5 w-3.5" />
-            <span>Hodimlar & Boshqaruv</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Hodimlar</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Arizalar bazasi tizimiga kirish huquqiga ega bo‘lgan barcha hodimlar va ularning rollari
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">Hodimlar</h1>
 
         <Button
           onClick={() => {

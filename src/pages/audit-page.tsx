@@ -266,9 +266,6 @@ export function AuditPage() {
             <ShieldCheck className="h-6 w-6 text-primary" />
             Audit Jurnali & Xavfsizlik Monitoringi
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Xodimlar harakatlari, trafik anomaliyalari, IP bloklash va CrowdSec himoyasi
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

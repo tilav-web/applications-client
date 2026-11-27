@@ -73,6 +73,7 @@ interface YMapsMapInstance {
   ) => void;
   getZoom: () => number;
   setZoom: (zoom: number, options?: Record<string, unknown>) => void;
+  setType: (type: 'yandex#map' | 'yandex#satellite' | 'yandex#hybrid') => void;
   behaviors: {
     enable: (behavior: string) => void;
   };
@@ -243,6 +244,30 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   }, [selectedDistrictName]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoveredDistrict, setHoveredDistrict] = useState<string | null>(null);
+  const [mapType, setMapType] = useState<'yandex#map' | 'yandex#satellite' | 'yandex#hybrid'>(
+    () => {
+      try {
+        const saved = localStorage.getItem('uvd_dashboard_map_type');
+        if (saved === 'yandex#satellite' || saved === 'yandex#hybrid' || saved === 'yandex#map') {
+          return saved;
+        }
+      } catch {
+        /* ignore */
+      }
+      return 'yandex#map';
+    },
+  );
+  const initialMapTypeRef = useRef(mapType);
+
+  const handleChangeMapType = (nextType: 'yandex#map' | 'yandex#satellite' | 'yandex#hybrid') => {
+    setMapType(nextType);
+    mapInstanceRef.current?.setType(nextType);
+    try {
+      localStorage.setItem('uvd_dashboard_map_type', nextType);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Foydalanuvchi tomonidan surilgan nishonlar koordinatalari (localStorage da saqlanadi)
   const [customCenters, setCustomCenters] = useState<Record<string, [number, number]>>(() => {
@@ -313,7 +338,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
   );
 
   // Barcha tumanlarning koordinatalarini dastlabki holatga qaytarish
-  const handleResetAllDistricts = useCallback(() => {
+  const handleResetAllDistricts = () => {
     try {
       localStorage.removeItem('uvd_district_badge_centers');
     } catch {
@@ -330,7 +355,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         timingFunction: 'ease-in-out',
       });
     }
-  }, []);
+  };
 
   // Foydalanuvchi tomonidan surilgan mahallalar koordinatalari (localStorage da saqlanadi)
   const [customMahallaCenters, setCustomMahallaCenters] = useState<
@@ -396,7 +421,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     [lastMovedMahalla],
   );
 
-  const handleResetAllMahallas = useCallback(() => {
+  const handleResetAllMahallas = () => {
     try {
       localStorage.removeItem('uvd_mahalla_badge_centers');
     } catch {
@@ -405,7 +430,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
     setCustomMahallaCenters({});
     setLastMovedMahalla(null);
     setIsMoveMode(false);
-  }, []);
+  };
 
   // Eng yuqori arizalar soni (badge nisbati uchun)
   const maxDistrictCount = useMemo(() => {
@@ -723,8 +748,8 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         {
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
-          controls: ['zoomControl', 'typeSelector'],
-          type: 'yandex#map',
+          controls: ['zoomControl'],
+          type: initialMapTypeRef.current,
         },
         {
           suppressMapOpenBlock: true,
@@ -1250,8 +1275,34 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         </div>
       )}
 
-      {/* 3. O'NG YUQORI TUGMALAR (Surish, Zoom +, Zoom -, Reset, Fullscreen) */}
-      <div className="absolute top-4 right-4 z-30 flex items-center gap-1.5 pointer-events-auto">
+      {/* 3. O'NG YUQORI TUGMALAR (Xarita turi, Surish, Zoom +, Zoom -, Reset, Fullscreen) */}
+      <div className="absolute top-4 right-4 z-30 flex flex-wrap items-center justify-end gap-1.5 pointer-events-auto">
+        <div
+          className="inline-flex items-center h-9 p-0.5 rounded-xl border border-border bg-card/95 shadow-lg backdrop-blur-md"
+          title="Xarita ko‘rinishini almashtirish"
+        >
+          {(
+            [
+              { id: 'yandex#map', label: 'Sxema' },
+              { id: 'yandex#satellite', label: 'Sputnik' },
+              { id: 'yandex#hybrid', label: 'Gibrid' },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => handleChangeMapType(opt.id)}
+              className={`h-full px-2.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                mapType === opt.id
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         <Button
           size="sm"
           variant="outline"
@@ -1322,7 +1373,7 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
       <div
         ref={mapContainerRef}
         className={`w-full h-full cursor-grab active:cursor-grabbing ${
-          isDark ? 'bg-[#0a0f1d] ymaps-dark-mode' : 'bg-slate-100'
+          isDark && mapType === 'yandex#map' ? 'bg-[#0a0f1d] ymaps-dark-mode' : 'bg-slate-100'
         }`}
       />
 

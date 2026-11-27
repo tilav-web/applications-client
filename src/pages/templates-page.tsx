@@ -81,10 +81,6 @@ export function TemplatesPage() {
             <FileCode2 className="h-6 w-6 text-primary" />
             Hujjat Shablonlari Boshqaruvi
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Dinamik Word shablonlarini boshqarish, yangi shablonlar kiritish va OnlyOffice da
-            tahrirlash
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">

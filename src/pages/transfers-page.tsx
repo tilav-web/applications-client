@@ -324,20 +324,11 @@ export function TransfersPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary mb-1">
-            <CreditCard className="h-3.5 w-3.5" />
-            <span>To&apos;lovlar & Tranzaksiyalar</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            To&apos;lov O&apos;tkazmalari
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Arizalarda da&apos;vo qilingan yoki aniqlangan barcha moliyaviy o&apos;tkazmalar hisobi
-          </p>
-        </div>
+    <div className="w-full space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+          To&apos;lov O&apos;tkazmalari
+        </h1>
 
         {canWrite && (
           <Button

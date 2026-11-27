@@ -137,10 +137,6 @@ export function DetectedCrimesPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">Aniqlangan Jinoyatlar</h1>
-            <p className="text-xs text-muted-foreground">
-              JPK 322-m. 3–4-bandlari va O‘RQ-344 bo‘yicha kiber-monitoring va tezkor tadbirlarda
-              arizasiz fosh etilgan holatlar
-            </p>
           </div>
         </div>
 

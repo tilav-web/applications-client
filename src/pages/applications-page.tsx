@@ -12,7 +12,6 @@ import {
   Palette,
   Phone,
   Plus,
-  RefreshCw,
   Trash2,
   Upload,
   User,
@@ -341,7 +340,7 @@ export function ApplicationsPage() {
     y: number;
   } | null>(null);
 
-  const { isConnected, onlineUsers, recentlyUpdatedIds } = useApplicationsRealtime({
+  const { recentlyUpdatedIds } = useApplicationsRealtime({
     activeRowColorFilter: rowColorFilter,
   });
 
@@ -853,50 +852,10 @@ export function ApplicationsPage() {
   return (
     <div className="w-full space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary">
-              <FileText className="h-3.5 w-3.5" />
-              <span>Murojaatlar Boshqaruvi</span>
-              {isFetching && !isLoading && (
-                <span className="flex items-center gap-1 text-[10px] text-primary animate-pulse ml-1.5 font-normal">
-                  <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-                  Yangilanmoqda...
-                </span>
-              )}
-            </div>
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
-                isConnected
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-              )}
-              title={
-                isConnected
-                  ? 'Real-vaqt sinxronlash faol: qator ranglari barcha online hodimlarda bir zumda yangilanadi'
-                  : 'Real-vaqt ulanish qayta tiklanmoqda...'
-              }
-            >
-              <span
-                className={cn(
-                  'h-1.5 w-1.5 rounded-full',
-                  isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500',
-                )}
-              />
-              <span>
-                {isConnected ? `Jonli · ${Math.max(1, onlineUsers)} online` : 'Ulanmoqda...'}
-              </span>
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Arizalar & Murojaatlar
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Kelib tushgan fuqarolar arizalari, firibgarlik holatlari va biriktirilgan ma‘lumotlar
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+          Arizalar & Murojaatlar
+        </h1>
 
         {/* SHABLON, IMPORT VA ARIZA YARATISH TUGMALARI */}
         {canWrite && (

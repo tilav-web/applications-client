@@ -282,9 +282,6 @@ export function ReportsPage() {
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                 Statistika & Rasmiy Hisobotlar
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Yig‘ma operativ hisobotlar, sohaviy tahlillar va Excel eksport
-              </p>
             </div>
           </div>
         </div>
