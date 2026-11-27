@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { SlaWidgetSkeleton } from '@/components/ui/page-skeletons';
 import { toast } from '@/components/ui/sonner';
 import { applicationsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
@@ -176,7 +177,8 @@ export function SlaDashboardWidget() {
     refetchInterval: 60_000,
   });
 
-  if (isLoading || !data) return null;
+  if (isLoading) return <SlaWidgetSkeleton />;
+  if (!data) return null;
 
   return (
     <Card className="border-border/80 bg-card/70 shadow-sm">

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -142,11 +142,16 @@ export function DashboardPage() {
         startDate: period === 'custom' ? startDate : undefined,
         endDate: period === 'custom' ? endDate : undefined,
       }),
+    placeholderData: keepPreviousData,
     staleTime: 0,
     refetchOnMount: 'always',
   });
 
-  const { data: dcMapStats, isLoading: isDcMapLoading } = useQuery({
+  const {
+    data: dcMapStats,
+    isLoading: isDcMapLoading,
+    isFetching: isDcMapFetching,
+  } = useQuery({
     queryKey: ['detected-crimes-map-stats', { period, startDate, endDate }],
     queryFn: () =>
       detectedCrimesApi.getMapStats({
@@ -154,6 +159,7 @@ export function DashboardPage() {
         startDate: period === 'custom' ? startDate : undefined,
         endDate: period === 'custom' ? endDate : undefined,
       }),
+    placeholderData: keepPreviousData,
     staleTime: 0,
     refetchOnMount: 'always',
   });
@@ -327,11 +333,18 @@ export function DashboardPage() {
         </Card>
       )}
 
+      {/* DAVR ALMASHGANDA YUQORIDAGI NOZIK YANGILANISH CHIZIG'I (Xarita uzilmaydi) */}
+      {(isFetching || isDcMapFetching) && Boolean(data) && (
+        <div className="h-0.5 w-full overflow-hidden bg-primary/15">
+          <div className="h-full w-1/3 bg-primary animate-[loading-bar_1.2s_ease-in-out_infinite]" />
+        </div>
+      )}
+
       {/* ===================================================================== */}
       {/* 1. ASOSIY QASHQADARYO XARITASI + O'NG YIG'ILUVCHAN STATISTIKA PANELI  */}
       {/* ===================================================================== */}
       {isLoading && !data ? (
-        <DashboardSkeleton />
+        <DashboardSkeleton showStatsPanel={isStatsPanelOpen} />
       ) : (
         <>
           <div className="space-y-3">
@@ -394,7 +407,9 @@ export function DashboardPage() {
                     mapTab === 'applications' ? mahallaData : dcMapStats?.byNeighborhood || []
                   }
                   allowedDistrictNames={data?.scopedDistrictNames ?? undefined}
-                  isLoading={mapTab === 'applications' ? isLoading : isDcMapLoading}
+                  isLoading={
+                    mapTab === 'applications' ? isLoading && !data : isDcMapLoading && !dcMapStats
+                  }
                   entityLabel={mapTab === 'applications' ? 'Arizalar' : 'Aniqlangan jinoyatlar'}
                   periodLabel={
                     period === 'today'

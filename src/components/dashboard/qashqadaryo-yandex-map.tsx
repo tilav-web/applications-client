@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { MapCanvasSkeleton } from '@/components/ui/page-skeletons';
 import { toast } from '@/components/ui/sonner';
 import { usePermissions } from '@/hooks/use-permissions';
 import { districtsApi, neighborhoodsApi } from '@/lib/api';
@@ -1377,13 +1378,10 @@ export const QashqadaryoYandexMap: React.FC<Props> = ({
         }`}
       />
 
-      {/* 4. YUKLANISH HOLATI INDIKATORI */}
+      {/* 4. YUKLANISH HOLATI SKELETONI */}
       {(!isYmapsReady || isLoading) && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-xs text-foreground">
-          <RefreshCw className="h-7 w-7 text-primary animate-spin mb-2" />
-          <p className="text-xs font-semibold text-muted-foreground">
-            Yandex Map xaritasi yuklanmoqda...
-          </p>
+        <div className="absolute inset-0 z-20">
+          <MapCanvasSkeleton showControls={false} statusText="Yandex xarita yuklanmoqda..." />
         </div>
       )}
 
