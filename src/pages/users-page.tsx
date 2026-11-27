@@ -3,6 +3,7 @@ import {
   AtSign,
   Crown,
   Edit2,
+  Layers,
   Loader2,
   Lock,
   MapPin,
@@ -12,6 +13,7 @@ import {
   Trash2,
   User,
   UserCheck,
+  Users,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -29,6 +31,14 @@ import {
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  PageStatsSheet,
+  StatsFilterRow,
+  StatsMetricTile,
+  StatsSection,
+  StatsSheetSkeleton,
+  useStatsSheetState,
+} from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -54,6 +64,19 @@ import { useAuthStore } from '@/store';
 export function UsersPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
+  const statsSheet = useStatsSheetState('uvd_stats_sheet_open:users', false);
+
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['users-stats'],
+    queryFn: () => usersApi.getStats(),
+    enabled: statsSheet.isOpen,
+    staleTime: 30_000,
+  });
 
   // Alohida aniq filtrlar (AND mantiqida birgalikda ishlaydi)
   const [fullNameFilter, setFullNameFilter] = useState('');
@@ -154,6 +177,7 @@ export function UsersPage() {
     mutationFn: (data: typeof formData) => usersApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-stats'] });
       toast.success('Hodim muvaffaqiyatli yaratildi');
       setIsCreateOpen(false);
       resetForm();
@@ -171,6 +195,7 @@ export function UsersPage() {
       usersApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-stats'] });
       toast.success('Hodim ma’lumotlari yangilandi');
       setEditingUser(null);
       resetForm();
@@ -187,6 +212,7 @@ export function UsersPage() {
     mutationFn: (id: string) => usersApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-stats'] });
       toast.success('Hodim tizimdan o‘chirildi');
       selection.clearSelection();
       setDeleteTargetId(null);
@@ -422,7 +448,10 @@ export function UsersPage() {
                   }
                   try {
                     await Promise.all(deletable.map((id) => usersApi.delete(id)));
-                    await queryClient.invalidateQueries({ queryKey: ['users'] });
+                    await Promise.all([
+                      queryClient.invalidateQueries({ queryKey: ['users'] }),
+                      queryClient.invalidateQueries({ queryKey: ['users-stats'] }),
+                    ]);
                     toast.success(`${deletable.length} ta hodim o‘chirildi`);
                     selection.clearSelection();
                   } catch (err) {
@@ -937,6 +966,110 @@ export function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN HODIMLAR STATISTIKASI */}
+      <PageStatsSheet
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        title="Hodimlar Statistikasi"
+        subtitle="Rollar va hududiy biriktiruvlar kesimi"
+        badgeText={
+          activeFiltersCount > 0 && typeof data?.meta?.total === 'number'
+            ? `Filtr: ${data.meta.total}`
+            : undefined
+        }
+        icon={<Users className="h-4 w-4" />}
+        isFetching={statsFetching && Boolean(stats)}
+        onRefresh={() => void refetchStats()}
+      >
+        {statsLoading && !stats ? (
+          <StatsSheetSkeleton />
+        ) : (
+          <>
+            <StatsSection>
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Jami Hodimlar"
+                  value={stats?.total ?? 0}
+                  accent="primary"
+                  icon={<Users className="h-3.5 w-3.5" />}
+                  active={!roleFilter}
+                  onClick={() => {
+                    if (roleFilter) {
+                      setRoleFilter('');
+                      setPage(1);
+                    }
+                  }}
+                  subtext="Ro‘yxatdan o‘tgan akkauntlar"
+                />
+
+                <StatsMetricTile
+                  label="Tumanli Hodimlar"
+                  value={stats?.withDistrictsCount ?? 0}
+                  accent="emerald"
+                  icon={<MapPin className="h-3.5 w-3.5" />}
+                  subtext="Hudud biriktirilgan"
+                />
+
+                <StatsMetricTile
+                  label="Root Admin"
+                  value={stats?.rootCount ?? 0}
+                  accent="amber"
+                  icon={<Crown className="h-3.5 w-3.5" />}
+                  subtext="Asosiy boshqaruvchilar"
+                />
+
+                <StatsMetricTile
+                  label="Faol Rollar"
+                  value={stats?.byRole.length ?? 0}
+                  accent="blue"
+                  icon={<ShieldCheck className="h-3.5 w-3.5" />}
+                  subtext="Tizim darajalari"
+                />
+              </div>
+            </StatsSection>
+
+            {(stats?.byRole?.length ?? 0) > 0 && (
+              <StatsSection
+                title="Rollar bo‘yicha taqsimot"
+                icon={<Layers className="h-3.5 w-3.5 text-primary" />}
+                hint="Bosib filtrlang"
+              >
+                <div className="space-y-0.5">
+                  {stats!.byRole.map((item) => {
+                    const roleMeta: Record<string, { label: string; color: string }> = {
+                      SUPER_ADMIN: { label: 'Super Admin', color: '#e11d48' },
+                      BOSS: { label: 'Rahbar (Read-Only)', color: '#d97706' },
+                      STAFF: { label: 'Navbatchi hodim', color: '#2563eb' },
+                      DISTRICT_OFFICER: { label: 'Hududiy hodim', color: '#10b981' },
+                      ADMIN: { label: 'Admin', color: '#f59e0b' },
+                      INSPECTOR: { label: 'Inspektor', color: '#8b5cf6' },
+                      OPERATOR: { label: 'Operator', color: '#0ea5e9' },
+                    };
+                    const meta = roleMeta[item.role] || { label: item.role, color: '#64748b' };
+                    const isActive = roleFilter === item.role;
+                    return (
+                      <StatsFilterRow
+                        key={item.role}
+                        label={meta.label}
+                        count={item.count}
+                        percent={item.percent}
+                        colorHex={meta.color}
+                        active={isActive}
+                        onClick={() => {
+                          setRoleFilter(isActive ? '' : item.role);
+                          setPage(1);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </StatsSection>
+            )}
+          </>
+        )}
+      </PageStatsSheet>
     </div>
   );
 }

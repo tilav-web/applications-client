@@ -16,6 +16,13 @@ export interface UserItem {
   updated_at?: string;
 }
 
+export interface UserStatsResponse {
+  total: number;
+  withDistrictsCount: number;
+  rootCount: number;
+  byRole: Array<{ role: string; count: number; percent: number }>;
+}
+
 export const usersApi = {
   getAll: async (params?: {
     page?: number;
@@ -28,6 +35,10 @@ export const usersApi = {
     district_id?: string;
   }) => {
     const res = await apiClient.get<PaginatedResponse<UserItem>>('/users', { params });
+    return res.data;
+  },
+  getStats: async () => {
+    const res = await apiClient.get<UserStatsResponse>('/users/stats');
     return res.data;
   },
   getOne: async (id: string) => {

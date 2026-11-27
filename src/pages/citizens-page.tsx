@@ -7,10 +7,12 @@ import {
   FileText,
   Fingerprint,
   Hash,
+  MapPin,
   Phone,
   Plus,
   Trash2,
   User,
+  Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +35,15 @@ import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdow
 import { FemaleIcon, MaleIcon } from '@/components/ui/gender-icons';
 import { Input } from '@/components/ui/input';
 import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
+import {
+  PageStatsSheet,
+  StatsDistributionBar,
+  StatsFilterRow,
+  StatsMetricTile,
+  StatsSection,
+  StatsSheetSkeleton,
+  useStatsSheetState,
+} from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -61,6 +72,19 @@ export function CitizensPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+  const statsSheet = useStatsSheetState('uvd_stats_sheet_open:citizens', false);
+
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['citizens-stats'],
+    queryFn: () => citizensApi.getStats(),
+    enabled: statsSheet.isOpen,
+    staleTime: 30_000,
+  });
 
   // Alohida aniq filtrlar (AND mantiqida ishlaydi)
   const [fullNameFilter, setFullNameFilter] = useState('');
@@ -187,7 +211,10 @@ export function CitizensPage() {
     try {
       setIsBulkDeleting(true);
       await Promise.all(selection.selectedIds.map((id) => citizensApi.delete(id)));
-      await queryClient.invalidateQueries({ queryKey: ['citizens'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['citizens'] }),
+        queryClient.invalidateQueries({ queryKey: ['citizens-stats'] }),
+      ]);
       toast.success(`${selection.selectedIds.length} ta fuqaro o‘chirildi`);
       selection.clearSelection();
       setIsBulkDeleteOpen(false);
@@ -255,6 +282,7 @@ export function CitizensPage() {
     mutationFn: () => citizensApi.create(preparePayload(formData)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['citizens'] });
+      queryClient.invalidateQueries({ queryKey: ['citizens-stats'] });
       closeModal();
       toast.success('Fuqaro muvaffaqiyatli qo‘shildi');
     },
@@ -267,6 +295,7 @@ export function CitizensPage() {
     mutationFn: () => citizensApi.update(targetCitizen!.id, preparePayload(formData)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['citizens'] });
+      queryClient.invalidateQueries({ queryKey: ['citizens-stats'] });
       closeModal();
       toast.success('Fuqaro ma‘lumotlari yangilandi');
     },
@@ -279,6 +308,7 @@ export function CitizensPage() {
     mutationFn: () => citizensApi.delete(targetCitizen!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['citizens'] });
+      queryClient.invalidateQueries({ queryKey: ['citizens-stats'] });
       selection.clearSelection();
       closeModal();
       toast.success('Fuqaro o‘chirildi');
@@ -914,6 +944,202 @@ export function CitizensPage() {
         target={quickPreviewId ? { type: 'citizen', id: quickPreviewId } : null}
         onClose={() => setQuickPreviewId(null)}
       />
+
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN FUQAROLAR STATISTIKASI */}
+      <PageStatsSheet
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        title="Fuqarolar Statistikasi"
+        subtitle="Bazadagi shaxslar va ma’lumot qamrovi"
+        badgeText={
+          activeFiltersCount > 0 && typeof data?.meta?.total === 'number'
+            ? `Filtr: ${data.meta.total}`
+            : undefined
+        }
+        icon={<Users className="h-4 w-4" />}
+        isFetching={statsFetching && Boolean(stats)}
+        onRefresh={() => void refetchStats()}
+      >
+        {statsLoading && !stats ? (
+          <StatsSheetSkeleton />
+        ) : (
+          <>
+            <StatsSection>
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Jami Fuqarolar"
+                  value={stats?.total ?? 0}
+                  accent="primary"
+                  icon={<Users className="h-3.5 w-3.5" />}
+                  active={!genderFilter && !districtFilter}
+                  onClick={() => {
+                    if (genderFilter || districtFilter) {
+                      setGenderFilter('');
+                      setDistrictFilter('');
+                      setPage(1);
+                    }
+                  }}
+                  subtext="Bazadagi yagona profillar"
+                />
+
+                <StatsMetricTile
+                  label="Kartasi Bor"
+                  value={stats?.withCardsCount ?? 0}
+                  accent="emerald"
+                  icon={<CreditCard className="h-3.5 w-3.5" />}
+                  pill={
+                    stats && stats.total > 0 ? (
+                      <span className="text-[10px] font-mono font-bold px-1 py-0.5 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                        {Math.round((stats.withCardsCount / stats.total) * 100)}%
+                      </span>
+                    ) : null
+                  }
+                  subtext="Plastik karta biriktirilgan"
+                />
+
+                <StatsMetricTile
+                  label="Erkaklar"
+                  value={stats?.maleCount ?? 0}
+                  accent="blue"
+                  icon={<MaleIcon className="h-3.5 w-3.5" />}
+                  active={genderFilter === 'male'}
+                  onClick={() => {
+                    setGenderFilter(genderFilter === 'male' ? '' : 'male');
+                    setPage(1);
+                  }}
+                  title="Jadvalni erkaklar bo‘yicha filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+
+                <StatsMetricTile
+                  label="Ayollar"
+                  value={stats?.femaleCount ?? 0}
+                  accent="purple"
+                  icon={<FemaleIcon className="h-3.5 w-3.5" />}
+                  active={genderFilter === 'female'}
+                  onClick={() => {
+                    setGenderFilter(genderFilter === 'female' ? '' : 'female');
+                    setPage(1);
+                  }}
+                  title="Jadvalni ayollar bo‘yicha filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+              </div>
+            </StatsSection>
+
+            <StatsSection
+              title="Jins bo‘yicha ulush"
+              icon={<User className="h-3.5 w-3.5 text-primary" />}
+            >
+              <StatsDistributionBar
+                total={stats?.total ?? 0}
+                segments={[
+                  {
+                    key: 'male',
+                    label: 'Erkaklar',
+                    count: stats?.maleCount ?? 0,
+                    colorClass: 'bg-blue-500',
+                    dotColorClass: 'bg-blue-500',
+                    active: genderFilter === 'male',
+                    onClick: () => {
+                      setGenderFilter(genderFilter === 'male' ? '' : 'male');
+                      setPage(1);
+                    },
+                  },
+                  {
+                    key: 'female',
+                    label: 'Ayollar',
+                    count: stats?.femaleCount ?? 0,
+                    colorClass: 'bg-pink-500',
+                    dotColorClass: 'bg-pink-500',
+                    active: genderFilter === 'female',
+                    onClick: () => {
+                      setGenderFilter(genderFilter === 'female' ? '' : 'female');
+                      setPage(1);
+                    },
+                  },
+                  {
+                    key: 'unknown',
+                    label: 'Ko‘rsatilmagan',
+                    count: Math.max(
+                      0,
+                      (stats?.total ?? 0) - (stats?.maleCount ?? 0) - (stats?.femaleCount ?? 0),
+                    ),
+                    colorClass: 'bg-slate-400',
+                    dotColorClass: 'bg-slate-400',
+                  },
+                ]}
+              />
+            </StatsSection>
+
+            <StatsSection
+              title="Ma’lumotlar to‘liqligi"
+              icon={<Phone className="h-3.5 w-3.5 text-primary" />}
+            >
+              <div className="space-y-0.5">
+                <StatsFilterRow
+                  label="Telefon raqami kiritilgan"
+                  count={stats?.withPhoneCount ?? 0}
+                  percent={
+                    stats && stats.total > 0
+                      ? Math.round((stats.withPhoneCount / stats.total) * 100)
+                      : 0
+                  }
+                  colorHex="#10b981"
+                />
+                <StatsFilterRow
+                  label="Pasport ma’lumoti bor"
+                  count={stats?.withPassportCount ?? 0}
+                  percent={
+                    stats && stats.total > 0
+                      ? Math.round((stats.withPassportCount / stats.total) * 100)
+                      : 0
+                  }
+                  colorHex="#3b82f6"
+                />
+                <StatsFilterRow
+                  label="Karta biriktirilgan"
+                  count={stats?.withCardsCount ?? 0}
+                  percent={
+                    stats && stats.total > 0
+                      ? Math.round((stats.withCardsCount / stats.total) * 100)
+                      : 0
+                  }
+                  colorHex="#8b5cf6"
+                />
+              </div>
+            </StatsSection>
+
+            {(stats?.topDistricts?.length ?? 0) > 0 && (
+              <StatsSection
+                title="Top 5 tumanlar"
+                icon={<MapPin className="h-3.5 w-3.5 text-primary" />}
+                hint="Bosib filtrlang"
+              >
+                <div className="space-y-0.5">
+                  {stats!.topDistricts.map((d) => {
+                    const isActive = districtFilter === d.id;
+                    return (
+                      <StatsFilterRow
+                        key={d.id}
+                        label={d.name}
+                        count={d.count}
+                        percent={d.percent}
+                        active={isActive}
+                        onClick={() => {
+                          setDistrictFilter(isActive ? '' : d.id);
+                          setPage(1);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </StatsSection>
+            )}
+          </>
+        )}
+      </PageStatsSheet>
     </div>
   );
 }

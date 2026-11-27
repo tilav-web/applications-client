@@ -7,9 +7,12 @@ import {
   Edit2,
   ExternalLink,
   Eye,
+  Layers,
+  Link2,
   Phone,
   Plus,
   Trash2,
+  Unlink2,
   User,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -32,6 +35,15 @@ import {
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
+import {
+  PageStatsSheet,
+  StatsDistributionBar,
+  StatsFilterRow,
+  StatsMetricTile,
+  StatsSection,
+  StatsSheetSkeleton,
+  useStatsSheetState,
+} from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -60,6 +72,19 @@ export function CardsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+  const statsSheet = useStatsSheetState('uvd_stats_sheet_open:cards', false);
+
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['cards-stats'],
+    queryFn: () => cardsApi.getStats(),
+    enabled: statsSheet.isOpen,
+    staleTime: 30_000,
+  });
 
   // Alohida aniq filtrlar (AND mantiqida ishlaydi)
   const [cardNumberFilter, setCardNumberFilter] = useState('');
@@ -173,7 +198,10 @@ export function CardsPage() {
     try {
       setIsBulkDeleting(true);
       await Promise.all(selection.selectedIds.map((id) => cardsApi.delete(id)));
-      await queryClient.invalidateQueries({ queryKey: ['cards'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['cards'] }),
+        queryClient.invalidateQueries({ queryKey: ['cards-stats'] }),
+      ]);
       toast.success(`${selection.selectedIds.length} ta karta o‘chirildi`);
       selection.clearSelection();
       setIsBulkDeleteOpen(false);
@@ -243,6 +271,7 @@ export function CardsPage() {
     mutationFn: () => cardsApi.create(formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] });
+      queryClient.invalidateQueries({ queryKey: ['cards-stats'] });
       closeModal();
       toast.success('Karta muvaffaqiyatli saqlandi');
     },
@@ -255,6 +284,7 @@ export function CardsPage() {
     mutationFn: () => cardsApi.update(targetCard!.id, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] });
+      queryClient.invalidateQueries({ queryKey: ['cards-stats'] });
       closeModal();
       toast.success('Karta ma‘lumotlari yangilandi');
     },
@@ -267,6 +297,7 @@ export function CardsPage() {
     mutationFn: () => cardsApi.delete(targetCard!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] });
+      queryClient.invalidateQueries({ queryKey: ['cards-stats'] });
       selection.clearSelection();
       closeModal();
       toast.success('Karta o‘chirildi');
@@ -777,6 +808,165 @@ export function CardsPage() {
         target={quickPreviewId ? { type: 'card', id: quickPreviewId } : null}
         onClose={() => setQuickPreviewId(null)}
       />
+
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN KARTALAR STATISTIKASI */}
+      <PageStatsSheet
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        title="Kartalar Statistikasi"
+        subtitle="To‘lov tizimlari va emitent banklar kesimi"
+        badgeText={
+          activeFiltersCount > 0 && typeof data?.meta?.total === 'number'
+            ? `Filtr: ${data.meta.total}`
+            : undefined
+        }
+        icon={<CreditCard className="h-4 w-4" />}
+        isFetching={statsFetching && Boolean(stats)}
+        onRefresh={() => void refetchStats()}
+      >
+        {statsLoading && !stats ? (
+          <StatsSheetSkeleton />
+        ) : (
+          <>
+            <StatsSection>
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Jami Kartalar"
+                  value={stats?.total ?? 0}
+                  accent="primary"
+                  icon={<CreditCard className="h-3.5 w-3.5" />}
+                  active={!ownerStateFilter && !bankFilter}
+                  onClick={() => {
+                    if (ownerStateFilter || bankFilter) {
+                      setOwnerStateFilter('');
+                      setBankFilter('');
+                      setPage(1);
+                    }
+                  }}
+                  subtext="Yagona karta yozuvlari"
+                />
+
+                <StatsMetricTile
+                  label="Biriktirilgan"
+                  value={stats?.attachedCount ?? 0}
+                  accent="emerald"
+                  icon={<Link2 className="h-3.5 w-3.5" />}
+                  active={ownerStateFilter === 'attached'}
+                  onClick={() => {
+                    setOwnerStateFilter(ownerStateFilter === 'attached' ? '' : 'attached');
+                    setPage(1);
+                  }}
+                  pill={
+                    stats && stats.total > 0 ? (
+                      <span className="text-[10px] font-mono font-bold px-1 py-0.5 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                        {Math.round((stats.attachedCount / stats.total) * 100)}%
+                      </span>
+                    ) : null
+                  }
+                  title="Fuqaroga biriktirilgan kartalarni filtrlash"
+                  subtext="Egasi aniqlangan"
+                />
+
+                <StatsMetricTile
+                  label="Biriktirilmagan"
+                  value={stats?.unattachedCount ?? 0}
+                  accent="amber"
+                  icon={<Unlink2 className="h-3.5 w-3.5" />}
+                  active={ownerStateFilter === 'unattached'}
+                  onClick={() => {
+                    setOwnerStateFilter(ownerStateFilter === 'unattached' ? '' : 'unattached');
+                    setPage(1);
+                  }}
+                  title="Egasi biriktirilmagan kartalarni filtrlash"
+                  subtext="Egasi belgilanmagan"
+                />
+
+                <StatsMetricTile
+                  label="Milliy Tizim"
+                  value={(stats?.uzcardCount ?? 0) + (stats?.humoCount ?? 0)}
+                  accent="blue"
+                  icon={<Layers className="h-3.5 w-3.5" />}
+                  pill={
+                    stats && stats.total > 0 ? (
+                      <span className="text-[10px] font-mono font-bold px-1 py-0.5 bg-blue-500/12 text-blue-600 dark:text-blue-400">
+                        {Math.round(((stats.uzcardCount + stats.humoCount) / stats.total) * 100)}%
+                      </span>
+                    ) : null
+                  }
+                  subtext="Uzcard + Humo"
+                />
+              </div>
+            </StatsSection>
+
+            <StatsSection
+              title="To‘lov tizimlari"
+              icon={<Layers className="h-3.5 w-3.5 text-primary" />}
+            >
+              <StatsDistributionBar
+                total={stats?.total ?? 0}
+                segments={[
+                  {
+                    key: 'uzcard',
+                    label: 'Uzcard',
+                    count: stats?.uzcardCount ?? 0,
+                    colorClass: 'bg-blue-500',
+                    dotColorClass: 'bg-blue-500',
+                  },
+                  {
+                    key: 'humo',
+                    label: 'Humo',
+                    count: stats?.humoCount ?? 0,
+                    colorClass: 'bg-emerald-500',
+                    dotColorClass: 'bg-emerald-500',
+                  },
+                  {
+                    key: 'visamc',
+                    label: 'Visa / MC',
+                    count: stats?.visaMasterCount ?? 0,
+                    colorClass: 'bg-purple-500',
+                    dotColorClass: 'bg-purple-500',
+                  },
+                  {
+                    key: 'other',
+                    label: 'Boshqa',
+                    count: stats?.otherSystemCount ?? 0,
+                    colorClass: 'bg-slate-400',
+                    dotColorClass: 'bg-slate-400',
+                  },
+                ]}
+              />
+            </StatsSection>
+
+            {(stats?.topBanks?.length ?? 0) > 0 && (
+              <StatsSection
+                title="Top 5 emitent banklar"
+                icon={<Building2 className="h-3.5 w-3.5 text-primary" />}
+                hint="Bosib filtrlang"
+              >
+                <div className="space-y-0.5">
+                  {stats!.topBanks.map((b) => {
+                    const isActive = bankFilter === b.id;
+                    return (
+                      <StatsFilterRow
+                        key={b.id}
+                        label={b.name}
+                        count={b.count}
+                        percent={b.percent}
+                        active={isActive}
+                        onClick={() => {
+                          setBankFilter(isActive ? '' : b.id);
+                          setPage(1);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </StatsSection>
+            )}
+          </>
+        )}
+      </PageStatsSheet>
     </div>
   );
 }

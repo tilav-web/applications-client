@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ChevronLeft,
   CreditCard,
   Download,
   Edit2,
@@ -40,6 +39,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
+import { useStatsSheetState } from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -112,26 +112,7 @@ export function ApplicationsPage() {
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
   const tableColumns = useTableColumns('applications', APPLICATION_TABLE_COLUMNS);
-  const [isStatsPanelOpen, setIsStatsPanelOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const raw = window.localStorage.getItem('uvd_applications_stats_panel_open');
-      return raw === '1' || raw === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const handleToggleStatsPanel = () => {
-    setIsStatsPanelOpen((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem('uvd_applications_stats_panel_open', next ? '1' : '0');
-      } catch {
-        // ignore storage errors
-      }
-      return next;
-    });
-  };
+  const statsSheet = useStatsSheetState('uvd_applications_stats_panel_open', false);
   const currentUser = useAuthStore((s) => s.user);
   const currentActorName =
     [currentUser?.profile?.last_name, currentUser?.profile?.first_name]
@@ -1465,650 +1446,618 @@ export function ApplicationsPage() {
         />
       </div>
 
-      {/* 2. ALOHIDA AJRATILGAN ARIZALAR JADVALI + O'NG YIG'ILUVCHAN STATISTIKA PANELI */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start min-w-0">
-        <div className="relative flex-1 min-w-0 w-full">
-          <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xs">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-border bg-muted/40">
-                  <TableHead className="w-[68px] h-10 px-2.5 text-center sticky left-0 z-10 bg-muted/95 backdrop-blur-xs">
-                    <div className="flex items-center justify-center">
-                      <TableCheckbox
-                        checked={selection.allSelected}
-                        indeterminate={selection.someSelected}
-                        onChange={selection.toggleAll}
-                        ariaLabel="Barcha arizalarni tanlash"
-                      />
-                    </div>
-                  </TableHead>
-                  {tableColumns.visibleColumns.map((col) => {
-                    const headWidthCls =
-                      col.id === 'district_crime'
-                        ? 'min-w-[145px]'
-                        : col.id === 'application_number'
+      {/* 2. ALOHIDA AJRATILGAN ARIZALAR JADVALI */}
+      <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xs">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-border bg-muted/40">
+              <TableHead className="w-[68px] h-10 px-2.5 text-center sticky left-0 z-10 bg-muted/95 backdrop-blur-xs">
+                <div className="flex items-center justify-center">
+                  <TableCheckbox
+                    checked={selection.allSelected}
+                    indeterminate={selection.someSelected}
+                    onChange={selection.toggleAll}
+                    ariaLabel="Barcha arizalarni tanlash"
+                  />
+                </div>
+              </TableHead>
+              {tableColumns.visibleColumns.map((col) => {
+                const headWidthCls =
+                  col.id === 'district_crime'
+                    ? 'min-w-[145px]'
+                    : col.id === 'application_number'
+                      ? 'min-w-[145px]'
+                      : col.id === 'loss_amount'
+                        ? 'min-w-[150px]'
+                        : col.id === 'status'
                           ? 'min-w-[145px]'
-                          : col.id === 'loss_amount'
-                            ? 'min-w-[150px]'
-                            : col.id === 'status'
-                              ? 'min-w-[145px]'
-                              : col.id === 'citizen'
-                                ? 'min-w-[220px]'
-                                : col.id === 'relations'
-                                  ? 'min-w-[135px]'
-                                  : col.id === 'date'
-                                    ? 'w-[115px]'
-                                    : col.id === 'description'
-                                      ? 'min-w-[280px]'
-                                      : col.id === 'officer_notes'
-                                        ? 'min-w-[220px]'
-                                        : col.id === 'citizen_address'
-                                          ? 'min-w-[200px]'
-                                          : col.id === 'cards'
-                                            ? 'min-w-[200px]'
-                                            : 'min-w-[140px]';
-                    return (
-                      <TableHead
-                        key={col.id}
-                        className={cn('h-10 px-3 text-[11px] whitespace-nowrap', headWidthCls)}
-                      >
-                        {col.label}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-border">
-                {isLoading ? (
-                  <TableRowsSkeleton rows={8} columns={tableColumns.visibleColumns.length + 1} />
-                ) : data?.items?.length ? (
-                  data.items.map((app: Application) => {
-                    const selected = selection.isSelected(app.id);
-                    const colorMeta = getRowColorMeta(app.row_color);
-                    const isRemoteUpdated = recentlyUpdatedIds.has(app.id);
-                    const colorTooltip = formatRowColorTooltip(app, canWrite);
-                    return (
-                      <TableRow
-                        key={app.id}
-                        className={cn(
-                          'group cursor-pointer transition-colors border-b border-border',
-                          selected
-                            ? 'bg-primary/[0.08] hover:bg-primary/[0.12]'
-                            : colorMeta
-                              ? colorMeta.rowClass
-                              : 'hover:bg-muted/40',
-                          isRemoteUpdated && 'ring-2 ring-inset ring-primary/50',
-                        )}
-                        onClick={() => navigate(`/applications/${app.id}`)}
-                        onContextMenu={(e) => {
-                          if (!canWrite) return;
-                          e.preventDefault();
-                          setColorMenu({ app, x: e.clientX, y: e.clientY });
-                        }}
-                      >
-                        <TableCell
-                          className={cn(
-                            'w-[68px] px-2.5 text-center sticky left-0 z-10 backdrop-blur-xs transition-colors',
-                            selected
-                              ? 'bg-primary/[0.08]'
-                              : colorMeta
-                                ? colorMeta.stickyCellClass
-                                : 'bg-card/95 group-hover:bg-muted/40',
-                          )}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selection.toggleOne(app.id);
-                          }}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <TableCheckbox
-                              checked={selected}
-                              onChange={() => selection.toggleOne(app.id)}
-                              ariaLabel={`Ariza ${app.application_number || ''} ni tanlash`}
-                            />
-                            {canWrite ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  setColorMenu({
-                                    app,
-                                    x: rect.right + 8,
-                                    y: rect.top - 4,
-                                  });
-                                }}
-                                title={colorTooltip}
-                                aria-label={colorTooltip}
-                                className={cn(
-                                  'h-3.5 w-3.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0',
-                                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
-                                  colorMeta
-                                    ? cn(
-                                        colorMeta.dotClass,
-                                        'ring-2 ring-offset-1 ring-offset-background shadow-2xs hover:scale-125',
-                                      )
-                                    : 'border border-dashed border-muted-foreground/45 bg-transparent opacity-35 group-hover:opacity-100 hover:border-primary hover:bg-primary/10 hover:scale-110',
-                                )}
-                              />
-                            ) : colorMeta ? (
-                              <span
-                                title={colorTooltip}
-                                className={cn(
-                                  'h-3 w-3 rounded-full ring-2 ring-offset-1 ring-offset-background shrink-0',
-                                  colorMeta.dotClass,
-                                )}
-                              />
-                            ) : null}
-                          </div>
-                        </TableCell>
-
-                        {tableColumns.visibleColumns.map((col) => {
-                          switch (col.id) {
-                            case 'district_crime':
-                              return (
-                                <TableCell key={col.id}>
-                                  <div className="space-y-0.5 text-xs">
-                                    {app.district && (
-                                      <div className="font-medium text-foreground">
-                                        {app.district.name}
-                                      </div>
-                                    )}
-                                    {app.crime && (
-                                      <span className="text-[11px] font-semibold text-primary block leading-snug">
-                                        {app.crime.article || app.crime.title}
-                                      </span>
-                                    )}
-                                    {!app.district && !app.crime && (
-                                      <span className="text-muted-foreground">—</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              );
-
-                            case 'application_number':
-                              return (
-                                <TableCell key={col.id}>
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-mono font-bold text-primary whitespace-nowrap">
-                                        {app.application_number || '—'}
-                                      </span>
-                                      {app.documents && app.documents.length > 0 && (
-                                        <span
-                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#185abd]/10 text-[#185abd] dark:text-blue-400 text-[10px] font-bold"
-                                          title={`${app.documents.length} ta Word hujjati biriktirilgan`}
-                                        >
-                                          W·{app.documents.length}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {(app.repeat_type && app.repeat_type !== 'PRIMARY') ||
-                                    (app.chain_count && app.chain_count > 1) ? (
-                                      <div className="flex flex-wrap items-center gap-1">
-                                        {app.repeat_type === 'REPEAT' && (
-                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                                            Takroriy #{app.repeat_sequence || 2}
-                                          </span>
-                                        )}
-                                        {app.repeat_type === 'DUPLICATE' && (
-                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                                            Dublikat
-                                          </span>
-                                        )}
-                                        {app.repeat_type === 'SUPPLEMENTAL' && (
-                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
-                                            Qo‘shimcha
-                                          </span>
-                                        )}
-                                        {(!app.repeat_type || app.repeat_type === 'PRIMARY') &&
-                                          app.chain_count &&
-                                          app.chain_count > 1 && (
-                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                                              Zanjir: {app.chain_count} ta
-                                            </span>
-                                          )}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </TableCell>
-                              );
-
-                            case 'loss_amount':
-                              return (
-                                <TableCell key={col.id} className="whitespace-nowrap">
-                                  {(() => {
-                                    const { total, currency, nonCardCount } =
-                                      getApplicationTotalLoss(app);
-                                    if (total <= 0) {
-                                      return (
-                                        <span className="text-muted-foreground text-xs">—</span>
-                                      );
-                                    }
-                                    return (
-                                      <div className="flex flex-col items-start gap-1">
-                                        <span
-                                          className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
-                                            total >= 50_000_000
-                                              ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
-                                              : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
-                                          }`}
-                                        >
-                                          {new Intl.NumberFormat('uz-UZ').format(Math.round(total))}{' '}
-                                          {currency}
-                                        </span>
-                                        {nonCardCount > 0 && (
-                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-300 border border-amber-500/25">
-                                            Kredit/Nasiya: {nonCardCount} ta
-                                          </span>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                </TableCell>
-                              );
-
-                            case 'status':
-                              return (
-                                <TableCell key={col.id}>
-                                  <div className="flex flex-col items-start gap-1">
-                                    {getStatusBadge(app.status, app.application_status)}
-                                    <SlaBadge app={app} />
-                                    {app.external_systems && app.external_systems.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 pt-0.5 max-w-[190px]">
-                                        {app.external_systems.map((es) => {
-                                          const sysName = es.external_system?.name;
-                                          if (!sysName) return null;
-                                          const dotColor = es.external_system?.color || '#2563EB';
-                                          return (
-                                            <span
-                                              key={es.id || es.external_system_id}
-                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted/70 text-foreground border border-border/70"
-                                              title={`${sysName} tizimiga kiritilgan`}
-                                            >
-                                              <span
-                                                className="h-1.5 w-1.5 rounded-full shrink-0"
-                                                style={{ backgroundColor: dotColor }}
-                                              />
-                                              {sysName}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              );
-
-                            case 'citizen':
-                              return (
-                                <TableCell key={col.id}>
-                                  {app.citizen ? (
-                                    <div className="flex items-start gap-1.5 text-xs">
-                                      <User className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                                      <span className="font-medium leading-snug text-foreground">
-                                        {app.citizen.full_name?.trim() || '—'}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'relations':
-                              return (
-                                <TableCell key={col.id} onClick={(e) => e.stopPropagation()}>
-                                  {(() => {
-                                    const rs = app.relations_summary;
-                                    const appLinks = rs?.total || 0;
-                                    const crimeLinks = rs?.detected_crimes_count || 0;
-                                    const totalAlerts = appLinks + crimeLinks;
-                                    if (!rs || totalAlerts <= 0) {
-                                      return (
-                                        <span className="text-muted-foreground text-xs pl-2">
-                                          —
-                                        </span>
-                                      );
-                                    }
-                                    const isCritical =
-                                      rs.has_fraud_card_link ||
-                                      rs.has_cross_role_collision ||
-                                      crimeLinks > 0;
-                                    const tooltipParts = [
-                                      rs.cards > 0 ? `${rs.cards} ta karta` : null,
-                                      (rs.suspects || 0) > 0
-                                        ? `${rs.suspects} ta raqamli/tel iz`
-                                        : null,
-                                      rs.citizens > 0
-                                        ? `${rs.citizens} ta gumonlanuvchi shaxs`
-                                        : null,
-                                      rs.has_cross_role_collision ? 'Rol to‘qnashuvi!' : null,
-                                      crimeLinks > 0 ? `${crimeLinks} ta aniqlangan jinoyat` : null,
-                                    ].filter(Boolean);
-                                    return (
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          navigate(`/applications/${app.id}/relations`)
-                                        }
-                                        className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
-                                          isCritical
-                                            ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
-                                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
-                                        }`}
-                                        title={`Firibgar bog‘liqliklari: ${tooltipParts.join(', ')}`}
-                                      >
-                                        <Link2 className="h-3 w-3 shrink-0" />
-                                        <span>
-                                          {rs.has_cross_role_collision
-                                            ? `Rol to‘qnashuvi (${totalAlerts})`
-                                            : crimeLinks > 0 && appLinks === 0
-                                              ? `${crimeLinks} ta jinoyat`
-                                              : `${totalAlerts} ta bog‘liqlik`}
-                                        </span>
-                                      </Button>
-                                    );
-                                  })()}
-                                </TableCell>
-                              );
-
-                            case 'date':
-                              return (
-                                <TableCell
-                                  key={col.id}
-                                  className="font-mono text-xs text-muted-foreground whitespace-nowrap"
-                                >
-                                  {app.date ? new Date(app.date).toLocaleDateString() : '—'}
-                                </TableCell>
-                              );
-
-                            case 'description':
-                              return (
-                                <TableCell key={col.id} className="max-w-[420px]">
-                                  {app.description?.trim() ? (
-                                    <p
-                                      className="text-xs text-foreground/90 leading-relaxed line-clamp-3 whitespace-normal"
-                                      title={app.description}
-                                    >
-                                      {app.description}
-                                    </p>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'citizen_phone':
-                              return (
-                                <TableCell
-                                  key={col.id}
-                                  className="font-mono text-xs whitespace-nowrap"
-                                >
-                                  {app.citizen?.phone_number ? (
-                                    <span className="text-foreground">
-                                      +998 {formatPhoneDisplay(app.citizen.phone_number)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'citizen_address': {
-                              const addrParts = [
-                                app.citizen?.district?.name,
-                                app.citizen?.neighborhood?.name,
-                                app.citizen?.address,
-                              ].filter(Boolean);
-                              return (
-                                <TableCell key={col.id} className="max-w-[280px]">
-                                  {addrParts.length > 0 ? (
-                                    <span className="text-xs text-foreground/90 leading-snug block">
-                                      {addrParts.join(', ')}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-                            }
-
-                            case 'cards': {
-                              const senderCard =
-                                app.transfer?.sender_card?.card_number || app.card?.card_number;
-                              const receiverCard = app.transfer?.receiver_card?.card_number;
-                              const destLabel =
-                                app.transfer?.destination_type &&
-                                app.transfer.destination_type !== 'CARD'
-                                  ? app.transfer.destination_label
-                                  : null;
-                              return (
-                                <TableCell key={col.id} className="font-mono text-[11px]">
-                                  {senderCard || receiverCard || destLabel ? (
-                                    <div className="space-y-1">
-                                      {senderCard && (
-                                        <div className="text-foreground whitespace-nowrap">
-                                          <span className="text-muted-foreground mr-1">
-                                            Chiqdi:
-                                          </span>
-                                          {formatCardNumberDisplay(senderCard)}
-                                        </div>
-                                      )}
-                                      {receiverCard && (
-                                        <div className="text-rose-600 dark:text-rose-400 font-semibold whitespace-nowrap">
-                                          <span className="text-muted-foreground font-normal mr-1">
-                                            Tushdi:
-                                          </span>
-                                          {formatCardNumberDisplay(receiverCard)}
-                                        </div>
-                                      )}
-                                      {!receiverCard && destLabel && (
-                                        <div className="text-purple-600 dark:text-purple-400 font-semibold break-all">
-                                          {destLabel}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs font-sans">
-                                      —
-                                    </span>
-                                  )}
-                                </TableCell>
-                              );
-                            }
-
-                            case 'crime_method':
-                              return (
-                                <TableCell key={col.id}>
-                                  <span className="text-xs text-foreground">
-                                    {app.crime_method?.name || '—'}
-                                  </span>
-                                </TableCell>
-                              );
-
-                            case 'source':
-                              return (
-                                <TableCell key={col.id} className="whitespace-nowrap">
-                                  {app.source?.name ? (
-                                    <Badge variant="outline" className="text-[10px] font-semibold">
-                                      {app.source.name}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'department_service':
-                              return (
-                                <TableCell key={col.id}>
-                                  <span className="text-xs text-foreground">
-                                    {app.department_service?.short_name ||
-                                      app.department_service?.name ||
-                                      '—'}
-                                  </span>
-                                </TableCell>
-                              );
-
-                            case 'decision':
-                              return (
-                                <TableCell key={col.id}>
-                                  {app.decision_type?.name || app.decision_number ? (
-                                    <div className="space-y-0.5 text-xs">
-                                      {app.decision_type?.name && (
-                                        <div className="font-medium text-foreground">
-                                          {app.decision_type.name}
-                                        </div>
-                                      )}
-                                      {app.decision_number && (
-                                        <div className="font-mono text-[11px] text-muted-foreground">
-                                          {app.decision_number}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'awareness':
-                              return (
-                                <TableCell key={col.id}>
-                                  {app.awareness_status ? (
-                                    <Badge
-                                      variant="outline"
-                                      className={cn(
-                                        'text-[10px] font-semibold',
-                                        app.awareness_status.is_informed
-                                          ? 'border-emerald-500/35 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
-                                          : 'border-amber-500/35 text-amber-700 dark:text-amber-400 bg-amber-500/10',
-                                      )}
-                                    >
-                                      {app.awareness_status.name}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'officer_notes':
-                              return (
-                                <TableCell key={col.id} className="max-w-[340px]">
-                                  {app.officer_notes?.trim() ? (
-                                    <p
-                                      className="text-xs text-foreground/90 leading-relaxed line-clamp-3 whitespace-normal"
-                                      title={app.officer_notes}
-                                    >
-                                      {app.officer_notes}
-                                    </p>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">—</span>
-                                  )}
-                                </TableCell>
-                              );
-
-                            case 'created_by': {
-                              const author = [app.created_by?.last_name, app.created_by?.first_name]
-                                .filter(Boolean)
-                                .join(' ')
-                                .trim();
-                              return (
-                                <TableCell key={col.id} className="whitespace-nowrap">
-                                  <span className="text-xs text-foreground">
-                                    {author || app.created_by?.username || '—'}
-                                  </span>
-                                </TableCell>
-                              );
-                            }
-
-                            default:
-                              return null;
-                          }
-                        })}
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
+                          : col.id === 'citizen'
+                            ? 'min-w-[220px]'
+                            : col.id === 'relations'
+                              ? 'min-w-[135px]'
+                              : col.id === 'date'
+                                ? 'w-[115px]'
+                                : col.id === 'description'
+                                  ? 'min-w-[280px]'
+                                  : col.id === 'officer_notes'
+                                    ? 'min-w-[220px]'
+                                    : col.id === 'citizen_address'
+                                      ? 'min-w-[200px]'
+                                      : col.id === 'cards'
+                                        ? 'min-w-[200px]'
+                                        : 'min-w-[140px]';
+                return (
+                  <TableHead
+                    key={col.id}
+                    className={cn('h-10 px-3 text-[11px] whitespace-nowrap', headWidthCls)}
+                  >
+                    {col.label}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-border">
+            {isLoading ? (
+              <TableRowsSkeleton rows={8} columns={tableColumns.visibleColumns.length + 1} />
+            ) : data?.items?.length ? (
+              data.items.map((app: Application) => {
+                const selected = selection.isSelected(app.id);
+                const colorMeta = getRowColorMeta(app.row_color);
+                const isRemoteUpdated = recentlyUpdatedIds.has(app.id);
+                const colorTooltip = formatRowColorTooltip(app, canWrite);
+                return (
+                  <TableRow
+                    key={app.id}
+                    className={cn(
+                      'group cursor-pointer transition-colors border-b border-border',
+                      selected
+                        ? 'bg-primary/[0.08] hover:bg-primary/[0.12]'
+                        : colorMeta
+                          ? colorMeta.rowClass
+                          : 'hover:bg-muted/40',
+                      isRemoteUpdated && 'ring-2 ring-inset ring-primary/50',
+                    )}
+                    onClick={() => navigate(`/applications/${app.id}`)}
+                    onContextMenu={(e) => {
+                      if (!canWrite) return;
+                      e.preventDefault();
+                      setColorMenu({ app, x: e.clientX, y: e.clientY });
+                    }}
+                  >
                     <TableCell
-                      colSpan={tableColumns.visibleColumns.length + 1}
-                      className="text-center py-10 text-muted-foreground"
+                      className={cn(
+                        'w-[68px] px-2.5 text-center sticky left-0 z-10 backdrop-blur-xs transition-colors',
+                        selected
+                          ? 'bg-primary/[0.08]'
+                          : colorMeta
+                            ? colorMeta.stickyCellClass
+                            : 'bg-card/95 group-hover:bg-muted/40',
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selection.toggleOne(app.id);
+                      }}
                     >
-                      Hech qanday ariza topilmadi
+                      <div className="flex items-center justify-center gap-2">
+                        <TableCheckbox
+                          checked={selected}
+                          onChange={() => selection.toggleOne(app.id)}
+                          ariaLabel={`Ariza ${app.application_number || ''} ni tanlash`}
+                        />
+                        {canWrite ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setColorMenu({
+                                app,
+                                x: rect.right + 8,
+                                y: rect.top - 4,
+                              });
+                            }}
+                            title={colorTooltip}
+                            aria-label={colorTooltip}
+                            className={cn(
+                              'h-3.5 w-3.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0',
+                              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                              colorMeta
+                                ? cn(
+                                    colorMeta.dotClass,
+                                    'ring-2 ring-offset-1 ring-offset-background shadow-2xs hover:scale-125',
+                                  )
+                                : 'border border-dashed border-muted-foreground/45 bg-transparent opacity-35 group-hover:opacity-100 hover:border-primary hover:bg-primary/10 hover:scale-110',
+                            )}
+                          />
+                        ) : colorMeta ? (
+                          <span
+                            title={colorTooltip}
+                            className={cn(
+                              'h-3 w-3 rounded-full ring-2 ring-offset-1 ring-offset-background shrink-0',
+                              colorMeta.dotClass,
+                            )}
+                          />
+                        ) : null}
+                      </div>
                     </TableCell>
+
+                    {tableColumns.visibleColumns.map((col) => {
+                      switch (col.id) {
+                        case 'district_crime':
+                          return (
+                            <TableCell key={col.id}>
+                              <div className="space-y-0.5 text-xs">
+                                {app.district && (
+                                  <div className="font-medium text-foreground">
+                                    {app.district.name}
+                                  </div>
+                                )}
+                                {app.crime && (
+                                  <span className="text-[11px] font-semibold text-primary block leading-snug">
+                                    {app.crime.article || app.crime.title}
+                                  </span>
+                                )}
+                                {!app.district && !app.crime && (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </div>
+                            </TableCell>
+                          );
+
+                        case 'application_number':
+                          return (
+                            <TableCell key={col.id}>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-primary whitespace-nowrap">
+                                    {app.application_number || '—'}
+                                  </span>
+                                  {app.documents && app.documents.length > 0 && (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#185abd]/10 text-[#185abd] dark:text-blue-400 text-[10px] font-bold"
+                                      title={`${app.documents.length} ta Word hujjati biriktirilgan`}
+                                    >
+                                      W·{app.documents.length}
+                                    </span>
+                                  )}
+                                </div>
+                                {(app.repeat_type && app.repeat_type !== 'PRIMARY') ||
+                                (app.chain_count && app.chain_count > 1) ? (
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {app.repeat_type === 'REPEAT' && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                        Takroriy #{app.repeat_sequence || 2}
+                                      </span>
+                                    )}
+                                    {app.repeat_type === 'DUPLICATE' && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                                        Dublikat
+                                      </span>
+                                    )}
+                                    {app.repeat_type === 'SUPPLEMENTAL' && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                                        Qo‘shimcha
+                                      </span>
+                                    )}
+                                    {(!app.repeat_type || app.repeat_type === 'PRIMARY') &&
+                                      app.chain_count &&
+                                      app.chain_count > 1 && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                          Zanjir: {app.chain_count} ta
+                                        </span>
+                                      )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                          );
+
+                        case 'loss_amount':
+                          return (
+                            <TableCell key={col.id} className="whitespace-nowrap">
+                              {(() => {
+                                const { total, currency, nonCardCount } =
+                                  getApplicationTotalLoss(app);
+                                if (total <= 0) {
+                                  return <span className="text-muted-foreground text-xs">—</span>;
+                                }
+                                return (
+                                  <div className="flex flex-col items-start gap-1">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
+                                        total >= 50_000_000
+                                          ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
+                                          : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
+                                      }`}
+                                    >
+                                      {new Intl.NumberFormat('uz-UZ').format(Math.round(total))}{' '}
+                                      {currency}
+                                    </span>
+                                    {nonCardCount > 0 && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+                                        Kredit/Nasiya: {nonCardCount} ta
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </TableCell>
+                          );
+
+                        case 'status':
+                          return (
+                            <TableCell key={col.id}>
+                              <div className="flex flex-col items-start gap-1">
+                                {getStatusBadge(app.status, app.application_status)}
+                                <SlaBadge app={app} />
+                                {app.external_systems && app.external_systems.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 pt-0.5 max-w-[190px]">
+                                    {app.external_systems.map((es) => {
+                                      const sysName = es.external_system?.name;
+                                      if (!sysName) return null;
+                                      const dotColor = es.external_system?.color || '#2563EB';
+                                      return (
+                                        <span
+                                          key={es.id || es.external_system_id}
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted/70 text-foreground border border-border/70"
+                                          title={`${sysName} tizimiga kiritilgan`}
+                                        >
+                                          <span
+                                            className="h-1.5 w-1.5 rounded-full shrink-0"
+                                            style={{ backgroundColor: dotColor }}
+                                          />
+                                          {sysName}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          );
+
+                        case 'citizen':
+                          return (
+                            <TableCell key={col.id}>
+                              {app.citizen ? (
+                                <div className="flex items-start gap-1.5 text-xs">
+                                  <User className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                  <span className="font-medium leading-snug text-foreground">
+                                    {app.citizen.full_name?.trim() || '—'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'relations':
+                          return (
+                            <TableCell key={col.id} onClick={(e) => e.stopPropagation()}>
+                              {(() => {
+                                const rs = app.relations_summary;
+                                const appLinks = rs?.total || 0;
+                                const crimeLinks = rs?.detected_crimes_count || 0;
+                                const totalAlerts = appLinks + crimeLinks;
+                                if (!rs || totalAlerts <= 0) {
+                                  return (
+                                    <span className="text-muted-foreground text-xs pl-2">—</span>
+                                  );
+                                }
+                                const isCritical =
+                                  rs.has_fraud_card_link ||
+                                  rs.has_cross_role_collision ||
+                                  crimeLinks > 0;
+                                const tooltipParts = [
+                                  rs.cards > 0 ? `${rs.cards} ta karta` : null,
+                                  (rs.suspects || 0) > 0
+                                    ? `${rs.suspects} ta raqamli/tel iz`
+                                    : null,
+                                  rs.citizens > 0 ? `${rs.citizens} ta gumonlanuvchi shaxs` : null,
+                                  rs.has_cross_role_collision ? 'Rol to‘qnashuvi!' : null,
+                                  crimeLinks > 0 ? `${crimeLinks} ta aniqlangan jinoyat` : null,
+                                ].filter(Boolean);
+                                return (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => navigate(`/applications/${app.id}/relations`)}
+                                    className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
+                                      isCritical
+                                        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
+                                    }`}
+                                    title={`Firibgar bog‘liqliklari: ${tooltipParts.join(', ')}`}
+                                  >
+                                    <Link2 className="h-3 w-3 shrink-0" />
+                                    <span>
+                                      {rs.has_cross_role_collision
+                                        ? `Rol to‘qnashuvi (${totalAlerts})`
+                                        : crimeLinks > 0 && appLinks === 0
+                                          ? `${crimeLinks} ta jinoyat`
+                                          : `${totalAlerts} ta bog‘liqlik`}
+                                    </span>
+                                  </Button>
+                                );
+                              })()}
+                            </TableCell>
+                          );
+
+                        case 'date':
+                          return (
+                            <TableCell
+                              key={col.id}
+                              className="font-mono text-xs text-muted-foreground whitespace-nowrap"
+                            >
+                              {app.date ? new Date(app.date).toLocaleDateString() : '—'}
+                            </TableCell>
+                          );
+
+                        case 'description':
+                          return (
+                            <TableCell key={col.id} className="max-w-[420px]">
+                              {app.description?.trim() ? (
+                                <p
+                                  className="text-xs text-foreground/90 leading-relaxed line-clamp-3 whitespace-normal"
+                                  title={app.description}
+                                >
+                                  {app.description}
+                                </p>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'citizen_phone':
+                          return (
+                            <TableCell key={col.id} className="font-mono text-xs whitespace-nowrap">
+                              {app.citizen?.phone_number ? (
+                                <span className="text-foreground">
+                                  +998 {formatPhoneDisplay(app.citizen.phone_number)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'citizen_address': {
+                          const addrParts = [
+                            app.citizen?.district?.name,
+                            app.citizen?.neighborhood?.name,
+                            app.citizen?.address,
+                          ].filter(Boolean);
+                          return (
+                            <TableCell key={col.id} className="max-w-[280px]">
+                              {addrParts.length > 0 ? (
+                                <span className="text-xs text-foreground/90 leading-snug block">
+                                  {addrParts.join(', ')}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        }
+
+                        case 'cards': {
+                          const senderCard =
+                            app.transfer?.sender_card?.card_number || app.card?.card_number;
+                          const receiverCard = app.transfer?.receiver_card?.card_number;
+                          const destLabel =
+                            app.transfer?.destination_type &&
+                            app.transfer.destination_type !== 'CARD'
+                              ? app.transfer.destination_label
+                              : null;
+                          return (
+                            <TableCell key={col.id} className="font-mono text-[11px]">
+                              {senderCard || receiverCard || destLabel ? (
+                                <div className="space-y-1">
+                                  {senderCard && (
+                                    <div className="text-foreground whitespace-nowrap">
+                                      <span className="text-muted-foreground mr-1">Chiqdi:</span>
+                                      {formatCardNumberDisplay(senderCard)}
+                                    </div>
+                                  )}
+                                  {receiverCard && (
+                                    <div className="text-rose-600 dark:text-rose-400 font-semibold whitespace-nowrap">
+                                      <span className="text-muted-foreground font-normal mr-1">
+                                        Tushdi:
+                                      </span>
+                                      {formatCardNumberDisplay(receiverCard)}
+                                    </div>
+                                  )}
+                                  {!receiverCard && destLabel && (
+                                    <div className="text-purple-600 dark:text-purple-400 font-semibold break-all">
+                                      {destLabel}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs font-sans">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        }
+
+                        case 'crime_method':
+                          return (
+                            <TableCell key={col.id}>
+                              <span className="text-xs text-foreground">
+                                {app.crime_method?.name || '—'}
+                              </span>
+                            </TableCell>
+                          );
+
+                        case 'source':
+                          return (
+                            <TableCell key={col.id} className="whitespace-nowrap">
+                              {app.source?.name ? (
+                                <Badge variant="outline" className="text-[10px] font-semibold">
+                                  {app.source.name}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'department_service':
+                          return (
+                            <TableCell key={col.id}>
+                              <span className="text-xs text-foreground">
+                                {app.department_service?.short_name ||
+                                  app.department_service?.name ||
+                                  '—'}
+                              </span>
+                            </TableCell>
+                          );
+
+                        case 'decision':
+                          return (
+                            <TableCell key={col.id}>
+                              {app.decision_type?.name || app.decision_number ? (
+                                <div className="space-y-0.5 text-xs">
+                                  {app.decision_type?.name && (
+                                    <div className="font-medium text-foreground">
+                                      {app.decision_type.name}
+                                    </div>
+                                  )}
+                                  {app.decision_number && (
+                                    <div className="font-mono text-[11px] text-muted-foreground">
+                                      {app.decision_number}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'awareness':
+                          return (
+                            <TableCell key={col.id}>
+                              {app.awareness_status ? (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[10px] font-semibold',
+                                    app.awareness_status.is_informed
+                                      ? 'border-emerald-500/35 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
+                                      : 'border-amber-500/35 text-amber-700 dark:text-amber-400 bg-amber-500/10',
+                                  )}
+                                >
+                                  {app.awareness_status.name}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'officer_notes':
+                          return (
+                            <TableCell key={col.id} className="max-w-[340px]">
+                              {app.officer_notes?.trim() ? (
+                                <p
+                                  className="text-xs text-foreground/90 leading-relaxed line-clamp-3 whitespace-normal"
+                                  title={app.officer_notes}
+                                >
+                                  {app.officer_notes}
+                                </p>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'created_by': {
+                          const author = [app.created_by?.last_name, app.created_by?.first_name]
+                            .filter(Boolean)
+                            .join(' ')
+                            .trim();
+                          return (
+                            <TableCell key={col.id} className="whitespace-nowrap">
+                              <span className="text-xs text-foreground">
+                                {author || app.created_by?.username || '—'}
+                              </span>
+                            </TableCell>
+                          );
+                        }
+
+                        default:
+                          return null;
+                      }
+                    })}
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-
-            {data?.meta && (
-              <PaginationBar
-                page={data.meta.page}
-                totalPages={data.meta.totalPages}
-                total={data.meta.total}
-                limit={limit}
-                hasNextPage={data.meta.hasNextPage}
-                hasPreviousPage={data.meta.hasPreviousPage}
-                onPageChange={(p) => setPage(p)}
-                onLimitChange={(newLimit) => {
-                  setLimit(newLimit);
-                  setPage(1);
-                }}
-                isLoading={isLoading}
-              />
+                );
+              })
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={tableColumns.visibleColumns.length + 1}
+                  className="text-center py-10 text-muted-foreground"
+                >
+                  Hech qanday ariza topilmadi
+                </TableCell>
+              </TableRow>
             )}
-          </Card>
-        </div>
+          </TableBody>
+        </Table>
 
-        {/* O'NG TOMONDAN OCHILADIGAN STATISTIKA PANELI */}
-        {isStatsPanelOpen && (
-          <ApplicationsStatsPanel
-            onClose={handleToggleStatsPanel}
-            dateFromFilter={dateFromFilter}
-            dateToFilter={dateToFilter}
-            filteredTotal={data?.meta?.total}
-            hasActiveTableFilters={activeFiltersCount > 0}
-            activeDistrictId={districtFilter}
-            onSelectDistrict={(dId) => {
-              setDistrictFilter(dId);
+        {data?.meta && (
+          <PaginationBar
+            page={data.meta.page}
+            totalPages={data.meta.totalPages}
+            total={data.meta.total}
+            limit={limit}
+            hasNextPage={data.meta.hasNextPage}
+            hasPreviousPage={data.meta.hasPreviousPage}
+            onPageChange={(p) => setPage(p)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
               setPage(1);
             }}
-            activeStatusFilter={
-              allApplicationStatuses.find((st) => st.id === statusFilter)?.code || statusFilter
-            }
-            onSelectStatus={(stCode) => {
-              if (!stCode) {
-                setStatusFilter('');
-                setPage(1);
-                return;
-              }
-              const matchedStatus = allApplicationStatuses.find(
-                (st) => st.code?.toUpperCase() === stCode.toUpperCase(),
-              );
-              setStatusFilter(matchedStatus?.id || stCode);
-              setPage(1);
-            }}
+            isLoading={isLoading}
           />
         )}
-      </div>
+      </Card>
 
-      {/* O'NG CHEKKADAGI STATISTIKA PANELINI OCHISH TUGMASI (<) */}
-      {!isStatsPanelOpen && (
-        <button
-          type="button"
-          onClick={handleToggleStatsPanel}
-          aria-label="Statistika panelini ochish"
-          title="O‘ng tomonda statistikani ochish"
-          className="fixed top-1/2 -translate-y-1/2 right-0 z-30 h-20 w-7 flex items-center justify-center border border-r-0 border-border/90 bg-card/95 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground shadow-xl backdrop-blur-md transition-all cursor-pointer group"
-        >
-          <ChevronLeft className="h-5 w-5 text-primary group-hover:text-primary-foreground transition-transform group-hover:-translate-x-0.5" />
-        </button>
-      )}
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN STATISTIKA SHEET */}
+      <ApplicationsStatsPanel
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        dateFromFilter={dateFromFilter}
+        dateToFilter={dateToFilter}
+        filteredTotal={data?.meta?.total}
+        hasActiveTableFilters={activeFiltersCount > 0}
+        activeDistrictId={districtFilter}
+        onSelectDistrict={(dId) => {
+          setDistrictFilter(dId);
+          setPage(1);
+        }}
+        activeStatusFilter={
+          allApplicationStatuses.find((st) => st.id === statusFilter)?.code || statusFilter
+        }
+        onSelectStatus={(stCode) => {
+          if (!stCode) {
+            setStatusFilter('');
+            setPage(1);
+            return;
+          }
+          const matchedStatus = allApplicationStatuses.find(
+            (st) => st.code?.toUpperCase() === stCode.toUpperCase(),
+          );
+          setStatusFilter(matchedStatus?.id || stCode);
+          setPage(1);
+        }}
+      />
 
       {/* BULK DELETE CONFIRMATION */}
       <ConfirmDialog

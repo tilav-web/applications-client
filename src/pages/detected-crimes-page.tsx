@@ -1,5 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Download, Plus, Radar, Scale, Search, ShieldAlert } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Download,
+  Layers,
+  Plus,
+  Radar,
+  Scale,
+  Search,
+  ShieldAlert,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,6 +19,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DistrictSearchSelect } from '@/components/ui/district-search-select';
 import { Input } from '@/components/ui/input';
+import {
+  PageStatsSheet,
+  StatsDistributionBar,
+  StatsMetricTile,
+  StatsSection,
+  StatsSheetSkeleton,
+  useStatsSheetState,
+} from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -47,6 +66,7 @@ const QUAL_LABELS: Record<DetectedCrimeQualification, { label: string; cls: stri
 export function DetectedCrimesPage() {
   const navigate = useNavigate();
   const { canWrite } = usePermissions();
+  const statsSheet = useStatsSheetState('uvd_stats_sheet_open:detected-crimes', false);
 
   const [page, setPage] = useState(1);
   const limit = 15;
@@ -83,9 +103,16 @@ export function DetectedCrimesPage() {
       }),
   });
 
-  const { data: stats } = useQuery({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ['detected-crimes-stats'],
     queryFn: () => detectedCrimesApi.getStats(),
+    enabled: statsSheet.isOpen,
+    staleTime: 30_000,
   });
 
   const { data: districtsRes } = useQuery({
@@ -162,58 +189,6 @@ export function DetectedCrimesPage() {
             </Button>
           )}
         </div>
-      </div>
-
-      {/* KPI Kartochkalar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-border/80 bg-card/70">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] text-muted-foreground uppercase font-semibold">
-                Jami fosh etilgan
-              </div>
-              <div className="text-2xl font-bold mt-0.5">{stats?.total ?? 0}</div>
-            </div>
-            <Radar className="h-7 w-7 text-primary/60" />
-          </CardContent>
-        </Card>
-        <Card className="border-rose-500/25 bg-rose-500/5">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] text-rose-600 uppercase font-semibold">Jinoyat (JK)</div>
-              <div className="text-2xl font-bold text-rose-600 mt-0.5">
-                {stats?.criminalCount ?? 0}
-              </div>
-            </div>
-            <ShieldAlert className="h-7 w-7 text-rose-500/60" />
-          </CardContent>
-        </Card>
-        <Card className="border-amber-500/25 bg-amber-500/5">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] text-amber-700 uppercase font-semibold">
-                Ma’muriy (MJTK)
-              </div>
-              <div className="text-2xl font-bold text-amber-700 mt-0.5">
-                {stats?.adminCount ?? 0}
-              </div>
-            </div>
-            <Scale className="h-7 w-7 text-amber-600/60" />
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-500/25 bg-emerald-500/5">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] text-emerald-700 uppercase font-semibold">
-                Yakunlangan (Sud qarori)
-              </div>
-              <div className="text-2xl font-bold text-emerald-700 mt-0.5">
-                {stats?.finalCount ?? 0}
-              </div>
-            </div>
-            <CheckCircle2 className="h-7 w-7 text-emerald-600/60" />
-          </CardContent>
-        </Card>
       </div>
 
       {/* Filtrlar */}
@@ -425,6 +400,172 @@ export function DetectedCrimesPage() {
           onPageChange={setPage}
         />
       )}
+
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN ANIQLANGAN JINOYATLAR STATISTIKASI */}
+      <PageStatsSheet
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        title="Aniqlangan Jinoyatlar"
+        subtitle="Malaka, ijro va protsessual muddat holati"
+        icon={<Radar className="h-4 w-4" />}
+        isFetching={statsFetching && Boolean(stats)}
+        onRefresh={() => void refetchStats()}
+      >
+        {statsLoading && !stats ? (
+          <StatsSheetSkeleton />
+        ) : (
+          <>
+            <StatsSection>
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Jami Fosh Etilgan"
+                  value={stats?.total ?? 0}
+                  accent="primary"
+                  icon={<Radar className="h-3.5 w-3.5" />}
+                  active={!qualType}
+                  onClick={() => {
+                    if (qualType) {
+                      setQualType('');
+                      setPage(1);
+                    }
+                  }}
+                  subtext="Barcha aniqlangan holatlar"
+                />
+
+                <StatsMetricTile
+                  label="Jinoyat (JK)"
+                  value={stats?.criminalCount ?? 0}
+                  accent="rose"
+                  icon={<ShieldAlert className="h-3.5 w-3.5" />}
+                  active={qualType === 'CRIMINAL'}
+                  onClick={() => {
+                    setQualType(qualType === 'CRIMINAL' ? '' : 'CRIMINAL');
+                    setPage(1);
+                  }}
+                  title="Faqat JK jinoyatlarini filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+
+                <StatsMetricTile
+                  label="Ma’muriy (MJTK)"
+                  value={stats?.adminCount ?? 0}
+                  accent="amber"
+                  icon={<Scale className="h-3.5 w-3.5" />}
+                  active={qualType === 'ADMINISTRATIVE'}
+                  onClick={() => {
+                    setQualType(qualType === 'ADMINISTRATIVE' ? '' : 'ADMINISTRATIVE');
+                    setPage(1);
+                  }}
+                  title="Faqat MJTK holatlarini filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+
+                <StatsMetricTile
+                  label="Tekshiruvda"
+                  value={stats?.preInvCount ?? 0}
+                  accent="blue"
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  active={qualType === 'PRE_INVESTIGATION'}
+                  onClick={() => {
+                    setQualType(qualType === 'PRE_INVESTIGATION' ? '' : 'PRE_INVESTIGATION');
+                    setPage(1);
+                  }}
+                  title="Tekshiruvdagi holatlarni filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+              </div>
+            </StatsSection>
+
+            <StatsSection
+              title="Malaka taqsimoti"
+              icon={<Layers className="h-3.5 w-3.5 text-primary" />}
+            >
+              <StatsDistributionBar
+                total={stats?.total ?? 0}
+                segments={[
+                  {
+                    key: 'criminal',
+                    label: 'Jinoyat (JK)',
+                    count: stats?.criminalCount ?? 0,
+                    colorClass: 'bg-rose-500',
+                    dotColorClass: 'bg-rose-500',
+                    active: qualType === 'CRIMINAL',
+                    onClick: () => {
+                      setQualType(qualType === 'CRIMINAL' ? '' : 'CRIMINAL');
+                      setPage(1);
+                    },
+                  },
+                  {
+                    key: 'admin',
+                    label: 'Ma’muriy (MJTK)',
+                    count: stats?.adminCount ?? 0,
+                    colorClass: 'bg-amber-500',
+                    dotColorClass: 'bg-amber-500',
+                    active: qualType === 'ADMINISTRATIVE',
+                    onClick: () => {
+                      setQualType(qualType === 'ADMINISTRATIVE' ? '' : 'ADMINISTRATIVE');
+                      setPage(1);
+                    },
+                  },
+                  {
+                    key: 'pre',
+                    label: 'Tekshiruvda',
+                    count: stats?.preInvCount ?? 0,
+                    colorClass: 'bg-sky-500',
+                    dotColorClass: 'bg-sky-500',
+                    active: qualType === 'PRE_INVESTIGATION',
+                    onClick: () => {
+                      setQualType(qualType === 'PRE_INVESTIGATION' ? '' : 'PRE_INVESTIGATION');
+                      setPage(1);
+                    },
+                  },
+                ]}
+              />
+            </StatsSection>
+
+            <StatsSection
+              title="Ijro va muddat holati"
+              icon={<CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+            >
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Yakunlangan"
+                  value={stats?.finalCount ?? 0}
+                  accent="emerald"
+                  icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                  pill={
+                    stats && stats.total > 0 ? (
+                      <span className="text-[10px] font-mono font-bold px-1 py-0.5 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                        {Math.round((stats.finalCount / stats.total) * 100)}%
+                      </span>
+                    ) : null
+                  }
+                  subtext="Sud qarori / yakuniy"
+                />
+
+                <StatsMetricTile
+                  label="Jarayonda"
+                  value={stats?.inProgressCount ?? 0}
+                  accent="blue"
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  subtext="Tergov davom etmoqda"
+                />
+              </div>
+
+              {(stats?.overdueCount ?? 0) > 0 && (
+                <StatsMetricTile
+                  label="Muddati o‘tgan (SLA)"
+                  value={stats?.overdueCount ?? 0}
+                  accent="rose"
+                  icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                  subtext="Zudlik bilan chora ko‘rish talab etiladi"
+                />
+              )}
+            </StatsSection>
+          </>
+        )}
+      </PageStatsSheet>
     </div>
   );
 }

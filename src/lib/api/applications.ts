@@ -391,6 +391,16 @@ export interface DashboardStatistics {
 }
 
 // 2. Citizens API
+export interface CitizenStatsResponse {
+  total: number;
+  maleCount: number;
+  femaleCount: number;
+  withPhoneCount: number;
+  withPassportCount: number;
+  withCardsCount: number;
+  topDistricts: Array<{ id: string; name: string; count: number; percent: number }>;
+}
+
 export const citizensApi = {
   getAll: async (params?: {
     page?: number;
@@ -410,6 +420,10 @@ export const citizensApi = {
     const res = await apiClient.get<PaginatedResponse<Citizen>>('/citizens', {
       params,
     });
+    return res.data;
+  },
+  getStats: async () => {
+    const res = await apiClient.get<CitizenStatsResponse>('/citizens/stats');
     return res.data;
   },
   getOne: async (id: string) => {
@@ -438,6 +452,17 @@ export const citizensApi = {
 };
 
 // 3. Cards API
+export interface CardStatsResponse {
+  total: number;
+  attachedCount: number;
+  unattachedCount: number;
+  uzcardCount: number;
+  humoCount: number;
+  visaMasterCount: number;
+  otherSystemCount: number;
+  topBanks: Array<{ id: string; name: string; count: number; percent: number }>;
+}
+
 export const cardsApi = {
   getAll: async (params?: {
     page?: number;
@@ -454,6 +479,10 @@ export const cardsApi = {
     const res = await apiClient.get<PaginatedResponse<Card>>('/cards', {
       params,
     });
+    return res.data;
+  },
+  getStats: async () => {
+    const res = await apiClient.get<CardStatsResponse>('/cards/stats');
     return res.data;
   },
   getOne: async (id: string) => {
@@ -482,6 +511,25 @@ export const cardsApi = {
 };
 
 // 4. Transfers API
+export interface TransferStatsResponse {
+  total: number;
+  totalAmountUzs: number;
+  avgAmountUzs: number;
+  successCount: number;
+  pendingCount: number;
+  cancelledCount: number;
+  cardToCardCount: number;
+  cryptoCount: number;
+  otherChannelCount: number;
+  topProviders: Array<{
+    id: string;
+    name: string;
+    count: number;
+    totalAmount: number;
+    percent: number;
+  }>;
+}
+
 export const transfersApi = {
   getAll: async (params?: {
     page?: number;
@@ -498,6 +546,10 @@ export const transfersApi = {
     const res = await apiClient.get<PaginatedResponse<Transfer>>('/transfers', {
       params,
     });
+    return res.data;
+  },
+  getStats: async () => {
+    const res = await apiClient.get<TransferStatsResponse>('/transfers/stats');
     return res.data;
   },
   getOne: async (id: string) => {

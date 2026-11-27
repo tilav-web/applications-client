@@ -2,13 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
   ArrowRight,
+  Building2,
+  CheckCircle2,
+  Clock,
   CreditCard,
   Edit2,
   ExternalLink,
   FileText,
   Hash,
+  Layers,
   Plus,
   Trash2,
+  Wallet,
+  XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +34,16 @@ import {
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
+import {
+  PageStatsSheet,
+  StatsDistributionBar,
+  StatsFilterRow,
+  StatsHeroBanner,
+  StatsMetricTile,
+  StatsSection,
+  StatsSheetSkeleton,
+  useStatsSheetState,
+} from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -55,6 +71,19 @@ export function TransfersPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+  const statsSheet = useStatsSheetState('uvd_stats_sheet_open:transfers', false);
+
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['transfers-stats'],
+    queryFn: () => transfersApi.getStats(),
+    enabled: statsSheet.isOpen,
+    staleTime: 30_000,
+  });
 
   // Alohida aniq filtrlar (AND mantiqida birgalikda ishlaydi)
   const [txIdFilter, setTxIdFilter] = useState('');
@@ -168,7 +197,10 @@ export function TransfersPage() {
     try {
       setIsBulkDeleting(true);
       await Promise.all(selection.selectedIds.map((id) => transfersApi.delete(id)));
-      await queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['transfers'] }),
+        queryClient.invalidateQueries({ queryKey: ['transfers-stats'] }),
+      ]);
       toast.success(`${selection.selectedIds.length} ta o‘tkazma o‘chirildi`);
       selection.clearSelection();
       setIsBulkDeleteOpen(false);
@@ -238,6 +270,7 @@ export function TransfersPage() {
     mutationFn: () => transfersApi.create(formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['transfers-stats'] });
       closeModal();
       toast.success('O‘tkazma muvaffaqiyatli saqlandi');
     },
@@ -250,6 +283,7 @@ export function TransfersPage() {
     mutationFn: () => transfersApi.update(targetTransfer!.id, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['transfers-stats'] });
       closeModal();
       toast.success('O‘tkazma yangilandi');
     },
@@ -262,6 +296,7 @@ export function TransfersPage() {
     mutationFn: () => transfersApi.delete(targetTransfer!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['transfers-stats'] });
       selection.clearSelection();
       closeModal();
       toast.success('O‘tkazma o‘chirildi');
@@ -963,6 +998,163 @@ export function TransfersPage() {
         isLoading={isBulkDeleting}
         onConfirm={handleBulkDelete}
       />
+
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN O'TKAZMALAR STATISTIKASI */}
+      <PageStatsSheet
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        title="O‘tkazmalar Statistikasi"
+        subtitle="Moliyaviy hajm, holatlar va provayderlar"
+        badgeText={
+          activeFiltersCount > 0 && typeof data?.meta?.total === 'number'
+            ? `Filtr: ${data.meta.total}`
+            : undefined
+        }
+        icon={<ArrowLeftRight className="h-4 w-4" />}
+        isFetching={statsFetching && Boolean(stats)}
+        onRefresh={() => void refetchStats()}
+      >
+        {statsLoading && !stats ? (
+          <StatsSheetSkeleton />
+        ) : (
+          <>
+            <StatsSection>
+              <StatsHeroBanner
+                label="Umumiy O‘tkazma Hajmi"
+                value={`${new Intl.NumberFormat('uz-UZ').format(Math.round(stats?.totalAmountUzs ?? 0))} UZS`}
+                subtext={`O‘rtacha o‘tkazma: ${new Intl.NumberFormat('uz-UZ').format(Math.round(stats?.avgAmountUzs ?? 0))} UZS`}
+                accent="rose"
+                icon={<Wallet className="h-4 w-4" />}
+              />
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Jami O‘tkazmalar"
+                  value={stats?.total ?? 0}
+                  accent="primary"
+                  icon={<ArrowLeftRight className="h-3.5 w-3.5" />}
+                  active={!statusFilter && !providerFilter}
+                  onClick={() => {
+                    if (statusFilter || providerFilter) {
+                      setStatusFilter('');
+                      setProviderFilter('');
+                      setPage(1);
+                    }
+                  }}
+                  subtext="Barcha tranzaksiyalar"
+                />
+
+                <StatsMetricTile
+                  label="Muvaffaqiyatli"
+                  value={stats?.successCount ?? 0}
+                  accent="emerald"
+                  icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                  active={statusFilter === 'MUVAFFAQIYATLI'}
+                  onClick={() => {
+                    setStatusFilter(statusFilter === 'MUVAFFAQIYATLI' ? '' : 'MUVAFFAQIYATLI');
+                    setPage(1);
+                  }}
+                  title="Muvaffaqiyatli o‘tkazmalarni filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+
+                <StatsMetricTile
+                  label="Kutilmoqda"
+                  value={stats?.pendingCount ?? 0}
+                  accent="amber"
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  active={statusFilter === 'KUTILMOQDA'}
+                  onClick={() => {
+                    setStatusFilter(statusFilter === 'KUTILMOQDA' ? '' : 'KUTILMOQDA');
+                    setPage(1);
+                  }}
+                  title="Kutilayotgan o‘tkazmalarni filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+
+                <StatsMetricTile
+                  label="Bekor Qilingan"
+                  value={stats?.cancelledCount ?? 0}
+                  accent="rose"
+                  icon={<XCircle className="h-3.5 w-3.5" />}
+                  active={statusFilter === 'BEKOR_QILINDI'}
+                  onClick={() => {
+                    setStatusFilter(statusFilter === 'BEKOR_QILINDI' ? '' : 'BEKOR_QILINDI');
+                    setPage(1);
+                  }}
+                  title="Bekor qilingan o‘tkazmalarni filtrlash"
+                  subtext="Bosib filtrlang"
+                />
+              </div>
+            </StatsSection>
+
+            <StatsSection
+              title="Chiqish kanallari"
+              icon={<Layers className="h-3.5 w-3.5 text-primary" />}
+            >
+              <StatsDistributionBar
+                total={stats?.total ?? 0}
+                segments={[
+                  {
+                    key: 'card',
+                    label: 'Karta → Karta',
+                    count: stats?.cardToCardCount ?? 0,
+                    colorClass: 'bg-blue-500',
+                    dotColorClass: 'bg-blue-500',
+                  },
+                  {
+                    key: 'crypto',
+                    label: 'Kripto / Birja',
+                    count: stats?.cryptoCount ?? 0,
+                    colorClass: 'bg-purple-500',
+                    dotColorClass: 'bg-purple-500',
+                  },
+                  {
+                    key: 'other',
+                    label: 'Naqd / Boshqa',
+                    count: stats?.otherChannelCount ?? 0,
+                    colorClass: 'bg-emerald-500',
+                    dotColorClass: 'bg-emerald-500',
+                  },
+                ]}
+              />
+            </StatsSection>
+
+            {(stats?.topProviders?.length ?? 0) > 0 && (
+              <StatsSection
+                title="Top 5 to‘lov tizimlari"
+                icon={<Building2 className="h-3.5 w-3.5 text-primary" />}
+                hint="Bosib filtrlang"
+              >
+                <div className="space-y-0.5">
+                  {stats!.topProviders.map((p) => {
+                    const isActive = providerFilter === p.id;
+                    return (
+                      <StatsFilterRow
+                        key={p.id}
+                        label={p.name}
+                        sublabel={
+                          p.totalAmount > 0
+                            ? `${new Intl.NumberFormat('uz-UZ').format(Math.round(p.totalAmount))} UZS`
+                            : undefined
+                        }
+                        count={p.count}
+                        percent={p.percent}
+                        active={isActive}
+                        onClick={() => {
+                          setProviderFilter(isActive ? '' : p.id);
+                          setPage(1);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </StatsSection>
+            )}
+          </>
+        )}
+      </PageStatsSheet>
     </div>
   );
 }

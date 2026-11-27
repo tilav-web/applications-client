@@ -9,6 +9,7 @@ import {
   Download,
   Eye,
   FileSpreadsheet,
+  Layers,
   RefreshCw,
   Search,
   Shield,
@@ -35,6 +36,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { TableRowsSkeleton } from '@/components/ui/page-skeletons';
+import {
+  PageStatsSheet,
+  StatsDistributionBar,
+  StatsHeroBanner,
+  StatsMetricTile,
+  StatsSection,
+  StatsSheetSkeleton,
+  useStatsSheetState,
+} from '@/components/ui/page-stats-sheet';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -133,6 +143,7 @@ function getSeverityBadge(severity: AuditLogItem['severity']) {
 export function AuditPage() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const statsSheet = useStatsSheetState('uvd_stats_sheet_open:audit', false);
 
   const [activeTab, setActiveTab] = useState<'logs' | 'traffic'>('logs');
   const [page, setPage] = useState(1);
@@ -152,11 +163,16 @@ export function AuditPage() {
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
-  const { data: stats } = useQuery({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ['audit-stats'],
     queryFn: () => auditApi.getStats(),
-    enabled: isSuperAdmin,
-    refetchInterval: 30_000,
+    enabled: isSuperAdmin && statsSheet.isOpen,
+    refetchInterval: statsSheet.isOpen ? 30_000 : false,
   });
 
   const { data: logsData, isLoading: logsLoading } = useQuery({
@@ -287,61 +303,6 @@ export function AuditPage() {
             Excel eksport
           </Button>
         </div>
-      </div>
-
-      {/* Statistika kartalari */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Bugungi amallar</p>
-              <p className="text-2xl font-bold mt-1">{stats?.today_count ?? 0}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Jami bazada: {stats?.total_logs ?? 0}
-              </p>
-            </div>
-            <Activity className="h-8 w-8 text-primary/70" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Xato / Ruxsatsiz (24s)</p>
-              <p className="text-2xl font-bold mt-1 text-amber-600">
-                {stats?.failed_auth_24h ?? 0}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">401, 403, 429, login xato</p>
-            </div>
-            <AlertTriangle className="h-8 w-8 text-amber-500/80" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Eksportlar (24s)</p>
-              <p className="text-2xl font-bold mt-1 text-blue-600">{stats?.exports_24h ?? 0}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Excel va Word yuklashlar</p>
-            </div>
-            <Download className="h-8 w-8 text-blue-500/80" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Kritik / O‘chirish (24s)</p>
-              <p className="text-2xl font-bold mt-1 text-rose-600">
-                {(stats?.critical_24h ?? 0) + (stats?.deletes_24h ?? 0)}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                O‘chirish: {stats?.deletes_24h ?? 0}
-              </p>
-            </div>
-            <ShieldAlert className="h-8 w-8 text-rose-500/80" />
-          </CardContent>
-        </Card>
       </div>
 
       {/* Tablar */}
@@ -980,6 +941,140 @@ export function AuditPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* O'NG TOMONDAN SLIDE-OVER OCHILADIGAN AUDIT & XAVFSIZLIK STATISTIKASI */}
+      <PageStatsSheet
+        isOpen={statsSheet.isOpen}
+        onOpen={statsSheet.open}
+        onClose={statsSheet.close}
+        title="Audit & Xavfsizlik"
+        subtitle="Oxirgi 24 soatlik tizim faolligi"
+        icon={<ShieldCheck className="h-4 w-4" />}
+        isFetching={statsFetching && Boolean(stats)}
+        onRefresh={() => void refetchStats()}
+      >
+        {statsLoading && !stats ? (
+          <StatsSheetSkeleton />
+        ) : (
+          <>
+            <StatsSection>
+              <StatsHeroBanner
+                label="Bazadagi Jami Audit Yozuvlari"
+                value={new Intl.NumberFormat('uz-UZ').format(stats?.total_logs ?? 0)}
+                subtext={`Bugungi amallar: ${new Intl.NumberFormat('uz-UZ').format(stats?.today_count ?? 0)} ta`}
+                accent="primary"
+                icon={<Activity className="h-4 w-4" />}
+              />
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatsMetricTile
+                  label="Bugungi Amallar"
+                  value={stats?.today_count ?? 0}
+                  accent="primary"
+                  icon={<Activity className="h-3.5 w-3.5" />}
+                  active={!action && !severity}
+                  onClick={() => {
+                    setActiveTab('logs');
+                    setAction('');
+                    setSeverity('');
+                    setPage(1);
+                  }}
+                  subtext="Barcha loglarni ko‘rish"
+                />
+
+                <StatsMetricTile
+                  label="Xato / Ruxsatsiz"
+                  value={stats?.failed_auth_24h ?? 0}
+                  accent="amber"
+                  icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                  active={severity === 'WARNING'}
+                  onClick={() => {
+                    setActiveTab('logs');
+                    setSeverity(severity === 'WARNING' ? '' : 'WARNING');
+                    setPage(1);
+                  }}
+                  title="Diqqat darajasidagi loglarni filtrlash"
+                  subtext="Oxirgi 24 soat"
+                />
+
+                <StatsMetricTile
+                  label="Eksportlar (24s)"
+                  value={stats?.exports_24h ?? 0}
+                  accent="blue"
+                  icon={<Download className="h-3.5 w-3.5" />}
+                  active={action === 'EXPORT_EXCEL'}
+                  onClick={() => {
+                    setActiveTab('logs');
+                    setAction(action === 'EXPORT_EXCEL' ? '' : 'EXPORT_EXCEL');
+                    setPage(1);
+                  }}
+                  title="Excel eksport loglarini filtrlash"
+                  subtext="Excel va Word"
+                />
+
+                <StatsMetricTile
+                  label="Kritik / O‘chirish"
+                  value={(stats?.critical_24h ?? 0) + (stats?.deletes_24h ?? 0)}
+                  accent="rose"
+                  icon={<ShieldAlert className="h-3.5 w-3.5" />}
+                  active={severity === 'CRITICAL'}
+                  onClick={() => {
+                    setActiveTab('logs');
+                    setSeverity(severity === 'CRITICAL' ? '' : 'CRITICAL');
+                    setPage(1);
+                  }}
+                  title="Kritik hodisalarni filtrlash"
+                  subtext={`O‘chirishlar: ${stats?.deletes_24h ?? 0}`}
+                />
+              </div>
+            </StatsSection>
+
+            <StatsSection
+              title="Oxirgi 24 soatlik hodisalar"
+              icon={<Layers className="h-3.5 w-3.5 text-primary" />}
+            >
+              <StatsDistributionBar
+                total={
+                  (stats?.exports_24h ?? 0) +
+                  (stats?.failed_auth_24h ?? 0) +
+                  (stats?.deletes_24h ?? 0) +
+                  (stats?.critical_24h ?? 0)
+                }
+                segments={[
+                  {
+                    key: 'exports',
+                    label: 'Eksportlar',
+                    count: stats?.exports_24h ?? 0,
+                    colorClass: 'bg-blue-500',
+                    dotColorClass: 'bg-blue-500',
+                  },
+                  {
+                    key: 'failed',
+                    label: 'Xato / Auth',
+                    count: stats?.failed_auth_24h ?? 0,
+                    colorClass: 'bg-amber-500',
+                    dotColorClass: 'bg-amber-500',
+                  },
+                  {
+                    key: 'deletes',
+                    label: 'O‘chirishlar',
+                    count: stats?.deletes_24h ?? 0,
+                    colorClass: 'bg-rose-500',
+                    dotColorClass: 'bg-rose-500',
+                  },
+                  {
+                    key: 'critical',
+                    label: 'Kritik',
+                    count: stats?.critical_24h ?? 0,
+                    colorClass: 'bg-purple-500',
+                    dotColorClass: 'bg-purple-500',
+                  },
+                ]}
+              />
+            </StatsSection>
+          </>
+        )}
+      </PageStatsSheet>
     </div>
   );
 }
