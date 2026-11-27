@@ -144,9 +144,16 @@ export const intelligenceApi = {
     sender_card_id?: string;
     sender_card_number?: string;
     sender_owner_name?: string;
+    sender_bank_name?: string;
     receiver_card_id?: string;
     receiver_card_number?: string;
     receiver_owner_name?: string;
+    receiver_bank_name?: string;
+    source_type?: string;
+    source_platform?: string;
+    source_network?: string;
+    source_value?: string;
+    source_label?: string;
     amount: number;
     currency?: string;
     transfer_date?: string;
@@ -157,6 +164,7 @@ export const intelligenceApi = {
     application_id?: string;
     destination_type?: string;
     destination_platform?: string;
+    destination_network?: string;
     destination_value?: string;
     destination_label?: string;
     destination_details?: Record<string, unknown>;

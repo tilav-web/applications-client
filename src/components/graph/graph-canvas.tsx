@@ -716,7 +716,12 @@ export const GraphCanvas: React.FC<Props> = ({
         const midY = (startY + lineEndY) / 2;
 
         const providerName = getProviderDisplayName(edge.paymentProvider);
-        const formattedAmount = `${formatUZS(edge.amount)} UZS`;
+        const edgeCurrency = (edge.currency || 'UZS').toUpperCase();
+        const edgeAmountVal = edge.displayAmount ?? edge.amount;
+        const formattedAmount =
+          edgeCurrency === 'UZS'
+            ? `${formatUZS(edgeAmountVal)} UZS`
+            : `${new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 6 }).format(edgeAmountVal)} ${edgeCurrency}`;
         const fullLabel = `[${providerName}] ${formattedAmount}`;
 
         const edgeFont = 'bold 9.5px "JetBrains Mono", Consolas, monospace';

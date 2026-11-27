@@ -1275,6 +1275,8 @@ export interface IGraphEdge {
   from: string;
   to: string;
   amount: number;
+  displayAmount?: number;
+  currency?: string;
   paymentProvider?: string;
   transactionsCount: number;
   lastDate: string;
