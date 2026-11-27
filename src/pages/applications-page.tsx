@@ -48,6 +48,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  type TableColumnDef,
+  TableColumnsManager,
+  useTableColumns,
+} from '@/components/ui/table-columns-manager';
 import { FilterInput, FilterSelect, TableFilterPanel } from '@/components/ui/table-filter-panel';
 import {
   TableActionSelect,
@@ -67,6 +72,7 @@ import {
   externalSystemsApi,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { formatCardNumberDisplay, formatPhoneDisplay } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store';
 import type {
@@ -77,11 +83,33 @@ import type {
   PaginatedResponse,
 } from '@/types/models';
 
+const APPLICATION_TABLE_COLUMNS: readonly TableColumnDef[] = [
+  { id: 'district_crime', label: 'Hudud & Jinoyat Turi', defaultVisible: true },
+  { id: 'application_number', label: 'Ariza Raqami', defaultVisible: true },
+  { id: 'loss_amount', label: 'Zarar Summasi', defaultVisible: true },
+  { id: 'status', label: 'Holati', defaultVisible: true },
+  { id: 'citizen', label: 'Asosiy Arizachi', defaultVisible: true },
+  { id: 'relations', label: 'Bog‘liqliklar', defaultVisible: true },
+  { id: 'date', label: 'Sana', defaultVisible: true },
+  { id: 'description', label: 'Fabula', defaultVisible: false },
+  { id: 'citizen_phone', label: 'Telefon Raqami', defaultVisible: false },
+  { id: 'citizen_address', label: 'Yashash Manzili / Mahalla', defaultVisible: false },
+  { id: 'cards', label: 'Plastik Kartalar', defaultVisible: false },
+  { id: 'crime_method', label: 'Jinoyat Usuli', defaultVisible: false },
+  { id: 'source', label: 'Murojaat Manbasi', defaultVisible: false },
+  { id: 'department_service', label: 'Sohaviy Xizmat', defaultVisible: false },
+  { id: 'decision', label: 'Qaror Turi', defaultVisible: false },
+  { id: 'awareness', label: 'Targ‘ibot Holati', defaultVisible: false },
+  { id: 'officer_notes', label: 'Xodim Qaydi', defaultVisible: false },
+  { id: 'created_by', label: 'Kiritgan Hodim', defaultVisible: false },
+] as const;
+
 export function ApplicationsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { canWrite } = usePermissions();
+  const tableColumns = useTableColumns('applications', APPLICATION_TABLE_COLUMNS);
   const currentUser = useAuthStore((s) => s.user);
   const currentActorName =
     [currentUser?.profile?.last_name, currentUser?.profile?.first_name]
@@ -1434,12 +1462,15 @@ export function ApplicationsPage() {
           })}
         </div>
 
-        {canWrite && (
-          <span className="hidden lg:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Palette className="h-3.5 w-3.5 text-primary/80" />
-            <span>Qatorni ranglash: qatorga o‘ng tugma bosing yoki rang nuqtasini tanlang</span>
-          </span>
-        )}
+        <TableColumnsManager
+          orderedColumns={tableColumns.orderedColumns}
+          visibleSet={tableColumns.visibleSet}
+          isCustomized={tableColumns.isCustomized}
+          onToggle={tableColumns.toggleColumn}
+          onMove={tableColumns.moveColumn}
+          onShowAll={tableColumns.showAll}
+          onReset={tableColumns.resetDefaults}
+        />
       </div>
 
       {/* 2. ALOHIDA AJRATILGAN ARIZALAR JADVALI */}
@@ -1457,32 +1488,45 @@ export function ApplicationsPage() {
                   />
                 </div>
               </TableHead>
-              <TableHead className="w-[145px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Hudud & Jinoyat Turi
-              </TableHead>
-              <TableHead className="w-[145px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Ariza Raqami
-              </TableHead>
-              <TableHead className="w-[155px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Zarar Summasi
-              </TableHead>
-              <TableHead className="w-[145px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Holati
-              </TableHead>
-              <TableHead className="min-w-[175px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Asosiy Arizachi
-              </TableHead>
-              <TableHead className="w-[135px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Bog‘liqliklar
-              </TableHead>
-              <TableHead className="w-[115px] h-10 px-3 text-[11px] whitespace-nowrap">
-                Sana
-              </TableHead>
+              {tableColumns.visibleColumns.map((col) => {
+                const headWidthCls =
+                  col.id === 'district_crime'
+                    ? 'min-w-[145px]'
+                    : col.id === 'application_number'
+                      ? 'min-w-[145px]'
+                      : col.id === 'loss_amount'
+                        ? 'min-w-[150px]'
+                        : col.id === 'status'
+                          ? 'min-w-[145px]'
+                          : col.id === 'citizen'
+                            ? 'min-w-[220px]'
+                            : col.id === 'relations'
+                              ? 'min-w-[135px]'
+                              : col.id === 'date'
+                                ? 'w-[115px]'
+                                : col.id === 'description'
+                                  ? 'min-w-[280px]'
+                                  : col.id === 'officer_notes'
+                                    ? 'min-w-[220px]'
+                                    : col.id === 'citizen_address'
+                                      ? 'min-w-[200px]'
+                                      : col.id === 'cards'
+                                        ? 'min-w-[200px]'
+                                        : 'min-w-[140px]';
+                return (
+                  <TableHead
+                    key={col.id}
+                    className={cn('h-10 px-3 text-[11px] whitespace-nowrap', headWidthCls)}
+                  >
+                    {col.label}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-border">
             {isLoading ? (
-              <TableRowsSkeleton rows={8} columns={8} />
+              <TableRowsSkeleton rows={8} columns={tableColumns.visibleColumns.length + 1} />
             ) : data?.items?.length ? (
               data.items.map((app: Application) => {
                 const selected = selection.isSelected(app.id);
@@ -1564,183 +1608,428 @@ export function ApplicationsPage() {
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="space-y-0.5 text-xs">
-                        {app.district && (
-                          <div className="font-medium text-foreground">{app.district.name}</div>
-                        )}
-                        {app.crime && (
-                          <span className="text-[11px] font-semibold text-primary block truncate max-w-[160px]">
-                            {app.crime.article || app.crime.title}
-                          </span>
-                        )}
-                        {!app.district && !app.crime && (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-primary">
-                            {app.application_number || '—'}
-                          </span>
-                          {app.documents && app.documents.length > 0 && (
-                            <span
-                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#185abd]/10 text-[#185abd] dark:text-blue-400 text-[10px] font-bold"
-                              title={`${app.documents.length} ta Word hujjati biriktirilgan`}
-                            >
-                              W·{app.documents.length}
-                            </span>
-                          )}
-                        </div>
-                        {(app.repeat_type && app.repeat_type !== 'PRIMARY') ||
-                        (app.chain_count && app.chain_count > 1) ? (
-                          <div className="flex flex-wrap items-center gap-1">
-                            {app.repeat_type === 'REPEAT' && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                                Takroriy #{app.repeat_sequence || 2}
-                              </span>
-                            )}
-                            {app.repeat_type === 'DUPLICATE' && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                                Dublikat
-                              </span>
-                            )}
-                            {app.repeat_type === 'SUPPLEMENTAL' && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
-                                Qo‘shimcha
-                              </span>
-                            )}
-                            {(!app.repeat_type || app.repeat_type === 'PRIMARY') &&
-                              app.chain_count &&
-                              app.chain_count > 1 && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                                  Zanjir: {app.chain_count} ta
-                                </span>
+
+                    {tableColumns.visibleColumns.map((col) => {
+                      switch (col.id) {
+                        case 'district_crime':
+                          return (
+                            <TableCell key={col.id}>
+                              <div className="space-y-0.5 text-xs">
+                                {app.district && (
+                                  <div className="font-medium text-foreground">
+                                    {app.district.name}
+                                  </div>
+                                )}
+                                {app.crime && (
+                                  <span className="text-[11px] font-semibold text-primary block leading-snug">
+                                    {app.crime.article || app.crime.title}
+                                  </span>
+                                )}
+                                {!app.district && !app.crime && (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </div>
+                            </TableCell>
+                          );
+
+                        case 'application_number':
+                          return (
+                            <TableCell key={col.id}>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-primary whitespace-nowrap">
+                                    {app.application_number || '—'}
+                                  </span>
+                                  {app.documents && app.documents.length > 0 && (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#185abd]/10 text-[#185abd] dark:text-blue-400 text-[10px] font-bold"
+                                      title={`${app.documents.length} ta Word hujjati biriktirilgan`}
+                                    >
+                                      W·{app.documents.length}
+                                    </span>
+                                  )}
+                                </div>
+                                {(app.repeat_type && app.repeat_type !== 'PRIMARY') ||
+                                (app.chain_count && app.chain_count > 1) ? (
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {app.repeat_type === 'REPEAT' && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                        Takroriy #{app.repeat_sequence || 2}
+                                      </span>
+                                    )}
+                                    {app.repeat_type === 'DUPLICATE' && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                                        Dublikat
+                                      </span>
+                                    )}
+                                    {app.repeat_type === 'SUPPLEMENTAL' && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                                        Qo‘shimcha
+                                      </span>
+                                    )}
+                                    {(!app.repeat_type || app.repeat_type === 'PRIMARY') &&
+                                      app.chain_count &&
+                                      app.chain_count > 1 && (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                          Zanjir: {app.chain_count} ta
+                                        </span>
+                                      )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                          );
+
+                        case 'loss_amount':
+                          return (
+                            <TableCell key={col.id} className="whitespace-nowrap">
+                              {(() => {
+                                const { total, currency, nonCardCount } =
+                                  getApplicationTotalLoss(app);
+                                if (total <= 0) {
+                                  return <span className="text-muted-foreground text-xs">—</span>;
+                                }
+                                return (
+                                  <div className="flex flex-col items-start gap-1">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
+                                        total >= 50_000_000
+                                          ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
+                                          : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
+                                      }`}
+                                    >
+                                      {new Intl.NumberFormat('uz-UZ').format(Math.round(total))}{' '}
+                                      {currency}
+                                    </span>
+                                    {nonCardCount > 0 && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+                                        Kredit/Nasiya: {nonCardCount} ta
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </TableCell>
+                          );
+
+                        case 'status':
+                          return (
+                            <TableCell key={col.id}>
+                              <div className="flex flex-col items-start gap-1">
+                                {getStatusBadge(app.status, app.application_status)}
+                                <SlaBadge app={app} />
+                                {app.external_systems && app.external_systems.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 pt-0.5 max-w-[190px]">
+                                    {app.external_systems.map((es) => {
+                                      const sysName = es.external_system?.name;
+                                      if (!sysName) return null;
+                                      const dotColor = es.external_system?.color || '#2563EB';
+                                      return (
+                                        <span
+                                          key={es.id || es.external_system_id}
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted/70 text-foreground border border-border/70"
+                                          title={`${sysName} tizimiga kiritilgan`}
+                                        >
+                                          <span
+                                            className="h-1.5 w-1.5 rounded-full shrink-0"
+                                            style={{ backgroundColor: dotColor }}
+                                          />
+                                          {sysName}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          );
+
+                        case 'citizen':
+                          return (
+                            <TableCell key={col.id}>
+                              {app.citizen ? (
+                                <div className="flex items-start gap-1.5 text-xs">
+                                  <User className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                  <span className="font-medium leading-snug text-foreground">
+                                    {app.citizen.full_name?.trim() || '—'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
                               )}
-                          </div>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {(() => {
-                        const { total, currency, nonCardCount } = getApplicationTotalLoss(app);
-                        if (total <= 0) {
-                          return <span className="text-muted-foreground text-xs">—</span>;
-                        }
-                        return (
-                          <div className="flex flex-col items-start gap-1">
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold ${
-                                total >= 50_000_000
-                                  ? 'bg-red-500/12 text-red-600 dark:text-red-400 border border-red-500/25'
-                                  : 'bg-rose-500/8 text-rose-600 dark:text-rose-400'
-                              }`}
+                            </TableCell>
+                          );
+
+                        case 'relations':
+                          return (
+                            <TableCell key={col.id} onClick={(e) => e.stopPropagation()}>
+                              {(() => {
+                                const rs = app.relations_summary;
+                                const appLinks = rs?.total || 0;
+                                const crimeLinks = rs?.detected_crimes_count || 0;
+                                const totalAlerts = appLinks + crimeLinks;
+                                if (!rs || totalAlerts <= 0) {
+                                  return (
+                                    <span className="text-muted-foreground text-xs pl-2">—</span>
+                                  );
+                                }
+                                const isCritical =
+                                  rs.has_fraud_card_link ||
+                                  rs.has_cross_role_collision ||
+                                  crimeLinks > 0;
+                                const tooltipParts = [
+                                  rs.cards > 0 ? `${rs.cards} ta karta` : null,
+                                  (rs.suspects || 0) > 0
+                                    ? `${rs.suspects} ta raqamli/tel iz`
+                                    : null,
+                                  rs.citizens > 0 ? `${rs.citizens} ta gumonlanuvchi shaxs` : null,
+                                  rs.has_cross_role_collision ? 'Rol to‘qnashuvi!' : null,
+                                  crimeLinks > 0 ? `${crimeLinks} ta aniqlangan jinoyat` : null,
+                                ].filter(Boolean);
+                                return (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => navigate(`/applications/${app.id}/relations`)}
+                                    className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
+                                      isCritical
+                                        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
+                                    }`}
+                                    title={`Firibgar bog‘liqliklari: ${tooltipParts.join(', ')}`}
+                                  >
+                                    <Link2 className="h-3 w-3 shrink-0" />
+                                    <span>
+                                      {rs.has_cross_role_collision
+                                        ? `Rol to‘qnashuvi (${totalAlerts})`
+                                        : crimeLinks > 0 && appLinks === 0
+                                          ? `${crimeLinks} ta jinoyat`
+                                          : `${totalAlerts} ta bog‘liqlik`}
+                                    </span>
+                                  </Button>
+                                );
+                              })()}
+                            </TableCell>
+                          );
+
+                        case 'date':
+                          return (
+                            <TableCell
+                              key={col.id}
+                              className="font-mono text-xs text-muted-foreground whitespace-nowrap"
                             >
-                              {new Intl.NumberFormat('uz-UZ').format(Math.round(total))} {currency}
-                            </span>
-                            {nonCardCount > 0 && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-300 border border-amber-500/25">
-                                Kredit/Nasiya: {nonCardCount} ta
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col items-start gap-1">
-                        {getStatusBadge(app.status, app.application_status)}
-                        <SlaBadge app={app} />
-                        {app.external_systems && app.external_systems.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-0.5 max-w-[190px]">
-                            {app.external_systems.map((es) => {
-                              const sysName = es.external_system?.name;
-                              if (!sysName) return null;
-                              const dotColor = es.external_system?.color || '#2563EB';
-                              return (
-                                <span
-                                  key={es.id || es.external_system_id}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted/70 text-foreground border border-border/70"
-                                  title={`${sysName} tizimiga kiritilgan`}
+                              {app.date ? new Date(app.date).toLocaleDateString() : '—'}
+                            </TableCell>
+                          );
+
+                        case 'description':
+                          return (
+                            <TableCell key={col.id} className="max-w-[420px]">
+                              {app.description?.trim() ? (
+                                <p
+                                  className="text-xs text-foreground/90 leading-relaxed line-clamp-3 whitespace-normal"
+                                  title={app.description}
                                 >
-                                  <span
-                                    className="h-1.5 w-1.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  {sysName}
+                                  {app.description}
+                                </p>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'citizen_phone':
+                          return (
+                            <TableCell key={col.id} className="font-mono text-xs whitespace-nowrap">
+                              {app.citizen?.phone_number ? (
+                                <span className="text-foreground">
+                                  +998 {formatPhoneDisplay(app.citizen.phone_number)}
                                 </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {app.citizen ? (
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <User className="h-3.5 w-3.5 text-primary shrink-0" />
-                          <span className="font-medium truncate max-w-[200px]">
-                            {app.citizen.full_name?.trim() || '—'}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {(() => {
-                        const rs = app.relations_summary;
-                        const appLinks = rs?.total || 0;
-                        const crimeLinks = rs?.detected_crimes_count || 0;
-                        const totalAlerts = appLinks + crimeLinks;
-                        if (!rs || totalAlerts <= 0) {
-                          return <span className="text-muted-foreground text-xs pl-2">—</span>;
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'citizen_address': {
+                          const addrParts = [
+                            app.citizen?.district?.name,
+                            app.citizen?.neighborhood?.name,
+                            app.citizen?.address,
+                          ].filter(Boolean);
+                          return (
+                            <TableCell key={col.id} className="max-w-[280px]">
+                              {addrParts.length > 0 ? (
+                                <span className="text-xs text-foreground/90 leading-snug block">
+                                  {addrParts.join(', ')}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
                         }
-                        const isCritical =
-                          rs.has_fraud_card_link || rs.has_cross_role_collision || crimeLinks > 0;
-                        const tooltipParts = [
-                          rs.cards > 0 ? `${rs.cards} ta karta` : null,
-                          (rs.suspects || 0) > 0 ? `${rs.suspects} ta raqamli/tel iz` : null,
-                          rs.citizens > 0 ? `${rs.citizens} ta gumonlanuvchi shaxs` : null,
-                          rs.has_cross_role_collision ? 'Rol to‘qnashuvi!' : null,
-                          crimeLinks > 0 ? `${crimeLinks} ta aniqlangan jinoyat` : null,
-                        ].filter(Boolean);
-                        return (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/applications/${app.id}/relations`)}
-                            className={`h-7 px-2.5 text-[11px] font-semibold gap-1.5 rounded-full cursor-pointer transition-all ${
-                              isCritical
-                                ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 shadow-2xs animate-pulse'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 shadow-2xs'
-                            }`}
-                            title={`Firibgar bog‘liqliklari: ${tooltipParts.join(', ')}`}
-                          >
-                            <Link2 className="h-3 w-3 shrink-0" />
-                            <span>
-                              {rs.has_cross_role_collision
-                                ? `Rol to‘qnashuvi (${totalAlerts})`
-                                : crimeLinks > 0 && appLinks === 0
-                                  ? `${crimeLinks} ta jinoyat`
-                                  : `${totalAlerts} ta bog‘liqlik`}
-                            </span>
-                          </Button>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {app.date ? new Date(app.date).toLocaleDateString() : '—'}
-                    </TableCell>
+
+                        case 'cards': {
+                          const senderCard =
+                            app.transfer?.sender_card?.card_number || app.card?.card_number;
+                          const receiverCard = app.transfer?.receiver_card?.card_number;
+                          const destLabel =
+                            app.transfer?.destination_type &&
+                            app.transfer.destination_type !== 'CARD'
+                              ? app.transfer.destination_label
+                              : null;
+                          return (
+                            <TableCell key={col.id} className="font-mono text-[11px]">
+                              {senderCard || receiverCard || destLabel ? (
+                                <div className="space-y-1">
+                                  {senderCard && (
+                                    <div className="text-foreground whitespace-nowrap">
+                                      <span className="text-muted-foreground mr-1">Chiqdi:</span>
+                                      {formatCardNumberDisplay(senderCard)}
+                                    </div>
+                                  )}
+                                  {receiverCard && (
+                                    <div className="text-rose-600 dark:text-rose-400 font-semibold whitespace-nowrap">
+                                      <span className="text-muted-foreground font-normal mr-1">
+                                        Tushdi:
+                                      </span>
+                                      {formatCardNumberDisplay(receiverCard)}
+                                    </div>
+                                  )}
+                                  {!receiverCard && destLabel && (
+                                    <div className="text-purple-600 dark:text-purple-400 font-semibold break-all">
+                                      {destLabel}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs font-sans">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        }
+
+                        case 'crime_method':
+                          return (
+                            <TableCell key={col.id}>
+                              <span className="text-xs text-foreground">
+                                {app.crime_method?.name || '—'}
+                              </span>
+                            </TableCell>
+                          );
+
+                        case 'source':
+                          return (
+                            <TableCell key={col.id} className="whitespace-nowrap">
+                              {app.source?.name ? (
+                                <Badge variant="outline" className="text-[10px] font-semibold">
+                                  {app.source.name}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'department_service':
+                          return (
+                            <TableCell key={col.id}>
+                              <span className="text-xs text-foreground">
+                                {app.department_service?.short_name ||
+                                  app.department_service?.name ||
+                                  '—'}
+                              </span>
+                            </TableCell>
+                          );
+
+                        case 'decision':
+                          return (
+                            <TableCell key={col.id}>
+                              {app.decision_type?.name || app.decision_number ? (
+                                <div className="space-y-0.5 text-xs">
+                                  {app.decision_type?.name && (
+                                    <div className="font-medium text-foreground">
+                                      {app.decision_type.name}
+                                    </div>
+                                  )}
+                                  {app.decision_number && (
+                                    <div className="font-mono text-[11px] text-muted-foreground">
+                                      {app.decision_number}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'awareness':
+                          return (
+                            <TableCell key={col.id}>
+                              {app.awareness_status ? (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[10px] font-semibold',
+                                    app.awareness_status.is_informed
+                                      ? 'border-emerald-500/35 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
+                                      : 'border-amber-500/35 text-amber-700 dark:text-amber-400 bg-amber-500/10',
+                                  )}
+                                >
+                                  {app.awareness_status.name}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'officer_notes':
+                          return (
+                            <TableCell key={col.id} className="max-w-[340px]">
+                              {app.officer_notes?.trim() ? (
+                                <p
+                                  className="text-xs text-foreground/90 leading-relaxed line-clamp-3 whitespace-normal"
+                                  title={app.officer_notes}
+                                >
+                                  {app.officer_notes}
+                                </p>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                          );
+
+                        case 'created_by': {
+                          const author = [app.created_by?.last_name, app.created_by?.first_name]
+                            .filter(Boolean)
+                            .join(' ')
+                            .trim();
+                          return (
+                            <TableCell key={col.id} className="whitespace-nowrap">
+                              <span className="text-xs text-foreground">
+                                {author || app.created_by?.username || '—'}
+                              </span>
+                            </TableCell>
+                          );
+                        }
+
+                        default:
+                          return null;
+                      }
+                    })}
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableCell
+                  colSpan={tableColumns.visibleColumns.length + 1}
+                  className="text-center py-10 text-muted-foreground"
+                >
                   Hech qanday ariza topilmadi
                 </TableCell>
               </TableRow>
