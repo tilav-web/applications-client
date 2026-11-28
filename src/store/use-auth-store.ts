@@ -42,7 +42,11 @@ export const useAuthStore = create<AuthState>()(
 
       setAuth: (token: string, user: AuthUser) => {
         setInMemoryAccessToken(token);
-        localStorage.removeItem('auth_token');
+        try {
+          localStorage.removeItem('auth_token');
+        } catch {
+          // ignore storage errors
+        }
         set({
           token,
           user,

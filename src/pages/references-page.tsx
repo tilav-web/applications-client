@@ -10,6 +10,8 @@ import { ExternalSystemsReferenceTab } from '@/components/references/external-sy
 import { invalidateReferenceTabCaches } from '@/components/references/reference-cache.util';
 import { ReferenceDialogs } from '@/components/references/reference-dialogs';
 import { ReferenceFinanceTabs } from '@/components/references/reference-finance-tabs';
+import { ReferenceLocationTabs } from '@/components/references/reference-location-tabs';
+import { ReferenceProceduralTabs } from '@/components/references/reference-procedural-tabs';
 import {
   ALL_REFERENCE_TABS,
   REFERENCE_NAV_GROUPS,
@@ -59,9 +61,6 @@ import type {
   ApplicationStatusItem,
   Crime,
   CrimeMethod,
-  District,
-  Neighborhood,
-  Region,
   SuspectFieldConfig,
   TransferDestinationType,
 } from '@/types/models';
@@ -71,11 +70,6 @@ const parseOptionalCoord = (val: unknown): number | null | undefined => {
   if (val === null || val === '') return null;
   const num = Number(val);
   return Number.isFinite(num) ? num : null;
-};
-
-const formatCoordPair = (lat?: number | null, lng?: number | null): string => {
-  if (lat == null || lng == null) return '—';
-  return `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`;
 };
 
 export function ReferencesPage() {
@@ -865,299 +859,30 @@ export function ReferencesPage() {
               <ExternalSystemsReferenceTab />
             </TabsContent>
 
-            {/* 0. REGIONS TAB */}
-            <TabsContent value="regions" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="relative max-w-md lg:max-w-lg">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Viloyat nomi yoki kodi bo'yicha qidiruv..."
-                      value={regionSearch}
-                      onChange={(e) => {
-                        setRegionSearch(e.target.value);
-                        setRegionPage(1);
-                      }}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Viloyat Nomi</TableHead>
-                      <TableHead>Kodi</TableHead>
-                      <TableHead>Koordinatalar (Lat, Lng)</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isRegionsLoading ? (
-                      <TableRowsSkeleton rows={4} columns={4} />
-                    ) : regionsData?.items?.length ? (
-                      regionsData.items.map((region: Region) => (
-                        <TableRow key={region.id}>
-                          <TableCell className="font-medium text-foreground">
-                            {region.name || '—'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-primary font-semibold">
-                            {region.code || '—'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {formatCoordPair(region.latitude, region.longitude)}
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditModal(region)}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openDeleteModal(region)}
-                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Hech qanday viloyat topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-
-                {regionsData?.meta && (
-                  <PaginationBar
-                    page={regionsData.meta.page}
-                    totalPages={regionsData.meta.totalPages}
-                    total={regionsData.meta.total}
-                    limit={pageSize}
-                    hasNextPage={regionsData.meta.hasNextPage}
-                    hasPreviousPage={regionsData.meta.hasPreviousPage}
-                    onPageChange={(p) => setRegionPage(p)}
-                    onLimitChange={(newLimit) => {
-                      setPageSize(newLimit);
-                      setRegionPage(1);
-                    }}
-                    isLoading={isRegionsLoading}
-                  />
-                )}
-              </Card>
-            </TabsContent>
-
-            {/* 1. DISTRICTS TAB */}
-            <TabsContent value="districts" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                  <div className="relative flex-1 max-w-md lg:max-w-lg">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Tuman nomi bo'yicha qidiruv..."
-                      value={districtSearch}
-                      onChange={(e) => {
-                        setDistrictSearch(e.target.value);
-                        setDistrictPage(1);
-                      }}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                  <select
-                    value={selectedRegionFilter}
-                    onChange={(e) => {
-                      setSelectedRegionFilter(e.target.value);
-                      setDistrictPage(1);
-                    }}
-                    className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium min-w-[200px]"
-                  >
-                    <option value="">Barcha viloyatlar</option>
-                    {allRegionsList.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tuman / Bo&apos;lim Nomi</TableHead>
-                      <TableHead>Viloyat</TableHead>
-                      <TableHead>Koordinatalar (Lat, Lng)</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isDistrictsLoading ? (
-                      <TableRowsSkeleton rows={6} columns={4} />
-                    ) : districtsData?.items?.length ? (
-                      districtsData.items.map((district: District) => (
-                        <TableRow key={district.id}>
-                          <TableCell className="font-medium text-foreground">
-                            {district.name || '—'}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-xs">
-                            {district.region?.name || '—'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {formatCoordPair(district.latitude, district.longitude)}
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditModal(district)}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openDeleteModal(district)}
-                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Hech qanday tuman topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-
-                {districtsData?.meta && (
-                  <PaginationBar
-                    page={districtsData.meta.page}
-                    totalPages={districtsData.meta.totalPages}
-                    total={districtsData.meta.total}
-                    limit={pageSize}
-                    hasNextPage={districtsData.meta.hasNextPage}
-                    hasPreviousPage={districtsData.meta.hasPreviousPage}
-                    onPageChange={(p) => setDistrictPage(p)}
-                    onLimitChange={(newLimit) => {
-                      setPageSize(newLimit);
-                      setDistrictPage(1);
-                    }}
-                    isLoading={isDistrictsLoading}
-                  />
-                )}
-              </Card>
-            </TabsContent>
-
-            {/* 1.1. NEIGHBORHOODS (MAHALLAS) TAB */}
-            <TabsContent value="neighborhoods" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="relative max-w-md lg:max-w-lg">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Mahalla nomi bo'yicha qidiruv..."
-                      value={neighborhoodSearch}
-                      onChange={(e) => {
-                        setNeighborhoodSearch(e.target.value);
-                        setNeighborhoodPage(1);
-                      }}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Mahalla Nomi</TableHead>
-                      <TableHead>Tegishli Tuman</TableHead>
-                      <TableHead>Koordinatalar (Lat, Lng)</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isNeighborhoodsLoading ? (
-                      <TableRowsSkeleton rows={6} columns={4} />
-                    ) : neighborhoodsData?.items?.length ? (
-                      neighborhoodsData.items.map((neighborhood: Neighborhood) => (
-                        <TableRow key={neighborhood.id}>
-                          <TableCell className="font-medium text-foreground">
-                            {neighborhood.name || '—'}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {neighborhood.district?.name || '—'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {formatCoordPair(neighborhood.latitude, neighborhood.longitude)}
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditModal(neighborhood)}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openDeleteModal(neighborhood)}
-                              className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Hech qanday mahalla topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-
-                {neighborhoodsData?.meta && (
-                  <PaginationBar
-                    page={neighborhoodsData.meta.page}
-                    totalPages={neighborhoodsData.meta.totalPages}
-                    total={neighborhoodsData.meta.total}
-                    limit={pageSize}
-                    hasNextPage={neighborhoodsData.meta.hasNextPage}
-                    hasPreviousPage={neighborhoodsData.meta.hasPreviousPage}
-                    onPageChange={(p) => setNeighborhoodPage(p)}
-                    onLimitChange={(newLimit) => {
-                      setPageSize(newLimit);
-                      setNeighborhoodPage(1);
-                    }}
-                    isLoading={isNeighborhoodsLoading}
-                  />
-                )}
-              </Card>
-            </TabsContent>
+            <ReferenceLocationTabs
+              regionSearch={regionSearch}
+              setRegionSearch={setRegionSearch}
+              setRegionPage={setRegionPage}
+              regionsData={regionsData}
+              isRegionsLoading={isRegionsLoading}
+              allRegionsList={allRegionsList}
+              districtSearch={districtSearch}
+              setDistrictSearch={setDistrictSearch}
+              selectedRegionFilter={selectedRegionFilter}
+              setSelectedRegionFilter={setSelectedRegionFilter}
+              setDistrictPage={setDistrictPage}
+              districtsData={districtsData}
+              isDistrictsLoading={isDistrictsLoading}
+              neighborhoodSearch={neighborhoodSearch}
+              setNeighborhoodSearch={setNeighborhoodSearch}
+              setNeighborhoodPage={setNeighborhoodPage}
+              neighborhoodsData={neighborhoodsData}
+              isNeighborhoodsLoading={isNeighborhoodsLoading}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              openEditModal={openEditModal}
+              openDeleteModal={openDeleteModal}
+            />
 
             {/* 2. CRIMES TAB */}
             <TabsContent value="crimes" className="space-y-4 mt-0">
@@ -1882,347 +1607,26 @@ export function ReferencesPage() {
             </TabsContent>
 
             {/* 8. APPLICATION SOURCES TAB */}
-            <TabsContent value="sources" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="relative max-w-md w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Murojaat manbasi bo‘yicha qidiruv (102, 112, Ishonch telefoni)..."
-                      value={sourceSearch}
-                      onChange={(e) => setSourceSearch(e.target.value)}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Murojaat Manbasi Nomi</TableHead>
-                      <TableHead>Kodi / Raqami</TableHead>
-                      <TableHead>Holati</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isSourcesLoading ? (
-                      <TableRowsSkeleton rows={6} columns={4} />
-                    ) : allSourcesList.filter((s) => matchesLatinSearch(s.name, sourceSearch))
-                        .length ? (
-                      allSourcesList
-                        .filter((s) => matchesLatinSearch(s.name, sourceSearch))
-                        .map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-semibold text-foreground">
-                              {item.name}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                              {item.code || '—'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  item.is_active !== false
-                                    ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
-                                    : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
-                                }
-                              >
-                                {item.is_active !== false ? 'Faol' : 'Nofaol'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditModal(item)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openDeleteModal(item)}
-                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Murojaat manbalari topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </TabsContent>
-
-            {/* 9. DEPARTMENT SERVICES TAB */}
-            <TabsContent value="department_services" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="relative max-w-md w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Sohaviy xizmat nomi yoki qisqartmasi (UYOKK, JQK, TQK)..."
-                      value={deptServiceSearch}
-                      onChange={(e) => setDeptServiceSearch(e.target.value)}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sohaviy Xizmat To‘liq Nomi</TableHead>
-                      <TableHead>Qisqartmasi (Abbreviatura)</TableHead>
-                      <TableHead>Holati</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isDeptServicesLoading ? (
-                      <TableRowsSkeleton rows={6} columns={4} />
-                    ) : allDeptServicesList.filter(
-                        (d) =>
-                          matchesLatinSearch(d.name, deptServiceSearch) ||
-                          (d.short_name && matchesLatinSearch(d.short_name, deptServiceSearch)),
-                      ).length ? (
-                      allDeptServicesList
-                        .filter(
-                          (d) =>
-                            matchesLatinSearch(d.name, deptServiceSearch) ||
-                            (d.short_name && matchesLatinSearch(d.short_name, deptServiceSearch)),
-                        )
-                        .map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-semibold text-foreground">
-                              {item.name}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="font-mono text-xs bg-primary/10 text-primary border-primary/20">
-                                {item.short_name || '—'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  item.is_active !== false
-                                    ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
-                                    : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
-                                }
-                              >
-                                {item.is_active !== false ? 'Faol' : 'Nofaol'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditModal(item)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openDeleteModal(item)}
-                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Sohaviy xizmatlar topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </TabsContent>
-
-            {/* 10. DECISION TYPES TAB */}
-            <TabsContent value="decision_types" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="relative max-w-md w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Qaror turi bo‘yicha qidiruv..."
-                      value={decisionSearch}
-                      onChange={(e) => setDecisionSearch(e.target.value)}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Qaror Turi</TableHead>
-                      <TableHead>Holati</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isDecisionTypesLoading ? (
-                      <TableRowsSkeleton rows={6} columns={3} />
-                    ) : allDecisionTypesList.filter((d) =>
-                        matchesLatinSearch(d.name, decisionSearch),
-                      ).length ? (
-                      allDecisionTypesList
-                        .filter((d) => matchesLatinSearch(d.name, decisionSearch))
-                        .map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-semibold text-foreground">
-                              {item.name}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  item.is_active !== false
-                                    ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
-                                    : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
-                                }
-                              >
-                                {item.is_active !== false ? 'Faol' : 'Nofaol'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditModal(item)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openDeleteModal(item)}
-                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Qaror turlari topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </TabsContent>
-
-            {/* 11. REJECTION REASONS TAB */}
-            <TabsContent value="rejection_reasons" className="space-y-4 mt-0">
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="relative max-w-md w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Rad etish sababi bo‘yicha qidiruv..."
-                      value={rejectionSearch}
-                      onChange={(e) => setRejectionSearch(e.target.value)}
-                      className="pl-9 h-9 text-xs"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="py-0 gap-0 border-border/80 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Rad Etish Sababi Nomi</TableHead>
-                      <TableHead>Holati</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isRejectionReasonsLoading ? (
-                      <TableRowsSkeleton rows={6} columns={3} />
-                    ) : allRejectionReasonsList.filter((r) =>
-                        matchesLatinSearch(r.name, rejectionSearch),
-                      ).length ? (
-                      allRejectionReasonsList
-                        .filter((r) => matchesLatinSearch(r.name, rejectionSearch))
-                        .map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-semibold text-foreground">
-                              {item.name}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  item.is_active !== false
-                                    ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]'
-                                    : 'border-slate-500/30 text-slate-500 bg-slate-500/10 text-[10px]'
-                                }
-                              >
-                                {item.is_active !== false ? 'Faol' : 'Nofaol'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditModal(item)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openDeleteModal(item)}
-                                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Rad etish sabablari topilmadi
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </TabsContent>
+            <ReferenceProceduralTabs
+              sourceSearch={sourceSearch}
+              setSourceSearch={setSourceSearch}
+              allSourcesList={allSourcesList}
+              isSourcesLoading={isSourcesLoading}
+              deptServiceSearch={deptServiceSearch}
+              setDeptServiceSearch={setDeptServiceSearch}
+              allDeptServicesList={allDeptServicesList}
+              isDeptServicesLoading={isDeptServicesLoading}
+              decisionSearch={decisionSearch}
+              setDecisionSearch={setDecisionSearch}
+              allDecisionTypesList={allDecisionTypesList}
+              isDecisionTypesLoading={isDecisionTypesLoading}
+              rejectionSearch={rejectionSearch}
+              setRejectionSearch={setRejectionSearch}
+              allRejectionReasonsList={allRejectionReasonsList}
+              isRejectionReasonsLoading={isRejectionReasonsLoading}
+              openEditModal={openEditModal}
+              openDeleteModal={openDeleteModal}
+            />
           </div>
         </div>
       </Tabs>

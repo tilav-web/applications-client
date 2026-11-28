@@ -66,3 +66,11 @@ export function invalidateReferenceTabCaches(queryClient: QueryClient, activeTab
     void queryClient.invalidateQueries({ queryKey: [...qk] });
   }
 }
+
+export function formatCoordPair(lat?: number | null, lng?: number | null): string {
+  if (lat == null || lng == null) return '—';
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return '—';
+  return `${latNum.toFixed(4)}, ${lngNum.toFixed(4)}`;
+}

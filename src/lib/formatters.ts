@@ -71,9 +71,10 @@ export function formatAmountInput(raw?: string | number | null): string {
  */
 export function cleanAmount(raw?: string | number | null): number | '' {
   if (raw === undefined || raw === null || raw === '') return '';
-  const s = String(raw).replace(/\s/g, '');
+  const s = String(raw).replace(/\s/g, '').replace(/,/g, '.');
+  if (!s) return '';
   const num = Number(s);
-  return isNaN(num) ? '' : num;
+  return Number.isFinite(num) ? num : '';
 }
 
 /**
@@ -81,9 +82,10 @@ export function cleanAmount(raw?: string | number | null): number | '' {
  */
 export function formatAmountWords(raw?: string | number | null, currency = 'UZS'): string {
   if (raw === undefined || raw === null || raw === '') return '';
-  const s = String(raw).replace(/\s/g, '');
+  const s = String(raw).replace(/\s/g, '').replace(/,/g, '.');
+  if (!s) return '';
   const num = Number(s);
-  if (isNaN(num) || num <= 0) return '';
+  if (!Number.isFinite(num) || num <= 0) return '';
 
   const curr = (currency || 'UZS').toUpperCase();
 
@@ -119,7 +121,6 @@ const LOWERCASE_PARTICLES = new Set([
   'кизи',
   'ўғли',
   'угли',
-  'ўғли',
   'уғли',
 ]);
 

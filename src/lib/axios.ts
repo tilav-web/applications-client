@@ -129,9 +129,13 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         inMemoryAccessToken = null;
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth-storage');
-        localStorage.removeItem('global_recent_searches_v1');
+        try {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth-storage');
+          localStorage.removeItem('global_recent_searches_v1');
+        } catch {
+          // ignore storage errors
+        }
         if (authClearCallback) {
           authClearCallback();
         }

@@ -26,13 +26,17 @@ export interface DossierLocationState {
 
 export const formatDossierMoney = (val?: number | null, cur = 'UZS') => {
   if (val === undefined || val === null) return '—';
-  return `${new Intl.NumberFormat('uz-UZ').format(Math.round(Number(val)))} ${cur}`;
+  const num = Number(val);
+  if (!Number.isFinite(num)) return '—';
+  return `${new Intl.NumberFormat('uz-UZ').format(Math.round(num))} ${cur}`;
 };
 
 export const formatDossierDate = (d?: string | null) => {
   if (!d) return '—';
   try {
-    return new Date(d).toLocaleDateString('uz-UZ', {
+    const parsed = new Date(d);
+    if (Number.isNaN(parsed.getTime())) return d;
+    return parsed.toLocaleDateString('uz-UZ', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -51,15 +55,16 @@ export const formatDossierCard = (num?: string | null, masked?: string | null) =
 };
 
 export const formatDossierPhone = (phone?: string | null) => {
-  if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
+  if (!phone || !phone.trim()) return '';
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, '');
   if (digits.length === 12 && digits.startsWith('998')) {
     return `+998 ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10, 12)}`;
   }
   if (digits.length === 9) {
     return `+998 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
   }
-  return phone.startsWith('+') ? phone : `+${digits || phone}`;
+  return trimmed.startsWith('+') ? trimmed : `+${digits || trimmed}`;
 };
 
 export type UzbekRoleTone = 'victim' | 'suspect' | 'dropper' | 'transit' | 'witness' | 'neutral';

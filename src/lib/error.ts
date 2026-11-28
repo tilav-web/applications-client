@@ -3,14 +3,18 @@ export function getErrorMessage(err: unknown, defaultMessage = 'Xatolik yuz berd
     const resData = (err as { response?: { data?: { message?: string | string[] } } }).response
       ?.data;
     if (Array.isArray(resData?.message)) {
-      return resData.message.join(', ');
+      const joined = resData.message
+        .map((m) => (typeof m === 'string' ? m.trim() : ''))
+        .filter(Boolean)
+        .join(', ');
+      if (joined) return joined;
     }
-    if (typeof resData?.message === 'string') {
-      return resData.message;
+    if (typeof resData?.message === 'string' && resData.message.trim()) {
+      return resData.message.trim();
     }
   }
-  if (err instanceof Error) {
-    return err.message;
+  if (err instanceof Error && err.message.trim()) {
+    return err.message.trim();
   }
   return defaultMessage;
 }
